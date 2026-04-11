@@ -9,7 +9,9 @@
     "preview": "npx vite preview",
     "electron:dev": "concurrently \"npx vite\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npx vite build && electron-builder",
-    "backend": "cd backend && python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload"
+    "backend": "cd backend && python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload",
+    "test": "npx vitest run",
+    "test:watch": "npx vitest --watch"
   },
   "keywords": ["pose", "3d", "controlnet", "editor"],
   "author": "PoseFlow Team",
