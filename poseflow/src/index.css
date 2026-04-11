@@ -1,0 +1,58 @@
+/* Глобальные стили */
+:root,
+[data-theme='dark'] {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --bg-tertiary: #3d3d3d;
+  --accent: #4a9eff;
+  --accent-hover: #3a8eef;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --border: #404040;
+  --success: #4caf50;
+  --warning: #ff9800;
+  --error: #f44336;
+}
+
+[data-theme='light'] {
+  --bg-primary: #e8eaed;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f3f5;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --text-primary: #1a1a1a;
+  --text-secondary: #5c6370;
+  --border: #d0d4dc;
+  --success: #2e7d32;
+  --warning: #e65100;
+  --error: #c62828;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: inherit;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+button:active {
+  transform: scale(0.98);
+}

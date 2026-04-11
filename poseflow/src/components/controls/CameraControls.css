@@ -1,0 +1,90 @@
+.camera-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  padding: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  z-index: 100;
+}
+
+.camera-controls-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+/* Compass grid layout - вид сверху */
+.camera-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 48px);
+  grid-template-rows: repeat(3, 40px) 36px;
+  gap: 4px;
+  justify-content: center;
+}
+
+.cam-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.cam-btn:hover {
+  background: #4d4d4d;
+  border-color: var(--accent);
+  transform: scale(1.08);
+}
+
+/* Угловые кнопки */
+.cam-corner {
+  font-size: 18px;
+}
+
+/* Кнопки сторон */
+.cam-edge {
+  font-size: 18px;
+}
+
+/* Центральная кнопка (Top) */
+.cam-center {
+  background: rgba(74, 158, 255, 0.2);
+  border-color: #4a9eff;
+  color: #4a9eff;
+  font-size: 12px !important;
+  font-weight: 600;
+}
+
+.cam-center:hover {
+  background: rgba(74, 158, 255, 0.3);
+  border-color: #6ab4ff;
+}
+
+/* Reset кнопка */
+.cam-btn-reset {
+  grid-column: 1 / -1;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-size: 13px !important;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.cam-btn-reset:hover {
+  background: var(--accent-hover);
+  transform: scale(1.02);
+}

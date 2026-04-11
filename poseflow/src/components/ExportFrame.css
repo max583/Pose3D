@@ -1,0 +1,169 @@
+/* ExportFrame.css */
+
+.export-frame-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  pointer-events: none;
+  /* padding-top удалён — теперь top-bar позиционируется отдельно */
+}
+
+.export-frame-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: none; /* Пропускаем pointer events к canvas */
+}
+
+.export-frame {
+  pointer-events: auto;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.export-frame:hover {
+  border-color: #6ab4ff;
+}
+
+.export-frame-info {
+  position: absolute;
+  top: -30px;
+  left: 0;
+  background: rgba(0, 0, 0, 0.8);
+  color: #4a9eff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.frame-info-text {
+  font-family: monospace;
+}
+
+/* Верхняя панель управления - поверх рамки */
+.export-frame-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(20, 20, 30, 0.95);
+  border-bottom: 1px solid #333;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  pointer-events: auto;
+  z-index: 1020; /* Выше чем overlay */
+  backdrop-filter: blur(10px);
+  height: 48px;
+}
+
+.top-bar-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-bar-label {
+  color: #888;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.top-bar-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.top-bar-btn {
+  background: rgba(40, 40, 60, 0.8);
+  border: 1px solid #444;
+  color: #ccc;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  min-width: 42px;
+}
+
+.top-bar-btn:hover {
+  background: rgba(60, 60, 80, 0.9);
+  border-color: #666;
+}
+
+.top-bar-btn.active {
+  background: rgba(74, 158, 255, 0.3);
+  border-color: #4a9eff;
+  color: #4a9eff;
+}
+
+.top-bar-divider {
+  width: 1px;
+  height: 28px;
+  background: #444;
+}
+
+.top-bar-actions {
+  margin-left: auto;
+  gap: 8px;
+}
+
+.btn-export-top {
+  background: linear-gradient(135deg, #4a9eff, #3578cc);
+  border: none;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-export-top:hover {
+  background: linear-gradient(135deg, #6ab4ff, #4a9eff);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+}
+
+.btn-cancel-top {
+  background: rgba(60, 60, 80, 0.8);
+  border: 1px solid #555;
+  color: #ccc;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-cancel-top:hover {
+  background: rgba(80, 80, 100, 0.9);
+  border-color: #777;
+}
+
+/* Старая панель - удалить или закомментировать */
+/*
+.export-frame-panel {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  ...
+}
+*/

@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+logs/*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Screenshots (generated artifacts)
+*.png
+
+# Qwen Code config (local)
+.qwen/
+
+# Claude Code config (local)
+.claude/
+
+# Misc
+.cache/
+.temp/
