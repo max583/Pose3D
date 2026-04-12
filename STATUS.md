@@ -11,18 +11,19 @@
 - Electron + Python FastAPI backend with IPC bridge
 - App settings: theme, canvas colors, camera speeds, export defaults (localStorage)
 
-## In progress
-- DesignDoll-style controls (see CLAUDE.md implementation plan, Steps 1-11)
-- Development Process Improvements: DONE
+## DesignDoll-style controls (Steps 1-11)
 - Step 1 (camera-plane drag): DONE
 - Step 2 (Undo/Redo + PoseService): DONE
 - Step 3 (SkeletonGraph + FK): DONE
 - Step 4 (FABRIK IK solver): DONE — 5/5 tests pass
-- Next: Step 5 (Mode toggle UI)
+- Step 5 (FK/IK mode toggle UI + end-effector visual feedback): DONE
+- Step 6 (Pose mirroring L↔R, M key + button): DONE
+- Step 7 (Link/Unlink joints via right-click): DONE
+- Next: Step 8 (Mini-view — second Canvas, 90° rotated)
 
 ## Known issues
-- Drag is XY-only — broken from side/top camera views
-- No joint hierarchy (moving shoulder doesn't move elbow/wrist)
-- No bone length constraints
-- No undo/redo
-- No IK solver
+- No bone length constraints during FK drag (stretch allowed)
+- No mini side-view canvas
+- No multiple skeletons
+- No center-of-gravity sphere
+- No ring gizmos for rotation
