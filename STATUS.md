@@ -15,7 +15,8 @@
 - DesignDoll-style controls (see CLAUDE.md implementation plan, Steps 1-11)
 - Development Process Improvements: DONE
 - Step 1 (camera-plane drag): DONE
-- Next: Step 2 (Undo/Redo)
+- Step 2 (Undo/Redo + PoseService): DONE
+- Next: Step 3 (SkeletonGraph + FK)
 
 ## Known issues
 - Drag is XY-only — broken from side/top camera views

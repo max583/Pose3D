@@ -82,6 +82,26 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     };
   }, []);
 
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          poseService.redo();
+        } else {
+          poseService.undo();
+        }
+      } else if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault();
+        poseService.redo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Обработчик изменения позиции сустава
   const handleJointPositionChange = useCallback((
     index: Body25Index,

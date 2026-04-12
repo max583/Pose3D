@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { poseService } from '../services/PoseService';
 import { getAllPosePresets } from '../lib/presets/body25-presets';
 import { uiLogger } from '../lib/logger';
@@ -14,7 +14,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { settings } = useAppSettings();
   const [selectedPreset, setSelectedPreset] = useState<string>('');
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const presets = getAllPosePresets();
+
+  // Обновляем состояние кнопок при изменении позы
+  useEffect(() => {
+    const update = () => {
+      setCanUndo(poseService.canUndo);
+      setCanRedo(poseService.canRedo);
+    };
+    update();
+    return poseService.subscribe(update);
+  }, []);
 
   const handleResetPose = () => {
     if (
@@ -68,6 +80,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <div className="sidebar-section">
         <h3>Actions</h3>
+        <div className="btn-row">
+          <button
+            className="btn btn-secondary"
+            onClick={() => poseService.undo()}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+          >
+            ↩ Undo
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => poseService.redo()}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            ↪ Redo
+          </button>
+        </div>
         <button className="btn btn-secondary" onClick={handleResetPose}>
           Reset Pose
         </button>

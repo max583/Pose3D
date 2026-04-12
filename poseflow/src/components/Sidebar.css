@@ -134,3 +134,26 @@
 .btn-settings {
   font-weight: 500;
 }
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.btn-row .btn {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+  transform: none;
+  box-shadow: none;
+}
