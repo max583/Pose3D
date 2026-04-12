@@ -180,19 +180,15 @@ Not adding tests for UI components — visual testing through the app is suffici
 - Never commit `node_modules`, `dist`, build artifacts, `.env`
 - Commit messages in English (code is in English, commit messages should match)
 
-### Execution order
+### Status: COMPLETED
 
-All six actions should be done in one session, before starting Step 1:
+All six actions executed. Git history:
+```
+fd0b19c Cleanup: remove artifacts, dead code; add vitest, STATUS.md
+96e4d19 Initial commit: PoseFlow Editor v0.2.0 (Stages 1-3.5)
+```
 
-```
-1. Create .gitignore
-2. git init + initial commit (preserves everything in history)
-3. Delete artifact .md files
-4. Delete dead code (useDragJoint.ts, diagnostic.ts)
-5. Create STATUS.md, delete work-state.md
-6. npm install -D vitest + add test scripts
-7. Commit: "Cleanup: remove artifacts, dead code; add vitest, STATUS.md"
-```
+Note: vitest is available via `npx vitest` (direct `npm install -D vitest` blocked by npm 11.7.0 arborist bug with concurrently/date-fns). Test scripts in package.json use `npx vitest`.
 
 ---
 
@@ -497,3 +493,8 @@ Steps 1 and 2 can be done in parallel. Steps 6, 7, 8 are independent — any ord
 - Export Frame stores dimensions in `pixelSizeRef` (pixels), converts to percentages on viewport resize
 - Export Frame pointer events pass through backdrop — skeleton drag works outside frame
 - `useTransformDrag.ts` currently uses XY-only `dx*0.01` approach — to be replaced with camera-plane raycasting at Step 1. The correct raycasting pattern (Plane perpendicular to camera direction, ray intersection, offset preservation) is documented in Step 1 of this plan
+
+## Модель и экономия
+- По умолчанию используй только Sonnet 4.6
+- Opus только если я явно скажу «используй Opus»
+- Делай изменения маленькими итерациями, чтобы не жрать контекст

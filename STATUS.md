@@ -13,7 +13,9 @@
 
 ## In progress
 - DesignDoll-style controls (see CLAUDE.md implementation plan, Steps 1-11)
-- Next: Development Process Improvements, then Step 1 (camera-plane drag)
+- Development Process Improvements: DONE
+- Step 1 (camera-plane drag): DONE
+- Next: Step 2 (Undo/Redo)
 
 ## Known issues
 - Drag is XY-only — broken from side/top camera views

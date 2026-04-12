@@ -1,5 +1,7 @@
-// useTransformDrag.ts - Хук для drag-and-drop с использованием TransformControls
+// useTransformDrag.ts - Drag суставов в плоскости камеры через raycasting
 import { useState, useCallback, useRef } from 'react';
+import { useThree } from '@react-three/fiber';
+import { Vector2, Vector3, Plane, Raycaster } from 'three';
 import { Body25Index, JointPosition } from '../lib/body25/body25-types';
 import { skeletonLogger, errorLogger } from '../lib/logger';
 
@@ -9,8 +11,8 @@ interface UseTransformDragProps {
 }
 
 /**
- * Хук для drag-and-drop суставов
- * Использует простой подход с pointer events вместо сложного raycasting
+ * Drag суставов в плоскости, перпендикулярной направлению камеры.
+ * Работает корректно с любого ракурса (front, side, top, 3/4).
  */
 export function useTransformDrag({
   index,
@@ -21,91 +23,97 @@ export function useTransformDrag({
   handlePointerDown: (e: any) => void;
 } {
   const [isDragging, setIsDraggingInternal] = useState(false);
-  const startPosRef = useRef<{ x: number; y: number } | null>(null);
-  const startJointPosRef = useRef<JointPosition | null>(null);
+  const { camera, gl } = useThree();
 
-  // Внутренний setter для состояния
+  // Refs для drag-состояния (не вызывают re-render)
+  const dragPlaneRef = useRef<Plane>(new Plane());
+  const offsetRef = useRef<Vector3>(new Vector3());
+  const raycasterRef = useRef<Raycaster>(new Raycaster());
+  const ndcRef = useRef<Vector2>(new Vector2());
+
   const setIsDragging = useCallback((dragging: boolean) => {
     setIsDraggingInternal(dragging);
-    if (dragging) {
-      skeletonLogger.debug(`Joint ${index} drag started`);
-    } else {
-      skeletonLogger.debug(`Joint ${index} drag ended`);
-    }
-  }, [index]);
-
-  // Обработчик нажатия - начинаем drag
-  const handlePointerDown = useCallback((e: any) => {
-    e.stopPropagation();
-    
-    // Получаем текущую позицию сустава
-    const currentPos: JointPosition = {
-      x: e.object.position.x,
-      y: e.object.position.y,
-      z: e.object.position.z,
-    };
-
-    startJointPosRef.current = currentPos;
-    startPosRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-    };
-
-    setIsDraggingInternal(true);
-
-    // Добавляем глобальные обработчики
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
   }, []);
 
-  // Обработчик движения - используем движение мыши для смещения
+  // Конвертация mouse event -> NDC координаты (-1..1)
+  const updateNDC = useCallback((clientX: number, clientY: number) => {
+    const rect = gl.domElement.getBoundingClientRect();
+    ndcRef.current.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    ndcRef.current.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  }, [gl]);
+
+  // Пересечение луча с drag-плоскостью
+  const intersectDragPlane = useCallback((clientX: number, clientY: number): Vector3 | null => {
+    updateNDC(clientX, clientY);
+    raycasterRef.current.setFromCamera(ndcRef.current, camera);
+    const target = new Vector3();
+    const hit = raycasterRef.current.ray.intersectPlane(dragPlaneRef.current, target);
+    return hit ? target : null;
+  }, [camera, updateNDC]);
+
+  // Обработчик движения мыши
   const handlePointerMove = useCallback((e: PointerEvent) => {
-    if (!isDragging || !startPosRef.current || !startJointPosRef.current) {
-      return;
-    }
-
     try {
-      // Вычисляем смещение мыши
-      const dx = (e.clientX - startPosRef.current.x) * 0.01; // Масштабируем для чувствительности
-      const dy = (e.clientY - startPosRef.current.y) * 0.01;
+      const intersection = intersectDragPlane(e.clientX, e.clientY);
+      if (!intersection) return;
 
-      // Новая позиция сустава
       const newPosition: JointPosition = {
-        x: startJointPosRef.current.x + dx,
-        y: startJointPosRef.current.y - dy, // Инвертируем Y
-        z: startJointPosRef.current.z, // Z не меняем при простом drag
+        x: intersection.x - offsetRef.current.x,
+        y: intersection.y - offsetRef.current.y,
+        z: intersection.z - offsetRef.current.z,
         confidence: 1.0,
       };
 
-      // Обновляем позицию
       onPositionChange(index, newPosition);
-
-      // Обновляем начальную позицию для следующего движения
-      startPosRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-      };
-      startJointPosRef.current = newPosition;
     } catch (error) {
       errorLogger.error('Error during joint drag move', {
         index,
         error: error instanceof Error ? error.message : String(error),
-        clientX: e.clientX,
-        clientY: e.clientY,
       });
     }
-  }, [isDragging, index, onPositionChange]);
+  }, [index, onPositionChange, intersectDragPlane]);
 
   // Обработчик отпускания
-  const handlePointerUp = useCallback((e: PointerEvent) => {
+  const handlePointerUp = useCallback(() => {
     setIsDraggingInternal(false);
-    startPosRef.current = null;
-    startJointPosRef.current = null;
+    skeletonLogger.debug(`Joint ${index} drag ended`);
 
-    // Удаляем глобальные обработчики
     window.removeEventListener('pointermove', handlePointerMove);
     window.removeEventListener('pointerup', handlePointerUp);
-  }, [handlePointerMove]);
+  }, [index, handlePointerMove]);
+
+  // Обработчик нажатия — начало drag
+  const handlePointerDown = useCallback((e: any) => {
+    e.stopPropagation();
+
+    // Позиция сустава в мировых координатах
+    const jointWorldPos = new Vector3(
+      e.object.position.x,
+      e.object.position.y,
+      e.object.position.z,
+    );
+
+    // Создаём плоскость перпендикулярно камере, проходящую через сустав
+    const cameraDir = new Vector3();
+    camera.getWorldDirection(cameraDir);
+    dragPlaneRef.current.setFromNormalAndCoplanarPoint(cameraDir, jointWorldPos);
+
+    // Находим точку пересечения луча с плоскостью в момент нажатия
+    const intersection = intersectDragPlane(e.clientX ?? e.nativeEvent?.clientX ?? 0, e.clientY ?? e.nativeEvent?.clientY ?? 0);
+    if (intersection) {
+      // Offset = разница между точкой пересечения и позицией сустава
+      // Это предотвращает "прыжок" сустава к курсору
+      offsetRef.current.copy(intersection).sub(jointWorldPos);
+    } else {
+      offsetRef.current.set(0, 0, 0);
+    }
+
+    setIsDraggingInternal(true);
+    skeletonLogger.debug(`Joint ${index} drag started`);
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [camera, index, intersectDragPlane, handlePointerMove, handlePointerUp]);
 
   return {
     isDragging,
