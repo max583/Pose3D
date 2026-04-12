@@ -1,0 +1,18 @@
+# Build artifacts
+poseflow/dist/
+poseflow/dist-electron/
+poseflow/node_modules/
+poseflow/backend/__pycache__/
+poseflow/backend/*.pyc
+
+# Lock files (large, not useful for Claude)
+poseflow/package-lock.json
+poseflow/backend/requirements.txt
+
+# Logs
+poseflow/logs/
+*.log
+poseflow/vite-output.log
+
+# Test snapshots
+poseflow/src/**/__snapshots__/

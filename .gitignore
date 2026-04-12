@@ -37,8 +37,8 @@ Thumbs.db
 # Qwen Code config (local)
 .qwen/
 
-# Claude Code config (local)
-.claude/
+# Claude Code config (local only)
+.claude/settings.local.json
 
 # Misc
 .cache/

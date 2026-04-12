@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc*)",
+      "Bash(npx vitest*)",
+      "Bash(npm run*)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(wc -l*)",
+      "Bash(wc -w*)",
+      "Bash(mkdir -p*)"
+    ],
+    "deny": [
+      "Bash(rm -rf*)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(DROP TABLE*)",
+      "Bash(* > /dev/null && rm*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$CLAUDE_TOOL_INPUT\" | grep -qE '(rm -rf|git push --force|git reset --hard|DROP TABLE)' && echo 'BLOCKED: destructive command' && exit 1 || exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
