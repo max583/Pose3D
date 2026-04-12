@@ -1,6 +1,9 @@
 // PoseService — управление позой BODY_25 с поддержкой undo/redo и FK/IK
+import { Vector3 } from 'three';
 import { Body25Index, JointPosition, ManipulationMode, PoseData } from '../lib/body25/body25-types';
 import { SkeletonGraph } from '../lib/body25/SkeletonGraph';
+import { getIKChainForJoint } from '../lib/body25/IKChains';
+import { solveFABRIK } from '../lib/solvers/FABRIKSolver';
 import { UndoStack } from '../lib/UndoStack';
 import { canvasLogger, errorLogger } from '../lib/logger';
 
@@ -83,8 +86,15 @@ export class PoseService {
         const updated = this.graph.applyFK(this.skeletons[this.activeSkeletonId], index, position);
         this.skeletons[this.activeSkeletonId] = updated;
       } else {
-        // IK реализуется в Step 4; пока fallback на прямое обновление
-        this.skeletons[this.activeSkeletonId][index] = { ...position };
+        // IK mode
+        const chain = getIKChainForJoint(index);
+        if (chain) {
+          this.applyIK(index, position, chain.joints, chain.root);
+        } else {
+          // Сустав не входит в IK-цепочку — FK fallback
+          const updated = this.graph.applyFK(this.skeletons[this.activeSkeletonId], index, position);
+          this.skeletons[this.activeSkeletonId] = updated;
+        }
       }
       this.notifyListeners();
     } catch (error) {
@@ -119,6 +129,45 @@ export class PoseService {
       errorLogger.error('Failed to notify listeners', {
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  // ─── IK ───────────────────────────────────────────────────────────────────
+
+  private applyIK(
+    draggedJoint: Body25Index,
+    newPosition: JointPosition,
+    chainIndices: Body25Index[],
+    rootIndex: Body25Index,
+  ): void {
+    const pose = this.skeletons[this.activeSkeletonId];
+
+    // Строим цепочку Vector3 от root до конца
+    const chainVecs = chainIndices.map(idx => {
+      const j = pose[idx];
+      return new Vector3(j.x, j.y, j.z);
+    });
+
+    // Длины костей вдоль цепочки
+    const boneLengths = chainIndices.slice(0, -1).map((idx, i) =>
+      this.graph.getBoneLength(idx, chainIndices[i + 1]),
+    );
+
+    // Целевая позиция — куда тащим
+    const target = new Vector3(newPosition.x, newPosition.y, newPosition.z);
+
+    // Если тащим не конец — пересчитываем target как конец цепочки
+    // при условии что draggedJoint — промежуточный сустав
+    const { chain: solved } = solveFABRIK({ chain: chainVecs, target, boneLengths });
+
+    // Применяем результат к позе
+    for (let i = 0; i < chainIndices.length; i++) {
+      pose[chainIndices[i]] = {
+        ...pose[chainIndices[i]],
+        x: solved[i].x,
+        y: solved[i].y,
+        z: solved[i].z,
+      };
     }
   }
 

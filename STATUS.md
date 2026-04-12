@@ -17,7 +17,8 @@
 - Step 1 (camera-plane drag): DONE
 - Step 2 (Undo/Redo + PoseService): DONE
 - Step 3 (SkeletonGraph + FK): DONE
-- Next: Step 4 (FABRIK IK solver)
+- Step 4 (FABRIK IK solver): DONE — 5/5 tests pass
+- Next: Step 5 (Mode toggle UI)
 
 ## Known issues
 - Drag is XY-only — broken from side/top camera views
