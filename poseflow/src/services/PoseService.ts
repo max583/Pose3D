@@ -1,5 +1,6 @@
-// PoseService — управление позой BODY_25 с поддержкой undo/redo
-import { Body25Index, JointPosition, PoseData } from '../lib/body25/body25-types';
+// PoseService — управление позой BODY_25 с поддержкой undo/redo и FK/IK
+import { Body25Index, JointPosition, ManipulationMode, PoseData } from '../lib/body25/body25-types';
+import { SkeletonGraph } from '../lib/body25/SkeletonGraph';
 import { UndoStack } from '../lib/UndoStack';
 import { canvasLogger, errorLogger } from '../lib/logger';
 
@@ -11,11 +12,15 @@ export class PoseService {
   private activeSkeletonId: number;
   private undoStack: UndoStack<SkeletonsSnapshot>;
   private listeners: Array<(data: PoseData) => void> = [];
+  private graph: SkeletonGraph;
+  manipulationMode: ManipulationMode = 'fk';
 
   constructor() {
     this.skeletons = [this.createTPose()];
     this.activeSkeletonId = 0;
     this.undoStack = new UndoStack<SkeletonsSnapshot>(50);
+    this.graph = new SkeletonGraph();
+    this.graph.computeBoneLengths(this.skeletons[0]);
   }
 
   // ─── Snapshot helpers ─────────────────────────────────────────────────────
@@ -63,14 +68,24 @@ export class PoseService {
   setPoseData(data: PoseData): void {
     this.undoStack.push(this.snapshot());
     this.skeletons[this.activeSkeletonId] = { ...data };
+    this.graph.computeBoneLengths(data);
     this.notifyListeners();
   }
 
-  /** Обновить позицию одной точки (с сохранением в undo) */
+  /** Доступ к графу для FK/IK */
+  getGraph(): SkeletonGraph { return this.graph; }
+
+  /** Обновить позицию одной точки (с сохранением в undo, с FK/IK) */
   updateJoint(index: Body25Index, position: JointPosition): void {
     try {
       this.undoStack.push(this.snapshot());
-      this.skeletons[this.activeSkeletonId][index] = { ...position };
+      if (this.manipulationMode === 'fk') {
+        const updated = this.graph.applyFK(this.skeletons[this.activeSkeletonId], index, position);
+        this.skeletons[this.activeSkeletonId] = updated;
+      } else {
+        // IK реализуется в Step 4; пока fallback на прямое обновление
+        this.skeletons[this.activeSkeletonId][index] = { ...position };
+      }
       this.notifyListeners();
     } catch (error) {
       errorLogger.error('Failed to update joint position', {

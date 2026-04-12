@@ -16,7 +16,8 @@
 - Development Process Improvements: DONE
 - Step 1 (camera-plane drag): DONE
 - Step 2 (Undo/Redo + PoseService): DONE
-- Next: Step 3 (SkeletonGraph + FK)
+- Step 3 (SkeletonGraph + FK): DONE
+- Next: Step 4 (FABRIK IK solver)
 
 ## Known issues
 - Drag is XY-only — broken from side/top camera views

@@ -80,6 +80,9 @@ export enum ExportFormat {
   OBJ = 'obj',
 }
 
+/** Режим манипуляции скелетом */
+export type ManipulationMode = 'fk' | 'ik';
+
 /** OpenPose JSON формат */
 export interface OpenPoseJSON {
   version: number;
