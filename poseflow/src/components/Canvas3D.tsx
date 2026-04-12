@@ -86,9 +86,16 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     };
   }, []);
 
-  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — undo/redo
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — undo/redo; M — mirror
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'm' || e.key === 'M') {
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+          poseService.mirrorPose();
+          return;
+        }
+      }
       if (!e.ctrlKey && !e.metaKey) return;
       if (e.key === 'z' || e.key === 'Z') {
         e.preventDefault();

@@ -3,6 +3,7 @@ import { Vector3 } from 'three';
 import { Body25Index, JointPosition, ManipulationMode, PoseData } from '../lib/body25/body25-types';
 import { SkeletonGraph } from '../lib/body25/SkeletonGraph';
 import { getIKChainForJoint } from '../lib/body25/IKChains';
+import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
 import { solveFABRIK } from '../lib/solvers/FABRIKSolver';
 import { UndoStack } from '../lib/UndoStack';
 import { canvasLogger, errorLogger } from '../lib/logger';
@@ -172,6 +173,20 @@ export class PoseService {
   }
 
   // ─── Pose helpers ──────────────────────────────────────────────────────────
+
+  mirrorPose(): void {
+    this.undoStack.push(this.snapshot());
+    const pose = { ...this.skeletons[this.activeSkeletonId] };
+    const center = pose[Body25Index.MID_HIP].x;
+    for (const [right, left] of MIRROR_PAIRS) {
+      const rPos = pose[right];
+      const lPos = pose[left];
+      pose[right] = { ...lPos, x: 2 * center - lPos.x };
+      pose[left]  = { ...rPos, x: 2 * center - rPos.x };
+    }
+    this.skeletons[this.activeSkeletonId] = pose as PoseData;
+    this.notifyListeners();
+  }
 
   reset(): void {
     this.undoStack.push(this.snapshot());

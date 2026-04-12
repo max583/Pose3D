@@ -134,6 +134,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button className="btn btn-secondary" onClick={handleResetPose}>
           Reset Pose
         </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => poseService.mirrorPose()}
+          title="Mirror pose L↔R (M)"
+        >
+          ⇄ Mirror L↔R
+        </button>
       </div>
 
       <div className="sidebar-section sidebar-footer">
