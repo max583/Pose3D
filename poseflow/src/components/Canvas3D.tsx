@@ -255,6 +255,11 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
           panSpeed={settings.orbitPanSpeed}
           rotateSpeed={settings.orbitRotateSpeed}
           zoomSpeed={settings.orbitZoomSpeed}
+          mouseButtons={{
+            LEFT: undefined,               // ЛКМ — только скелет, камера не вращается
+            MIDDLE: THREE.MOUSE.PAN,       // СКМ (зажать) — панорамирование
+            RIGHT: THREE.MOUSE.ROTATE,     // ПКМ (зажать) — вращение камеры
+          }}
         />
 
         {/* Контролы камеры (внутри Canvas для доступа к useThree) */}
