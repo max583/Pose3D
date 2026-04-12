@@ -85,6 +85,22 @@ PNG: black background, colored bones/joints per OpenPose color spec.
 Steps 1–7 of DesignDoll controls: **DONE**. See `ai/tasks/archive/steps-1-7-completed.md`.
 **Next: Step 8 (Mini-view)**. See `PLAN.md` for remaining steps 8–11.
 
+## Unit tests (required)
+
+Every new piece of logic **must** ship with unit tests in the same commit. No exceptions.
+
+**What to test:** pure functions, algorithms, data transformations — anything in `src/lib/` or `src/services/` that doesn't require a browser/canvas/Three.js scene context.
+
+**What not to test:** React components, Three.js rendering, hooks that depend on `useThree()`. Visual behaviour is verified manually.
+
+**Where:** co-locate tests in `__tests__/` next to the module being tested. Mirror the directory structure.
+
+**Coverage bar:** at minimum cover the happy path + the edge case most likely to regress (empty input, out-of-range, no-op).
+
+**Lite mode exception:** CSS tweaks, config constants, and single-line wrappers that delegate entirely to already-tested code may skip tests.
+
+Run before committing: `npx vitest run`
+
 ## Lite mode (skip formal workflow)
 
 For changes matching ALL of: < 3 files, < 15 min, no architectural decisions — commit directly without updating PLAN.md. Examples: CSS tweaks, adding a button that calls an existing service method, fixing a typo.
