@@ -157,3 +157,25 @@
   transform: none;
   box-shadow: none;
 }
+
+.btn-mode {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.btn-mode-active {
+  background: var(--accent);
+  color: white;
+  border: 1px solid var(--accent);
+}
+
+.btn-mode-active:hover {
+  background: var(--accent-hover);
+}
+
+.mode-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  min-height: 16px;
+}

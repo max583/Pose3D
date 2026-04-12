@@ -57,6 +57,7 @@ function AxesHelper({ size = 2 }: { size?: number }) {
 export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraChange, onExportFrame }) => {
   const { settings, effectiveTheme } = useAppSettings();
   const [poseData, setPoseData] = useState<PoseData>(poseService.getPoseData());
+  const [manipulationMode, setManipulationMode] = useState(poseService.manipulationMode);
   const [isDragging, setIsDragging] = useState(false);
   const [isPointerInsideFrame, setIsPointerInsideFrame] = useState(false);
   const [showExportFrame, setShowExportFrame] = useState(false);
@@ -75,7 +76,10 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   // Подписываемся на изменения позы
   useEffect(() => {
     canvasLogger.info('Canvas3D mounted, subscribing to poseService');
-    const unsubscribe = poseService.subscribe(setPoseData);
+    const unsubscribe = poseService.subscribe((data) => {
+      setPoseData(data);
+      setManipulationMode(poseService.manipulationMode);
+    });
     return () => {
       canvasLogger.info('Canvas3D unmounting');
       unsubscribe();
@@ -211,6 +215,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         <Skeleton3D
           poseData={poseData}
           onJointPositionChange={handleJointPositionChange}
+          manipulationMode={manipulationMode}
         />
 
         {/* Модели (если есть) */}
@@ -249,7 +254,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
       {settings.showViewportOverlay && (
         <div className="canvas3d-info">
           <span>3D Viewport - BODY_25</span>
-          <span>25 joints • Drag to edit</span>
+          <span>25 joints • {manipulationMode === 'fk' ? 'FK Mode' : 'IK Mode'}</span>
           {isDragging && <span className="drag-indicator">✋ Dragging joint...</span>}
           {showExportFrame && !isPointerInsideFrame && <span className="drag-indicator">🎯 Edit pose outside frame</span>}
           {showExportFrame && isPointerInsideFrame && <span className="drag-indicator">📐 Frame edit mode</span>}

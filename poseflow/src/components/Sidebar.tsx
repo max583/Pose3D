@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { poseService } from '../services/PoseService';
 import { getAllPosePresets } from '../lib/presets/body25-presets';
+import { ManipulationMode } from '../lib/body25/body25-types';
 import { uiLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
 import './Sidebar.css';
@@ -16,6 +17,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [mode, setMode] = useState<ManipulationMode>(poseService.manipulationMode);
   const presets = getAllPosePresets();
 
   // Обновляем состояние кнопок при изменении позы
@@ -27,6 +29,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     update();
     return poseService.subscribe(update);
   }, []);
+
+  const handleModeChange = (newMode: ManipulationMode) => {
+    poseService.manipulationMode = newMode;
+    setMode(newMode);
+    uiLogger.info(`Manipulation mode: ${newMode}`);
+  };
 
   const handleResetPose = () => {
     if (
@@ -60,6 +68,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           ⚙ Настройки
         </button>
+      </div>
+
+      <div className="sidebar-section">
+        <h3>Mode</h3>
+        <div className="btn-row">
+          <button
+            className={`btn btn-mode ${mode === 'fk' ? 'btn-mode-active' : 'btn-secondary'}`}
+            onClick={() => handleModeChange('fk')}
+            title="FK: двигает сустав со всеми потомками"
+          >
+            FK
+          </button>
+          <button
+            className={`btn btn-mode ${mode === 'ik' ? 'btn-mode-active' : 'btn-secondary'}`}
+            onClick={() => handleModeChange('ik')}
+            title="IK: решает цепочку от конечной точки"
+          >
+            IK
+          </button>
+        </div>
+        <div className="mode-hint">
+          {mode === 'fk'
+            ? 'FK: сустав двигает всех потомков'
+            : 'IK: drag кисти/стопы решает цепочку'}
+        </div>
       </div>
 
       <div className="sidebar-section">

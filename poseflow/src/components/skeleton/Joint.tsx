@@ -13,6 +13,8 @@ interface JointProps {
   isGlobalDragging?: boolean;
   onGlobalDragStart?: () => void;
   onGlobalDragEnd?: () => void;
+  /** В IK-режиме — конечная точка цепочки (кисть/стопа) */
+  isEndEffector?: boolean;
 }
 
 export const Joint: React.FC<JointProps> = ({
@@ -24,6 +26,7 @@ export const Joint: React.FC<JointProps> = ({
   isGlobalDragging = false,
   onGlobalDragStart,
   onGlobalDragEnd,
+  isEndEffector = false,
 }) => {
   const meshRef = useRef<any>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -92,6 +95,9 @@ export const Joint: React.FC<JointProps> = ({
     };
   }, [isDragging, isHovered]);
 
+  // End-effectors в IK-режиме — чуть крупнее и ярче
+  const effectiveRadius = isEndEffector ? radius * 1.5 : radius;
+
   return (
     <mesh
       ref={meshRef}
@@ -100,11 +106,16 @@ export const Joint: React.FC<JointProps> = ({
       onPointerOut={handlePointerOut}
       onPointerDown={handleDragStart}
     >
-      <sphereGeometry args={[radius, 16, 16]} />
+      <sphereGeometry args={[effectiveRadius, 16, 16]} />
       <meshStandardMaterial
         color={color}
-        emissive={isDragging ? '#ffffff' : isHovered ? color : 'transparent'}
-        emissiveIntensity={isDragging ? 0.8 : isHovered ? 0.3 : 0}
+        emissive={
+          isDragging ? '#ffffff'
+          : isEndEffector ? '#ffffff'
+          : isHovered ? color
+          : 'transparent'
+        }
+        emissiveIntensity={isDragging ? 0.8 : isEndEffector ? 0.25 : isHovered ? 0.3 : 0}
         roughness={0.3}
         metalness={0.2}
       />

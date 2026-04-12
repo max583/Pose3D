@@ -1,8 +1,9 @@
 // Skeleton3D.tsx - Полный скелет BODY_25
 import React, { useMemo, useState, useCallback } from 'react';
-import { PoseData, Body25Index, JointPosition } from '../../lib/body25/body25-types';
+import { PoseData, Body25Index, JointPosition, ManipulationMode } from '../../lib/body25/body25-types';
 import { BODY25_CONNECTIONS } from '../../lib/body25/body25-connections';
 import { KEYPOINT_MAP } from '../../lib/body25/body25-keypoints';
+import { IK_END_EFFECTORS } from '../../lib/body25/IKChains';
 import { Joint } from './Joint';
 import { Bone } from './Bone';
 import { skeletonLogger } from '../../lib/logger';
@@ -10,11 +11,13 @@ import { skeletonLogger } from '../../lib/logger';
 interface Skeleton3DProps {
   poseData: PoseData;
   onJointPositionChange: (index: Body25Index, position: JointPosition) => void;
+  manipulationMode?: ManipulationMode;
 }
 
 export const Skeleton3D: React.FC<Skeleton3DProps> = ({
   poseData,
   onJointPositionChange,
+  manipulationMode = 'fk',
 }) => {
   const [isAnyJointDragging, setIsAnyJointDragging] = useState(false);
 
@@ -36,6 +39,7 @@ export const Skeleton3D: React.FC<Skeleton3DProps> = ({
       const index = parseInt(indexStr) as Body25Index;
       const metadata = KEYPOINT_MAP.get(index)!;
 
+      const isEndEffector = manipulationMode === 'ik' && IK_END_EFFECTORS.has(index);
       return (
         <Joint
           key={index}
@@ -46,10 +50,11 @@ export const Skeleton3D: React.FC<Skeleton3DProps> = ({
           isGlobalDragging={isAnyJointDragging}
           onGlobalDragStart={handleDragStart}
           onGlobalDragEnd={handleDragEnd}
+          isEndEffector={isEndEffector}
         />
       );
     });
-  }, [poseData, onJointPositionChange, isAnyJointDragging, handleDragStart, handleDragEnd]);
+  }, [poseData, onJointPositionChange, isAnyJointDragging, handleDragStart, handleDragEnd, manipulationMode]);
 
   // Мемоизируем кости
   const bones = useMemo(() => {
