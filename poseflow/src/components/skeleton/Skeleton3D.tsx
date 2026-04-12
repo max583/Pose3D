@@ -11,13 +11,17 @@ import { skeletonLogger } from '../../lib/logger';
 interface Skeleton3DProps {
   poseData: PoseData;
   onJointPositionChange: (index: Body25Index, position: JointPosition) => void;
+  onToggleJointLink?: (index: Body25Index) => void;
   manipulationMode?: ManipulationMode;
+  unlinkedJoints?: Set<Body25Index>;
 }
 
 export const Skeleton3D: React.FC<Skeleton3DProps> = ({
   poseData,
   onJointPositionChange,
+  onToggleJointLink,
   manipulationMode = 'fk',
+  unlinkedJoints = new Set(),
 }) => {
   const [isAnyJointDragging, setIsAnyJointDragging] = useState(false);
 
@@ -40,6 +44,7 @@ export const Skeleton3D: React.FC<Skeleton3DProps> = ({
       const metadata = KEYPOINT_MAP.get(index)!;
 
       const isEndEffector = manipulationMode === 'ik' && IK_END_EFFECTORS.has(index);
+      const isUnlinked = unlinkedJoints.has(index);
       return (
         <Joint
           key={index}
@@ -47,14 +52,16 @@ export const Skeleton3D: React.FC<Skeleton3DProps> = ({
           position={position}
           color={metadata.color}
           onPositionChange={onJointPositionChange}
+          onToggleLink={onToggleJointLink}
           isGlobalDragging={isAnyJointDragging}
           onGlobalDragStart={handleDragStart}
           onGlobalDragEnd={handleDragEnd}
           isEndEffector={isEndEffector}
+          isUnlinked={isUnlinked}
         />
       );
     });
-  }, [poseData, onJointPositionChange, isAnyJointDragging, handleDragStart, handleDragEnd, manipulationMode]);
+  }, [poseData, onJointPositionChange, onToggleJointLink, isAnyJointDragging, handleDragStart, handleDragEnd, manipulationMode, unlinkedJoints]);
 
   // Мемоизируем кости
   const bones = useMemo(() => {

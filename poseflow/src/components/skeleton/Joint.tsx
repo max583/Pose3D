@@ -9,12 +9,15 @@ interface JointProps {
   position: JointPosition;
   color: string;
   onPositionChange: (index: Body25Index, position: JointPosition) => void;
+  onToggleLink?: (index: Body25Index) => void;
   radius?: number;
   isGlobalDragging?: boolean;
   onGlobalDragStart?: () => void;
   onGlobalDragEnd?: () => void;
   /** В IK-режиме — конечная точка цепочки (кисть/стопа) */
   isEndEffector?: boolean;
+  /** Сустав отключён от FK-пропагации */
+  isUnlinked?: boolean;
 }
 
 export const Joint: React.FC<JointProps> = ({
@@ -22,11 +25,13 @@ export const Joint: React.FC<JointProps> = ({
   position,
   color,
   onPositionChange,
+  onToggleLink,
   radius = 0.04,
   isGlobalDragging = false,
   onGlobalDragStart,
   onGlobalDragEnd,
   isEndEffector = false,
+  isUnlinked = false,
 }) => {
   const meshRef = useRef<any>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -65,6 +70,13 @@ export const Joint: React.FC<JointProps> = ({
     return undefined;
   }, [isDragging, handleDragEnd]);
 
+  // Правая кнопка мыши — переключить FK-связь
+  const handleContextMenu = useCallback((e: any) => {
+    e.stopPropagation();
+    e.nativeEvent?.preventDefault?.();
+    onToggleLink?.(index);
+  }, [index, onToggleLink]);
+
   const handlePointerOver = useCallback((e: any) => {
     e.stopPropagation();
     setIsHovered(true);
@@ -97,6 +109,8 @@ export const Joint: React.FC<JointProps> = ({
 
   // End-effectors в IK-режиме — чуть крупнее и ярче
   const effectiveRadius = isEndEffector ? radius * 1.5 : radius;
+  // Unlinked-суставы — полупрозрачные
+  const opacity = isUnlinked ? 0.45 : 1.0;
 
   return (
     <mesh
@@ -105,10 +119,11 @@ export const Joint: React.FC<JointProps> = ({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
       onPointerDown={handleDragStart}
+      onContextMenu={handleContextMenu}
     >
       <sphereGeometry args={[effectiveRadius, 16, 16]} />
       <meshStandardMaterial
-        color={color}
+        color={isUnlinked ? '#888888' : color}
         emissive={
           isDragging ? '#ffffff'
           : isEndEffector ? '#ffffff'
@@ -118,6 +133,8 @@ export const Joint: React.FC<JointProps> = ({
         emissiveIntensity={isDragging ? 0.8 : isEndEffector ? 0.25 : isHovered ? 0.3 : 0}
         roughness={0.3}
         metalness={0.2}
+        transparent={isUnlinked}
+        opacity={opacity}
       />
     </mesh>
   );

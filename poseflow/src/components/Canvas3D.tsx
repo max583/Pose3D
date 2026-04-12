@@ -58,6 +58,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const { settings, effectiveTheme } = useAppSettings();
   const [poseData, setPoseData] = useState<PoseData>(poseService.getPoseData());
   const [manipulationMode, setManipulationMode] = useState(poseService.manipulationMode);
+  const [unlinkedJoints, setUnlinkedJoints] = useState<Set<Body25Index>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
   const [isPointerInsideFrame, setIsPointerInsideFrame] = useState(false);
   const [showExportFrame, setShowExportFrame] = useState(false);
@@ -79,6 +80,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     const unsubscribe = poseService.subscribe((data) => {
       setPoseData(data);
       setManipulationMode(poseService.manipulationMode);
+      setUnlinkedJoints(poseService.getUnlinkedJoints());
     });
     return () => {
       canvasLogger.info('Canvas3D unmounting');
@@ -120,6 +122,11 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   ) => {
     canvasLogger.debug(`Joint ${index} position changed`, position);
     poseService.updateJoint(index, position);
+  }, []);
+
+  // Переключение FK-связи (правая кнопка мыши на суставе)
+  const handleToggleJointLink = useCallback((index: Body25Index) => {
+    poseService.toggleJointLink(index);
   }, []);
 
   // Callback для Skeleton3D - начало drag
@@ -222,7 +229,9 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         <Skeleton3D
           poseData={poseData}
           onJointPositionChange={handleJointPositionChange}
+          onToggleJointLink={handleToggleJointLink}
           manipulationMode={manipulationMode}
+          unlinkedJoints={unlinkedJoints}
         />
 
         {/* Модели (если есть) */}

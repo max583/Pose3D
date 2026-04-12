@@ -79,6 +79,28 @@ export class PoseService {
   /** Доступ к графу для FK/IK */
   getGraph(): SkeletonGraph { return this.graph; }
 
+  /** Переключить FK-связь сустава с родителем */
+  toggleJointLink(index: Body25Index): void {
+    const linked = this.graph.isLinked(index);
+    this.graph.setLinked(index, !linked);
+    this.notifyListeners();
+  }
+
+  isJointLinked(index: Body25Index): boolean {
+    return this.graph.isLinked(index);
+  }
+
+  /** Множество суставов с отключённой FK-пропагацией */
+  getUnlinkedJoints(): Set<Body25Index> {
+    const result = new Set<Body25Index>();
+    for (let i = 0; i < 25; i++) {
+      if (!this.graph.isLinked(i as Body25Index)) {
+        result.add(i as Body25Index);
+      }
+    }
+    return result;
+  }
+
   /** Обновить позицию одной точки (с сохранением в undo, с FK/IK) */
   updateJoint(index: Body25Index, position: JointPosition): void {
     try {
