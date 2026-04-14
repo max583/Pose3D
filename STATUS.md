@@ -3,6 +3,8 @@
 ## Current version: v0.2.0
 
 ## Completed
+- Vitest: отдельный `poseflow/vitest.config.ts` (без Electron-плагинов), расширены unit-тесты (`ExportService`, `PoseService`, `IKChains`, пресеты, `appSettings`); исправление `package-lock.json` (версия `date-fns` под `concurrently`) для успешного `npm install`
+- Спецификация управления по образцу DesignDoll под BODY_25 и семь контроллеров: `ai/docs/design-doll-controls-poseflow-spec.md`
 - BODY_25 skeleton: 25 joints + 24 bones, OpenPose colors, drag-and-drop
 - 10 pose presets (T-Pose, A-Pose, Standing, Sitting, Walking, Running, Jumping, Dancing, Waving, Arms Crossed)
 - Camera compass: 9 views (Front, Back, Side L/R, 3/4 x4, Top) + Reset
@@ -27,3 +29,6 @@
 - No multiple skeletons
 - No center-of-gravity sphere
 - No ring gizmos for rotation
+
+## Roadmap (управление как в DesignDoll)
+- Задокументирован целевой UX и ограничения (фиксированные кости, гибкость позвоночник/шея, жёсткий череп, лимиты суставов, 7 контроллеров); реализация — последующий рефакторинг поверх Steps 8–11 и отдельного плана по спецификации в `ai/docs/`
