@@ -3,6 +3,8 @@
 Steps 1–7 complete. See `ai/tasks/archive/steps-1-7-completed.md` for details.
 Next: Step 8.
 
+**Связь с рефакторингом DesignDoll (шаги PLAN ↔ фазы DD):** [`ai/docs/backlog-matrix.md`](ai/docs/backlog-matrix.md).
+
 ---
 
 ## Step 8 — Mini-view (second viewport)

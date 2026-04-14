@@ -19,8 +19,8 @@ npm run electron:dev     # With Electron
 npm run backend          # Python FastAPI at http://127.0.0.1:8000
 npm run build
 npx tsc --noEmit         # TypeScript check (filter: grep -v "TS6305\|electron\|The file is")
-npx vitest run           # All tests
-npx vitest run src/lib/solvers   # Solver tests only
+npm test                 # All tests (vitest --config vitest.config.ts)
+npx vitest run --config vitest.config.ts src/lib/solvers   # Solver tests only
 ```
 
 ## Architecture
@@ -78,7 +78,35 @@ PNG: black background, colored bones/joints per OpenPose color spec.
 - **Export Frame**: stores dimensions in `pixelSizeRef`, converts to % on viewport resize; pointer events pass through backdrop
 - **IK non-chain joints**: fall back to FK behavior
 - **unlinkedJoints**: stored in `SkeletonGraph.unlinked` (Set), exposed via `PoseService.getUnlinkedJoints()`; triggers re-render via `notifyListeners()`
-- **vitest**: run via `npx vitest` (npm install -D blocked by npm 11.7.0 arborist bug with concurrently/date-fns)
+- **vitest**: `npm test` in `poseflow/` uses `vitest.config.ts` (standalone from Electron plugins in root `vite.config.ts`).
+
+## Definition of Done (DoD)
+
+Before merging a feature branch (scale checklist to task size):
+
+1. Code matches the task; no unrelated drive-by refactors.
+2. New logic under `poseflow/src/lib/` or `poseflow/src/services/` ships with **unit tests** (happy path + one likely edge case), unless covered by the Lite mode / test exceptions below.
+3. **Manual check** of the scenario described in the task (or in `PLAN.md` for a numbered step).
+4. If user-visible behavior changes — update **`CHANGELOG.md`** (when it exists, see P1) and **`STATUS.md`** as needed.
+5. If the task introduces a new architectural choice — add or update an **ADR** (see `ai/docs/engineering-practices-improvement-plan.md`, P1).
+
+**Lite mode** (see below): DoD reduces to items **1** and **3**; skip 4–5 when there is no user-visible change.
+
+## Git commit messages
+
+Use prefixes (Russian or English body is fine; primary project language is Russian):
+
+| Prefix | Use |
+|--------|-----|
+| `feat:` | New user-visible feature or capability |
+| `fix:` | Bug fix |
+| `test:` | Tests only |
+| `docs:` | Documentation, comments in `CLAUDE.md` / `PLAN.md` / `ai/docs/` |
+| `chore:` | Tooling, deps, formatting, CI |
+
+Optional trailer in the body for traceability: `PLAN: step 8`, `DD: фаза A1`, or a link to the task.
+
+Example: `feat: мини-вид для глубины (PLAN step 8)`
 
 ## Current status
 
@@ -99,7 +127,7 @@ Every new piece of logic **must** ship with unit tests in the same commit. No ex
 
 **Lite mode exception:** CSS tweaks, config constants, and single-line wrappers that delegate entirely to already-tested code may skip tests.
 
-Run before committing: `npx vitest run`
+Run before committing: `npm test` (from `poseflow/`, runs `vitest run --config vitest.config.ts`)
 
 ## Lite mode (skip formal workflow)
 
