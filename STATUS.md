@@ -33,3 +33,4 @@
 ## Roadmap (управление как в DesignDoll)
 - Спецификация: `ai/docs/design-doll-controls-poseflow-spec.md`
 - План рефакторинга (фазы A–E, связь с PLAN Steps 8–11): `ai/docs/refactoring-plan-design-doll-controls.md`
+- План улучшений инженерных практик (DoD, ADR, CHANGELOG, матрица бэклога): `ai/docs/engineering-practices-improvement-plan.md`
