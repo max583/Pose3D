@@ -87,8 +87,8 @@ Before merging a feature branch (scale checklist to task size):
 1. Code matches the task; no unrelated drive-by refactors.
 2. New logic under `poseflow/src/lib/` or `poseflow/src/services/` ships with **unit tests** (happy path + one likely edge case), unless covered by the Lite mode / test exceptions below.
 3. **Manual check** of the scenario described in the task (or in `PLAN.md` for a numbered step).
-4. If user-visible behavior changes — update **`CHANGELOG.md`** (when it exists, see P1) and **`STATUS.md`** as needed.
-5. If the task introduces a new architectural choice — add or update an **ADR** (see `ai/docs/engineering-practices-improvement-plan.md`, P1).
+4. If user-visible behavior changes — update **`CHANGELOG.md`** (repo root) and **`STATUS.md`** as needed.
+5. If the task introduces a new architectural choice — add or update an **ADR** under `ai/decisions/` (see `ai/decisions/README.md` for template).
 
 **Lite mode** (see below): DoD reduces to items **1** and **3**; skip 4–5 when there is no user-visible change.
 
@@ -107,6 +107,15 @@ Use prefixes (Russian or English body is fine; primary project language is Russi
 Optional trailer in the body for traceability: `PLAN: step 8`, `DD: фаза A1`, or a link to the task.
 
 Example: `feat: мини-вид для глубины (PLAN step 8)`
+
+## Logic vs. UI (React / R3F)
+
+Keep **non-trivial algorithms** out of components: anything that looks like reusable math, graph walks, IK steps, clipping, or pose transforms belongs in `poseflow/src/lib/` or `poseflow/src/services/` and should be covered by unit tests. React components should orchestrate Three.js and user input (`Canvas3D`, `Joint`, hooks). If a `.tsx` file grows conditional logic that could run without a scene, extract a pure function and test it.
+
+## Architecture documentation
+
+- **ADR** (why we chose an approach): [`ai/decisions/README.md`](ai/decisions/README.md) — index and template; numbered files `0001-…`, `0002-…`.
+- **Changelog** (what shipped for users): [`CHANGELOG.md`](CHANGELOG.md) at repository root.
 
 ## Current status
 

@@ -3,6 +3,7 @@
 ## Current version: v0.2.0
 
 ## Completed
+- Инженерные практики P1: ADR (`ai/decisions/`, записи 0001–0002), `CHANGELOG.md` в корне, граница логика/UI и ссылки в `CLAUDE.md`
 - Vitest: отдельный `poseflow/vitest.config.ts` (без Electron-плагинов), расширены unit-тесты (`ExportService`, `PoseService`, `IKChains`, пресеты, `appSettings`); исправление `package-lock.json` (версия `date-fns` под `concurrently`) для успешного `npm install`
 - Спецификация управления по образцу DesignDoll под BODY_25 и семь контроллеров: `ai/docs/design-doll-controls-poseflow-spec.md`
 - BODY_25 skeleton: 25 joints + 24 bones, OpenPose colors, drag-and-drop
@@ -33,4 +34,4 @@
 ## Roadmap (управление как в DesignDoll)
 - Спецификация: `ai/docs/design-doll-controls-poseflow-spec.md`
 - План рефакторинга (фазы A–E, связь с PLAN Steps 8–11): `ai/docs/refactoring-plan-design-doll-controls.md`
-- План улучшений инженерных практик (DoD, ADR, CHANGELOG, матрица бэклога): `ai/docs/engineering-practices-improvement-plan.md` — **P0 выполнен** (DoD и коммиты в `CLAUDE.md`, матрица `ai/docs/backlog-matrix.md`)
+- План улучшений инженерных практик: `ai/docs/engineering-practices-improvement-plan.md` — **P0 и P1 выполнены** (см. также `CHANGELOG.md`, `ai/decisions/`)
