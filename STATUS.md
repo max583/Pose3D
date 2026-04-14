@@ -31,4 +31,5 @@
 - No ring gizmos for rotation
 
 ## Roadmap (управление как в DesignDoll)
-- Задокументирован целевой UX и ограничения (фиксированные кости, гибкость позвоночник/шея, жёсткий череп, лимиты суставов, 7 контроллеров); реализация — последующий рефакторинг поверх Steps 8–11 и отдельного плана по спецификации в `ai/docs/`
+- Спецификация: `ai/docs/design-doll-controls-poseflow-spec.md`
+- План рефакторинга (фазы A–E, связь с PLAN Steps 8–11): `ai/docs/refactoring-plan-design-doll-controls.md`
