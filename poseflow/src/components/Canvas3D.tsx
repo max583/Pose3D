@@ -91,12 +91,27 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
       setPoseData(data);
       setManipulationMode(poseService.getManipulationMode());
       setUnlinkedJoints(poseService.getUnlinkedJoints());
+      // Skeleton → Controllers: синхронизируем контроллеры при каждом изменении позы
+      featureFlagIntegration.syncControllersFromPose(data);
     });
     return () => {
       canvasLogger.info('Canvas3D unmounting');
       unsubscribe();
     };
   }, []);
+
+  // Привязка контроллеров к PoseService (выполняется один раз при монтировании)
+  useEffect(() => {
+    // Controllers → Skeleton: при перемещении контроллера обновляем сустав
+    featureFlagIntegration.onJointUpdate = (index, pos) => {
+      poseService.updateJoint(index, pos);
+    };
+    // Инициализация: ставим контроллеры на текущие позиции суставов
+    featureFlagIntegration.syncControllersFromPose(poseService.getPoseData());
+    return () => {
+      featureFlagIntegration.onJointUpdate = undefined;
+    };
+  }, [featureFlagIntegration, poseService]);
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — undo/redo; M — mirror
   useEffect(() => {

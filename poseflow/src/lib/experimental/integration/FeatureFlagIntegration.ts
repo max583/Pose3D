@@ -13,7 +13,10 @@ import { Vector3 } from 'three';
 
 export class FeatureFlagIntegration {
   private featureFlagService: FeatureFlagService;
-  
+
+  /** Вызывается когда контроллер перемещён drag-ом; Bridge → PoseService */
+  onJointUpdate?: (index: Body25Index, pos: { x: number; y: number; z: number }) => void;
+
   // Компоненты Phase 2 (создаются только при включенных feature flags)
   private mainControllers: MainControllers | null = null;
   private dragAdapter: DragAdapter | null = null;
@@ -100,6 +103,15 @@ export class FeatureFlagIntegration {
   }
 
   /**
+   * Синхронизировать позиции контроллеров из позы скелета (Skeleton → Controllers)
+   */
+  syncControllersFromPose(pose: PoseData): void {
+    if (this.isDesignDollControllersEnabled() && this.mainControllers) {
+      this.mainControllers.updatePositionsFromPose(pose);
+    }
+  }
+
+  /**
    * Обработать drag событие через адаптер
    */
   handleDragEvent(event: any, camera: any, canvasSize: { width: number; height: number }): boolean {
@@ -108,9 +120,20 @@ export class FeatureFlagIntegration {
       console.log('FeatureFlagIntegration: design doll controllers not enabled or dragAdapter missing');
       return false;
     }
-    
+
     const result = this.dragAdapter.handleDragEvent(event, camera, canvasSize);
     console.log('FeatureFlagIntegration.handleDragEvent result', result);
+
+    // После успешного drag — уведомить PoseService через callback (Controllers → Skeleton)
+    if (result && event.type === 'drag' && this.onJointUpdate && this.mainControllers) {
+      const activeController = this.mainControllers.getActiveController();
+      if (activeController) {
+        const dragJoint = activeController.dragJoint ?? activeController.linkedJoints[0];
+        const pos = activeController.position;
+        this.onJointUpdate(dragJoint, { x: pos.x, y: pos.y, z: pos.z });
+      }
+    }
+
     return result;
   }
 

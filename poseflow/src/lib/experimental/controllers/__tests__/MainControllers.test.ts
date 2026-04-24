@@ -45,11 +45,12 @@ describe('MainControllers', () => {
 
     it('should link correct joints to each controller', () => {
       const headController = controllers.getControllerByType(ControllerType.HEAD);
-      expect(headController?.linkedJoints).toEqual([Body25Index.NOSE]);
+      // HEAD uses midpoint of bone NOSE-NECK: linked to both, dragJoint = NOSE
+      expect(headController?.linkedJoints).toEqual([Body25Index.NOSE, Body25Index.NECK]);
+      expect(headController?.dragJoint).toBe(Body25Index.NOSE);
 
       const chestController = controllers.getControllerByType(ControllerType.CHEST);
       expect(chestController?.linkedJoints).toEqual([Body25Index.NECK]);
-      // CHEST controller is only linked to NECK, not shoulders (based on CONTROLLER_CONFIGS)
     });
   });
 
@@ -222,10 +223,13 @@ describe('MainControllers', () => {
       const noseControllers = controllers.getControllersForJoint(Body25Index.NOSE);
       expect(noseControllers).toHaveLength(1);
       expect(noseControllers[0].type).toBe(ControllerType.HEAD);
-      
+
+      // NECK is linked to both HEAD (midpoint) and CHEST
       const neckControllers = controllers.getControllersForJoint(Body25Index.NECK);
-      expect(neckControllers).toHaveLength(1);
-      expect(neckControllers[0].type).toBe(ControllerType.CHEST);
+      expect(neckControllers).toHaveLength(2);
+      const neckTypes = neckControllers.map(c => c.type);
+      expect(neckTypes).toContain(ControllerType.HEAD);
+      expect(neckTypes).toContain(ControllerType.CHEST);
     });
 
     it('should return empty array for joint not linked to any controller', () => {

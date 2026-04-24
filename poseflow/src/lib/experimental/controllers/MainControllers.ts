@@ -27,9 +27,11 @@ export interface ControllerState {
   color: Color;
   opacity: number;
   
-  // Связанные суставы BODY_25
+  // Связанные суставы BODY_25 (для чтения позиции — может быть несколько)
   linkedJoints: Body25Index[];
-  
+  // Сустав, который обновляется при drag (если не задан — linkedJoints[0])
+  dragJoint?: Body25Index;
+
   // Ограничения движения
   constraints: {
     translation: {
@@ -50,7 +52,8 @@ const CONTROLLER_CONFIGS: Record<ControllerType, Omit<ControllerState, 'id' | 'p
     scale: new Vector3(1.0, 1.0, 1.0), // Одинаковый размер для всех
     color: new Color(0x888888), // Серый цвет
     opacity: 0.6, // Полупрозрачность
-    linkedJoints: [Body25Index.NOSE],
+    linkedJoints: [Body25Index.NOSE, Body25Index.NECK],
+    dragJoint: Body25Index.NOSE,
     constraints: {
       translation: {
         min: new Vector3(-1000, -1000, -1000),
@@ -204,6 +207,7 @@ export class MainControllers {
         color: config.color.clone(),
         opacity: config.opacity,
         linkedJoints: [...config.linkedJoints],
+        dragJoint: config.dragJoint,
         constraints: {
           translation: {
             min: config.constraints.translation.min.clone(),
