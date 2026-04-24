@@ -1,0 +1,176 @@
+/* src/components/FeatureFlagExample.css */
+
+.feature-flag-example {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 20px 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+.feature-flag-example h3 {
+  margin-top: 0;
+  color: #1e293b;
+  font-size: 20px;
+  border-bottom: 2px solid #cbd5e1;
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+}
+
+.feature-flag-example h4 {
+  color: #334155;
+  font-size: 16px;
+  margin: 20px 0 12px 0;
+}
+
+.example-section {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.flag-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.flag-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border-left: 4px solid;
+}
+
+.flag-status.enabled {
+  background: #f0fdf4;
+  border-left-color: #10b981;
+}
+
+.flag-status.disabled {
+  background: #fef3c7;
+  border-left-color: #f59e0b;
+}
+
+.flag-name {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.flag-value {
+  font-weight: 500;
+}
+
+.conditional-content {
+  padding: 14px;
+  border-radius: 6px;
+  margin: 10px 0;
+}
+
+.conditional-content.enabled {
+  background: #dbeafe;
+  border: 1px solid #3b82f6;
+  color: #1e40af;
+}
+
+.conditional-content.disabled {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+}
+
+.switch-content {
+  padding: 14px;
+  border-radius: 6px;
+  margin: 10px 0;
+}
+
+.switch-content.enabled {
+  background: #dcfce7;
+  border: 1px solid #22c55e;
+  color: #166534;
+}
+
+.switch-content.disabled {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+}
+
+.combined-flags {
+  padding: 16px;
+  border-radius: 6px;
+  margin: 10px 0;
+}
+
+.combined-flags.enabled {
+  background: linear-gradient(135deg, #dbeafe 0%, #dcfce7 100%);
+  border: 2px solid #3b82f6;
+  color: #1e40af;
+}
+
+.combined-flags.disabled {
+  background: linear-gradient(135deg, #fef3c7 0%, #f1f5f9 100%);
+  border: 2px solid #f59e0b;
+  color: #92400e;
+}
+
+.instructions {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.instructions h4 {
+  color: #1e293b;
+  margin-top: 0;
+}
+
+.instructions ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.instructions li {
+  margin-bottom: 8px;
+  color: #475569;
+}
+
+.instructions .note {
+  font-size: 14px;
+  color: #64748b;
+  font-style: italic;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Анимации для демонстрации изменений */
+@keyframes highlight {
+  0% { background-color: #fef3c7; }
+  100% { background-color: transparent; }
+}
+
+.flag-status.enabled {
+  animation: highlight 1s ease;
+}
+
+.conditional-content.enabled {
+  animation: highlight 1s ease;
+}
+
+.switch-content.enabled {
+  animation: highlight 1s ease;
+}
+
+.combined-flags.enabled {
+  animation: highlight 1s ease;
+}
