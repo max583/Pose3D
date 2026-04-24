@@ -13,7 +13,12 @@
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --watch --config vitest.config.ts"
   },
-  "keywords": ["pose", "3d", "controlnet", "editor"],
+  "keywords": [
+    "pose",
+    "3d",
+    "controlnet",
+    "editor"
+  ],
   "author": "PoseFlow Team",
   "license": "MIT",
   "devDependencies": {
@@ -26,9 +31,9 @@
     "electron": "^28.0.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",
-    "vitest": "^2.1.9",
     "vite-plugin-electron": "^0.28.0",
     "vite-plugin-electron-renderer": "^0.14.5",
+    "vitest": "^2.1.9",
     "wait-on": "^7.2.0"
   },
   "dependencies": {
@@ -36,6 +41,7 @@
     "@react-three/fiber": "^8.18.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "three": "^0.163.0"
+    "three": "^0.163.0",
+    "zustand": "^5.0.12"
   }
 }
