@@ -9,6 +9,10 @@
 
 - Инженерные практики: ADR (`ai/decisions/`), `CHANGELOG.md`, граница логика/UI в `CLAUDE.md` (P1).
 
+### Changed
+
+- Архивация устаревших документов планов: `priority-improvement-plan.md`, `architecture-improvement-recommendations.md`, `drag-system-analysis-design-doll-plan.md`, `phase0-implementation-plan.md` перемещены в `plans/archive/` с меткой `[ARCHIVED]` (2026-04-18).
+
 ## [0.2.0] — 2026-04-15
 
 ### Added
