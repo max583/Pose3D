@@ -248,6 +248,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
           </section>
 
           <section className="settings-section">
+            <h3 className="settings-section-title">Контроллеры</h3>
+            <div className="settings-row">
+              <label htmlFor="set-controller-size">Размер контроллеров</label>
+              <div className="settings-range-wrap">
+                <input
+                  id="set-controller-size"
+                  type="range"
+                  min={10}
+                  max={50}
+                  step={1}
+                  value={Math.round(settings.controllerSize * 100)}
+                  onChange={(e) =>
+                    updateSettings({ controllerSize: Number(e.target.value) / 100 })
+                  }
+                />
+                <span className="settings-range-value">
+                  {settings.controllerSize.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section className="settings-section">
             <h3 className="settings-section-title">Экспорт по умолчанию</h3>
             <div className="settings-row">
               <label htmlFor="set-def-res">Разрешение</label>

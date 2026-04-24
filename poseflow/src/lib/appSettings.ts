@@ -33,6 +33,8 @@ export interface AppSettings {
   defaultExportResolution: StoredResolution;
   defaultExportAspect: StoredAspect;
   confirmOnResetPose: boolean;
+  /** Размер контроллеров (радиус сферы) */
+  controllerSize: number;
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -48,6 +50,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   defaultExportResolution: '1K',
   defaultExportAspect: '1:1',
   confirmOnResetPose: false,
+  controllerSize: 0.24,
 };
 
 const STORAGE_KEY = 'poseflow-app-settings-v1';
@@ -61,7 +64,12 @@ export function loadAppSettings(): AppSettings {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_APP_SETTINGS };
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return {
+    
+    // Debug logging for controllerSize
+    console.log('loadAppSettings: parsed controllerSize =', parsed.controllerSize);
+    console.log('loadAppSettings: default controllerSize =', DEFAULT_APP_SETTINGS.controllerSize);
+    
+    const result = {
       ...DEFAULT_APP_SETTINGS,
       ...parsed,
       defaultExportResolution: isStoredResolution(parsed.defaultExportResolution)
@@ -103,7 +111,21 @@ export function loadAppSettings(): AppSettings {
         0.15,
         2,
       ),
+      controllerSize: (() => {
+        const rawSize = Number.isFinite(parsed.controllerSize as number)
+          ? (parsed.controllerSize as number)
+          : DEFAULT_APP_SETTINGS.controllerSize;
+        // If stored size is too small (likely from old version), reset to default
+        if (rawSize < 0.2) {
+          console.log('loadAppSettings: controllerSize too small, resetting to default', rawSize);
+          return DEFAULT_APP_SETTINGS.controllerSize;
+        }
+        return clamp(rawSize, 0.2, 0.5);
+      })(),
     };
+    
+    console.log('loadAppSettings: final controllerSize =', result.controllerSize);
+    return result;
   } catch {
     return { ...DEFAULT_APP_SETTINGS };
   }

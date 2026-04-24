@@ -15,7 +15,7 @@ function createEmptyPose(): PoseData {
 /**
  * T-Pose - руки в стороны
  */
-function createTPose(): PoseData {
+export function createTPose(): PoseData {
   return {
     [Body25Index.NOSE]: { x: 0, y: 1.6, z: 0 },
     [Body25Index.NECK]: { x: 0, y: 1.4, z: 0 },
