@@ -5,16 +5,21 @@ import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
 import { StatusBar } from './components/StatusBar';
 import { ExportFrameData } from './components/ExportFrame';
-import { ExportService } from './services/ExportService';
-import { poseService } from './services/PoseService';
 import { useIPC } from './hooks/useIPC';
 import { uiLogger, exportLogger } from './lib/logger';
+import { FeatureFlagProvider } from './context/FeatureFlagContext';
+import { ServiceProvider } from './context/ServiceContext';
+import { usePoseService, useExportService } from './context/ServiceContext';
+import { FeatureFlagPanel } from './components/FeatureFlagPanel';
 import './App.css';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const { appInfo, healthStatus } = useIPC();
   const [currentCamera, setCurrentCamera] = useState<THREE.Camera | undefined>(undefined);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  
+  const poseService = usePoseService();
+  const exportService = useExportService();
 
   React.useEffect(() => {
     uiLogger.info('App initialized');
@@ -31,7 +36,7 @@ const App: React.FC = () => {
     const resolution = frameData.resolution === '1K' ? 1024 : frameData.resolution === '2K' ? 2048 : 4096;
     
     try {
-      await ExportService.downloadPNGWithCrop(
+      await exportService.downloadPNGWithCrop?.(
         poseData,
         camera,
         frameData,
@@ -74,7 +79,20 @@ const App: React.FC = () => {
       <StatusBar />
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      
+      {/* Панель feature flags (только в dev режиме) */}
+      <FeatureFlagPanel position="top-right" />
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <ServiceProvider>
+      <FeatureFlagProvider>
+        <AppContent />
+      </FeatureFlagProvider>
+    </ServiceProvider>
   );
 };
 

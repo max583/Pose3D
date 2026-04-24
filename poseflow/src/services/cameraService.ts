@@ -1,16 +1,12 @@
 // cameraService.ts - Сервис для управления камерой
 import { Vector3, Camera } from 'three';
 import { canvasLogger } from '../lib/logger';
+import { CameraState as CameraStateType } from '../lib/types/common';
 
 export type CameraView = 'front' | 'back' | 'side' | 'sideLeft' | 'threeQuarterFrontRight' | 'threeQuarterFrontLeft' | 'threeQuarterBackRight' | 'threeQuarterBackLeft' | 'top' | 'reset';
 
-interface CameraState {
-  position: Vector3;
-  target: Vector3;
-  label: string;
-}
 
-const CAMERA_VIEWS: Record<CameraView, CameraState> = {
+const CAMERA_VIEWS: Record<CameraView, { position: Vector3; target: Vector3; label: string }> = {
   front: {
     position: new Vector3(0, 1.5, 5),
     target: new Vector3(0, 1, 0),
@@ -65,10 +61,10 @@ const CAMERA_VIEWS: Record<CameraView, CameraState> = {
 
 type CameraChangeListener = (view: CameraView) => void;
 
-class CameraService {
+export class CameraService {
   private camera: Camera | null = null;
   private listeners: CameraChangeListener[] = [];
-  private isAnimating = false;
+  private _isAnimating = false;
   private animationDurationMs = 500;
 
   /** Зарегистрировать камеру */
@@ -92,7 +88,7 @@ class CameraService {
       return;
     }
 
-    if (this.isAnimating) {
+    if (this._isAnimating) {
       canvasLogger.warn('Animation in progress, skipping');
       return;
     }
@@ -111,7 +107,7 @@ class CameraService {
   private animateCamera(targetPosition: Vector3, targetLookAt: Vector3, duration: number): void {
     if (!this.camera) return;
 
-    this.isAnimating = true;
+    this._isAnimating = true;
 
     const startPosition = this.camera.position.clone();
     const direction = new Vector3();
@@ -133,12 +129,15 @@ class CameraService {
 
       const currentLookAt = new Vector3().lerpVectors(startTarget, targetLookAt, eased);
       this.camera!.lookAt(currentLookAt);
-      this.camera!.updateProjectionMatrix();
+      // Type guard for PerspectiveCamera/OrthographicCamera
+      if ('updateProjectionMatrix' in this.camera!) {
+        (this.camera as any).updateProjectionMatrix();
+      }
 
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        this.isAnimating = false;
+        this._isAnimating = false;
         canvasLogger.debug('Camera animation completed');
       }
     };
@@ -158,6 +157,120 @@ class CameraService {
   private notifyListeners(view: CameraView): void {
     this.listeners.forEach(listener => listener(view));
   }
+
+  // ─── ICameraService interface methods ─────────────────────────────────────
+
+  getCamera(): Camera | null {
+    return this.camera;
+  }
+
+  getState(): CameraStateType {
+    if (!this.camera) {
+      return {
+        position: new Vector3(),
+        target: new Vector3(),
+        fov: 50,
+      };
+    }
+    const direction = new Vector3();
+    this.camera.getWorldDirection(direction);
+    const target = this.camera.position.clone().add(direction.multiplyScalar(5));
+    const fov = ('fov' in this.camera) ? (this.camera as any).fov : 50;
+    return {
+      position: this.camera.position.clone(),
+      target,
+      fov,
+    };
+  }
+
+  setState(state: CameraStateType): void {
+    if (!this.camera) return;
+    this.camera.position.copy(state.position);
+    this.camera.lookAt(state.target);
+    if ('updateProjectionMatrix' in this.camera) {
+      (this.camera as any).updateProjectionMatrix();
+    }
+  }
+
+  getPosition(): Vector3 {
+    if (!this.camera) return new Vector3();
+    return this.camera.position.clone();
+  }
+
+  setPosition(x: number, y: number, z: number): void {
+    if (!this.camera) return;
+    this.camera.position.set(x, y, z);
+    if ('updateProjectionMatrix' in this.camera) {
+      (this.camera as any).updateProjectionMatrix();
+    }
+  }
+
+  lookAt(target: Vector3): void {
+    if (!this.camera) return;
+    this.camera.lookAt(target);
+    if ('updateProjectionMatrix' in this.camera) {
+      (this.camera as any).updateProjectionMatrix();
+    }
+  }
+
+  reset(): void {
+    this.switchTo('reset');
+  }
+
+  getAvailableViews(): CameraView[] {
+    return Object.keys(CAMERA_VIEWS) as CameraView[];
+  }
+
+  getViewLabel(view: CameraView): string {
+    return CAMERA_VIEWS[view]?.label ?? view;
+  }
+
+  translate(dx: number, dy: number, dz: number): void {
+    if (!this.camera) return;
+    this.camera.position.x += dx;
+    this.camera.position.y += dy;
+    this.camera.position.z += dz;
+    if ('updateProjectionMatrix' in this.camera) {
+      (this.camera as any).updateProjectionMatrix();
+    }
+  }
+
+  rotate(dx: number, dy: number): void {
+    if (!this.camera) return;
+    // Simple orbit rotation around target
+    const direction = new Vector3();
+    this.camera.getWorldDirection(direction);
+    const dist = this.camera.position.distanceTo(new Vector3().copy(this.camera.position).add(direction));
+    const spherical = {
+      theta: Math.atan2(direction.x, direction.z),
+      phi: Math.acos(direction.y / dist),
+    };
+    spherical.theta += dx;
+    spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi + dy));
+    const newDir = new Vector3(
+      Math.sin(spherical.phi) * Math.sin(spherical.theta),
+      Math.cos(spherical.phi),
+      Math.sin(spherical.phi) * Math.cos(spherical.theta),
+    ).normalize();
+    const target = this.camera.position.clone().add(newDir.multiplyScalar(dist));
+    this.camera.position.copy(target.sub(newDir.multiplyScalar(dist * 2)));
+    this.lookAt(target);
+  }
+
+  zoom(delta: number): void {
+    if (!this.camera) return;
+    const direction = new Vector3();
+    this.camera.getWorldDirection(direction);
+    this.camera.position.add(direction.multiplyScalar(delta));
+    if ('updateProjectionMatrix' in this.camera) {
+      (this.camera as any).updateProjectionMatrix();
+    }
+  }
+
+  isAnimating(): boolean {
+    return this._isAnimating;
+  }
 }
 
+// Синглтон экземпляр CameraService для обратной совместимости
 export const cameraService = new CameraService();
