@@ -43,3 +43,15 @@ Thumbs.db
 # Misc
 .cache/
 .temp/
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Debug / temp artifacts
+ts_errors.txt
+debug-dragadapter.js
+check-status.ps1
+
+# Testing reports (generated, not source)
+*-testing-report.md
+*-readiness-report.md
