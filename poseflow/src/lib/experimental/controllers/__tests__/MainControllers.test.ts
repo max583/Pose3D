@@ -45,9 +45,9 @@ describe('MainControllers', () => {
 
     it('should link correct joints to each controller', () => {
       const headController = controllers.getControllerByType(ControllerType.HEAD);
-      // HEAD uses midpoint of bone NOSE-NECK: linked to both, dragJoint = NOSE
+      // HEAD uses midpoint of bone NOSE-NECK: linked to both, dragJoint = NECK (whole head moves via FK)
       expect(headController?.linkedJoints).toEqual([Body25Index.NOSE, Body25Index.NECK]);
-      expect(headController?.dragJoint).toBe(Body25Index.NOSE);
+      expect(headController?.dragJoint).toBe(Body25Index.NECK);
 
       const chestController = controllers.getControllerByType(ControllerType.CHEST);
       expect(chestController?.linkedJoints).toEqual([Body25Index.NECK]);

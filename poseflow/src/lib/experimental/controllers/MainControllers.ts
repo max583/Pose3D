@@ -53,7 +53,7 @@ const CONTROLLER_CONFIGS: Record<ControllerType, Omit<ControllerState, 'id' | 'p
     color: new Color(0x888888), // Серый цвет
     opacity: 0.6, // Полупрозрачность
     linkedJoints: [Body25Index.NOSE, Body25Index.NECK],
-    dragJoint: Body25Index.NOSE,
+    dragJoint: Body25Index.NECK,
     constraints: {
       translation: {
         min: new Vector3(-1000, -1000, -1000),
