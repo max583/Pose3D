@@ -52,7 +52,7 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagDefinition> = {
     type: 'release',
     description: 'Использовать 7 контроллеров в стиле DesignDoll',
     defaultValue: true,
-    dependsOn: ['USE_FIXED_LENGTHS', 'USE_RIGID_SKULL'],
+    rolloutPercentage: 100,
   },
   
   USE_SPINE_CHAIN: {

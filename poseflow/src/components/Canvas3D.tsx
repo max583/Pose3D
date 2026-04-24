@@ -140,61 +140,6 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Test: Add raw click event listener to verify events reach the canvas
-  useEffect(() => {
-    const canvas = viewportRef.current?.querySelector('canvas');
-    if (!canvas) {
-      console.log('Canvas3D: No canvas element found for click test');
-      return;
-    }
-    
-    const handleClick = (e: MouseEvent) => {
-      console.log('Canvas3D RAW CLICK TEST:', {
-        type: e.type,
-        button: e.button,
-        buttons: e.buttons,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        target: e.target,
-        currentTarget: e.currentTarget,
-        timeStamp: e.timeStamp,
-        isTrusted: e.isTrusted
-      });
-      // Prevent default to see if it helps
-      e.preventDefault();
-      e.stopPropagation();
-    };
-    
-    const handlePointerDown = (e: PointerEvent) => {
-      console.log('Canvas3D RAW POINTERDOWN TEST:', {
-        type: e.type,
-        pointerId: e.pointerId,
-        pointerType: e.pointerType,
-        button: e.button,
-        buttons: e.buttons,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        target: e.target,
-        currentTarget: e.currentTarget
-      });
-      // Capture left button clicks and prevent OrbitControls from handling them
-      if (e.button === 0) {
-        console.log('RAW POINTERDOWN left button - attempting to prevent default');
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }
-    };
-    
-    // Use capture phase to intercept before OrbitControls
-    canvas.addEventListener('click', handleClick, { capture: true });
-    canvas.addEventListener('pointerdown', handlePointerDown, { capture: true });
-    
-    return () => {
-      canvas.removeEventListener('click', handleClick, { capture: true });
-      canvas.removeEventListener('pointerdown', handlePointerDown, { capture: true });
-    };
-  }, []);
 
   // Обработчик изменения позиции сустава
   const handleJointPositionChange = useCallback((
@@ -232,163 +177,17 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     canvasLogger.debug('Joint drag ended, enabling OrbitControls');
   }, []);
 
-  // Обработчики pointer событий для DesignDoll контроллеров
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    console.log('=== CANVAS POINTER DOWN START ===', {
-      button: e.button,
-      buttons: e.buttons,
-      clientX: e.clientX,
-      clientY: e.clientY,
-      target: e.target,
-      currentTarget: e.currentTarget,
-      timeStamp: e.timeStamp,
-      pointerId: e.pointerId,
-      pointerType: e.pointerType,
-      isTrusted: e.isTrusted
-    });
-    
-    // Only handle left mouse button (button === 0)
-    if (e.button !== 0) {
-      console.log('Canvas3D handlePointerDown: Ignoring non-left button (button =', e.button, ')');
-      return;
-    }
-    
-    console.log('Canvas3D handlePointerDown processing left button click');
-    
-    if (!featureFlagIntegration.isDesignDollControllersEnabled()) {
-      console.log('Canvas3D handlePointerDown: DesignDoll controllers not enabled');
-      return;
-    }
-
-    const canvas = viewportRef.current?.querySelector('canvas');
-    if (!canvas || !currentCameraRef.current) return;
-
-    const rect = canvas.getBoundingClientRect();
-    // Pass pixel coordinates (relative to canvas) instead of NDC
-    const screenPosition = new THREE.Vector2(
-      e.clientX - rect.left,  // X in pixels
-      e.clientY - rect.top     // Y in pixels
-    );
-
-    console.log('Canvas3D screenPosition (pixels)', {
-      x: screenPosition.x,
-      y: screenPosition.y,
-      rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-      canvasClientSize: { width: canvas.clientWidth, height: canvas.clientHeight },
-      canvasDrawingBuffer: { width: canvas.width, height: canvas.height },
-      devicePixelRatio: window.devicePixelRatio
-    });
-
-    const dragEvent = {
-      type: 'start' as const,
-      screenPosition,
-      controllerId: null,
-    };
-
-    const canvasSize = { width: rect.width, height: rect.height };
-    const handled = featureFlagIntegration.handleDragEvent(dragEvent, currentCameraRef.current, canvasSize);
-    
-    console.log('Canvas3D drag event handled:', handled);
-    
-    if (handled) {
-      e.preventDefault();
-      e.stopPropagation();
-      canvas.setPointerCapture(e.pointerId);
-      setIsControllerDragging(true);
-      console.log('Controller drag started, setting isControllerDragging = true');
-    }
-  }, [featureFlagIntegration, setIsControllerDragging]);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    console.log('=== CANVAS POINTER MOVE START ===', {
-      clientX: e.clientX,
-      clientY: e.clientY,
-      button: e.button,
-      buttons: e.buttons,
-      target: e.target,
-      currentTarget: e.currentTarget,
-      pointerId: e.pointerId,
-      pointerType: e.pointerType
-    });
-    
-    if (!featureFlagIntegration.isDesignDollControllersEnabled()) {
-      console.log('Canvas3D handlePointerMove: DesignDoll controllers not enabled');
-      return;
-    }
-
-    const canvas = viewportRef.current?.querySelector('canvas');
-    if (!canvas || !currentCameraRef.current) return;
-
-    const rect = canvas.getBoundingClientRect();
-    // Use pixel coordinates for consistency with handlePointerDown
-    const screenPosition = new THREE.Vector2(
-      e.clientX - rect.left,  // X in pixels
-      e.clientY - rect.top     // Y in pixels
-    );
-
-    console.log('Canvas3D handlePointerMove screenPosition (pixels)', { x: screenPosition.x, y: screenPosition.y });
-
-    const dragEvent = {
-      type: 'drag' as const,
-      screenPosition,
-      controllerId: null,
-    };
-
-    const canvasSize = { width: rect.width, height: rect.height };
-    const handled = featureFlagIntegration.handleDragEvent(dragEvent, currentCameraRef.current, canvasSize);
-    
-    console.log('Canvas3D handlePointerMove drag event handled:', handled);
-    
-    if (handled) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, [featureFlagIntegration]);
-
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    console.log('Canvas3D handlePointerUp', { clientX: e.clientX, clientY: e.clientY, button: e.button });
-    if (!featureFlagIntegration.isDesignDollControllersEnabled()) {
-      return;
-    }
-
-    const canvas = viewportRef.current?.querySelector('canvas');
-    if (!canvas || !currentCameraRef.current) return;
-
-    const rect = canvas.getBoundingClientRect();
-    // Use pixel coordinates for consistency with handlePointerDown
-    const screenPosition = new THREE.Vector2(
-      e.clientX - rect.left,  // X in pixels
-      e.clientY - rect.top     // Y in pixels
-    );
-
-    console.log('Canvas3D handlePointerUp screenPosition (pixels)', { x: screenPosition.x, y: screenPosition.y });
-
-    const dragEvent = {
-      type: 'end' as const,
-      screenPosition,
-      controllerId: null,
-    };
-
-    const canvasSize = { width: rect.width, height: rect.height };
-    const handled = featureFlagIntegration.handleDragEvent(dragEvent, currentCameraRef.current, canvasSize);
-    
-    console.log('Canvas3D handlePointerUp drag event handled:', handled);
-    
-    if (handled) {
-      e.preventDefault();
-      e.stopPropagation();
-      canvas.releasePointerCapture(e.pointerId);
-      setIsControllerDragging(false);
-      console.log('Controller drag ended, setting isControllerDragging = false');
-    } else {
-      // If no drag event was handled but we were dragging, still clear the flag
-      // (e.g., click outside controller)
-      if (isControllerDragging) {
-        setIsControllerDragging(false);
-        console.log('Controller drag flag cleared (no drag event handled)');
-      }
-    }
-  }, [featureFlagIntegration, setIsControllerDragging, isControllerDragging]);
+  // Bridge: перемещение контроллера → обновление сустава в PoseService
+  const handleControllerPositionChange = useCallback((
+    controllerId: string,
+    pos: { x: number; y: number; z: number },
+  ) => {
+    const mc = featureFlagIntegration.getMainControllers();
+    const controller = mc?.getController(controllerId);
+    if (!controller) return;
+    const dragJoint = controller.dragJoint ?? controller.linkedJoints[0];
+    poseService.updateJoint(dragJoint, { ...pos, confidence: 1.0 });
+  }, [featureFlagIntegration, poseService]);
 
   // Отслеживаем, находится ли pointer внутри рамки экспорта
   useEffect(() => {
@@ -419,10 +218,6 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     <div
       className="canvas3d-container"
       ref={viewportRef}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
     >
       {/* Кнопка показа рамки экспорта */}
       {!showExportFrame && (
@@ -496,6 +291,9 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
             key={controller.id}
             controller={controller}
             onSelect={handleControllerSelect}
+            onPositionChange={handleControllerPositionChange}
+            onDragStart={() => setIsControllerDragging(true)}
+            onDragEnd={() => setIsControllerDragging(false)}
             isInteractive={true}
           />
         ))}
