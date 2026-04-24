@@ -1,7 +1,8 @@
 // Joint.tsx - Интерактивная сфера (точка скелета)
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, memo } from 'react';
 import { Body25Index, JointPosition } from '../../lib/body25/body25-types';
 import { useTransformDrag } from '../../hooks/useTransformDrag';
+import { useIsDesignDollControllersEnabled } from '../../hooks/useFeatureFlagIntegration';
 import { skeletonLogger } from '../../lib/logger';
 
 interface JointProps {
@@ -20,13 +21,13 @@ interface JointProps {
   isUnlinked?: boolean;
 }
 
-export const Joint: React.FC<JointProps> = ({
+const JointComponent: React.FC<JointProps> = ({
   index,
   position,
   color,
   onPositionChange,
   onToggleLink,
-  radius = 0.04,
+  radius = 0.02,
   isGlobalDragging = false,
   onGlobalDragStart,
   onGlobalDragEnd,
@@ -35,8 +36,9 @@ export const Joint: React.FC<JointProps> = ({
 }) => {
   const meshRef = useRef<any>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const isDesignDollControllersEnabled = useIsDesignDollControllersEnabled();
 
-  // Хук для drag-and-drop
+  // Хук для drag-and-drop (только если DesignDoll контроллеры не включены)
   const { isDragging, handlePointerDown } = useTransformDrag({
     index,
     onPositionChange,
@@ -44,11 +46,16 @@ export const Joint: React.FC<JointProps> = ({
 
   // Обработчик начала перетаскивания
   const handleDragStart = useCallback((e: any) => {
+    if (isDesignDollControllersEnabled) {
+      // Если включены DesignDoll контроллеры, игнорируем drag на суставах
+      e.stopPropagation();
+      return;
+    }
     e.stopPropagation();
     skeletonLogger.debug(`Joint ${index} pointer down`);
     onGlobalDragStart?.();
     handlePointerDown(e);
-  }, [index, handlePointerDown, onGlobalDragStart]);
+  }, [index, handlePointerDown, onGlobalDragStart, isDesignDollControllersEnabled]);
 
   // Обработчик окончания перетаскивания
   const handleDragEnd = useCallback(() => {
@@ -72,29 +79,49 @@ export const Joint: React.FC<JointProps> = ({
 
   // Правая кнопка мыши — переключить FK-связь
   const handleContextMenu = useCallback((e: any) => {
+    if (isDesignDollControllersEnabled) {
+      // Если включены DesignDoll контроллеры, игнорируем контекстное меню на суставах
+      e.stopPropagation();
+      e.nativeEvent?.preventDefault?.();
+      return;
+    }
     e.stopPropagation();
     e.nativeEvent?.preventDefault?.();
     onToggleLink?.(index);
-  }, [index, onToggleLink]);
+  }, [index, onToggleLink, isDesignDollControllersEnabled]);
 
   const handlePointerOver = useCallback((e: any) => {
+    if (isDesignDollControllersEnabled) {
+      // Если включены DesignDoll контроллеры, игнорируем hover на суставах
+      e.stopPropagation();
+      return;
+    }
     e.stopPropagation();
     setIsHovered(true);
     if (!isDragging) {
       document.body.style.cursor = 'grab';
     }
-  }, [isDragging]);
+  }, [isDragging, isDesignDollControllersEnabled]);
 
   const handlePointerOut = useCallback((e: any) => {
+    if (isDesignDollControllersEnabled) {
+      // Если включены DesignDoll контроллеры, игнорируем hover на суставах
+      e.stopPropagation();
+      return;
+    }
     e.stopPropagation();
     setIsHovered(false);
     if (!isDragging) {
       document.body.style.cursor = 'default';
     }
-  }, [isDragging]);
+  }, [isDragging, isDesignDollControllersEnabled]);
 
-  // Обновляем курсор при drag
+  // Обновляем курсор при drag (только если DesignDoll контроллеры не включены)
   React.useEffect(() => {
+    if (isDesignDollControllersEnabled) {
+      // Если включены DesignDoll контроллеры, не меняем курсор при взаимодействии с суставами
+      return;
+    }
     if (isDragging) {
       document.body.style.cursor = 'grabbing';
     } else if (isHovered) {
@@ -105,7 +132,7 @@ export const Joint: React.FC<JointProps> = ({
     return () => {
       document.body.style.cursor = 'default';
     };
-  }, [isDragging, isHovered]);
+  }, [isDragging, isHovered, isDesignDollControllersEnabled]);
 
   // End-effectors в IK-режиме — чуть крупнее и ярче
   const effectiveRadius = isEndEffector ? radius * 1.5 : radius;
@@ -139,3 +166,5 @@ export const Joint: React.FC<JointProps> = ({
     </mesh>
   );
 };
+
+export const Joint = memo(JointComponent);

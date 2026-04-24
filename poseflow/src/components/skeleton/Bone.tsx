@@ -1,5 +1,5 @@
 // Bone.tsx - Линия между двумя точками скелета
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import * as THREE from 'three';
 import { JointPosition } from '../../lib/body25/body25-types';
 
@@ -10,11 +10,11 @@ interface BoneProps {
   thickness?: number;
 }
 
-export const Bone: React.FC<BoneProps> = ({
+const BoneComponent: React.FC<BoneProps> = ({
   from,
   to,
   color,
-  thickness = 0.02,
+  thickness = 0.01,
 }) => {
   // Создаём кость как цилиндр с правильной ориентацией
   const { position, length, quaternion } = useMemo(() => {
@@ -55,3 +55,5 @@ export const Bone: React.FC<BoneProps> = ({
     </mesh>
   );
 };
+
+export const Bone = memo(BoneComponent);
