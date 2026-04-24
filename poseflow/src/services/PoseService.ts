@@ -135,6 +135,23 @@ export class PoseService {
     return { ...this.skeletons[this.activeSkeletonId][index] };
   }
 
+  /** Установить позицию сустава напрямую (без FK/IK) */
+  setJointPosition(index: Body25Index, position: JointPosition): void {
+    this.undoStack.push(this.snapshot());
+    this.skeletons[this.activeSkeletonId][index] = { ...position };
+    this.notifyListeners();
+  }
+
+  /** Получить текущий режим манипуляции */
+  getManipulationMode(): ManipulationMode {
+    return this.manipulationMode;
+  }
+
+  /** Установить режим манипуляции */
+  setManipulationMode(mode: ManipulationMode): void {
+    this.manipulationMode = mode;
+  }
+
   // ─── Subscriptions ─────────────────────────────────────────────────────────
 
   subscribe(listener: (data: PoseData) => void): () => void {
@@ -285,7 +302,70 @@ export class PoseService {
     pose[Body25Index.LEFT_SHOULDER]  = { x: -0.2, y: 1.35, z: 0 };
     return pose;
   }
+
+  // ─── Multiple skeletons support (Step 9) ──────────────────────────────────
+
+  getSkeletonCount(): number {
+    return this.skeletons.length;
+  }
+
+  getActiveSkeletonId(): number {
+    return this.activeSkeletonId;
+  }
+
+  setActiveSkeletonId(id: number): void {
+    if (id < 0 || id >= this.skeletons.length) {
+      throw new Error(`Invalid skeleton id: ${id}`);
+    }
+    if (id !== this.activeSkeletonId) {
+      this.undoStack.push(this.snapshot());
+      this.activeSkeletonId = id;
+      this.notifyListeners();
+    }
+  }
+
+  addSkeleton(): number {
+    this.undoStack.push(this.snapshot());
+    const newPose = { ...this.skeletons[this.activeSkeletonId] };
+    this.skeletons.push(newPose);
+    this.notifyListeners();
+    return this.skeletons.length - 1;
+  }
+
+  removeSkeleton(id: number): void {
+    if (this.skeletons.length <= 1) {
+      throw new Error('Cannot remove the last skeleton');
+    }
+    if (id < 0 || id >= this.skeletons.length) {
+      throw new Error(`Invalid skeleton id: ${id}`);
+    }
+    this.undoStack.push(this.snapshot());
+    this.skeletons.splice(id, 1);
+    if (this.activeSkeletonId >= id && this.activeSkeletonId > 0) {
+      this.activeSkeletonId = Math.max(0, this.activeSkeletonId - 1);
+    }
+    this.notifyListeners();
+  }
+
+  getSkeletonPose(id: number): PoseData {
+    if (id < 0 || id >= this.skeletons.length) {
+      throw new Error(`Invalid skeleton id: ${id}`);
+    }
+    return { ...this.skeletons[id] };
+  }
+
+  setSkeletonPose(id: number, data: PoseData): void {
+    if (id < 0 || id >= this.skeletons.length) {
+      throw new Error(`Invalid skeleton id: ${id}`);
+    }
+    this.undoStack.push(this.snapshot());
+    this.skeletons[id] = { ...data };
+    if (id === this.activeSkeletonId) {
+      this.graph.computeBoneLengths(data);
+    }
+    this.notifyListeners();
+  }
 }
 
-// Singleton
+// Синглтон экземпляр PoseService для обратной совместимости
 export const poseService = new PoseService();
