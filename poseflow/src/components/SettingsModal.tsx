@@ -255,7 +255,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                 <input
                   id="set-controller-size"
                   type="range"
-                  min={10}
+                  min={4}
                   max={50}
                   step={1}
                   value={Math.round(settings.controllerSize * 100)}

@@ -115,7 +115,10 @@ export function loadAppSettings(): AppSettings {
         const rawSize = Number.isFinite(parsed.controllerSize as number)
           ? (parsed.controllerSize as number)
           : DEFAULT_APP_SETTINGS.controllerSize;
-        // If stored size is too small (likely from old version), reset to default
+        // Миграция: старый дефолт 0.24 → новый дефолт 0.08
+        if (Math.abs(rawSize - 0.24) < 1e-6) {
+          return DEFAULT_APP_SETTINGS.controllerSize;
+        }
         if (rawSize < 0.04) {
           return DEFAULT_APP_SETTINGS.controllerSize;
         }

@@ -98,7 +98,7 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagDefinition> = {
     type: 'experiment',
     description: 'Кольцевые гизмо для вращения суставов (Step 11)',
     defaultValue: false,
-    rolloutPercentage: 20,
+    rolloutPercentage: 0,
     dependsOn: ['ALLOW_EXPERIMENTAL_FEATURES'],
   },
   
