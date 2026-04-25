@@ -101,6 +101,14 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'poseflow-settings-storage',
+      version: 2,
+      migrate: (persistedState: any, fromVersion: number) => {
+        if (fromVersion < 2) {
+          // v2: уменьшен дефолтный размер контроллеров 0.24 → 0.08
+          persistedState.settings.controllerSize = DEFAULT_APP_SETTINGS.controllerSize;
+        }
+        return persistedState;
+      },
       // Сохраняем только settings, остальное вычисляемое
       partialize: (state) => ({
         settings: state.settings,
@@ -111,7 +119,7 @@ export const useSettingsStore = create<SettingsState>()(
           // Вычисляем эффективную тему
           const effectiveTheme = computeEffectiveTheme(state.settings.theme, state.systemLight);
           state.effectiveTheme = effectiveTheme;
-          
+
           // Устанавливаем data-theme атрибут
           if (typeof document !== 'undefined') {
             document.documentElement.dataset.theme = effectiveTheme;
