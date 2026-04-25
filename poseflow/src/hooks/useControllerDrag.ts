@@ -75,11 +75,12 @@ export function useControllerDrag({
   const handlePointerDown = useCallback((e: any) => {
     e.stopPropagation();
 
-    const worldPos = new Vector3(
-      e.object.position.x,
-      e.object.position.y,
-      e.object.position.z,
-    );
+    // e.eventObject — меш, на котором висит обработчик (родительская сфера),
+    // а не e.object — это может быть дочерний wireframe (scale 1.2) при isActive,
+    // у которого локальная position = (0,0,0). getWorldPosition даёт мировую.
+    const worldPos = new Vector3();
+    const target = e.eventObject ?? e.object;
+    target.getWorldPosition(worldPos);
 
     const cameraDir = new Vector3();
     camera.getWorldDirection(cameraDir);
