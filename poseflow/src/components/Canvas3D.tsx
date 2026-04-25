@@ -12,7 +12,8 @@ import { canvasLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getCanvasSceneStyle } from '../lib/canvasColorSchemes';
 import { useFeatureFlag } from '../context/FeatureFlagContext';
-import { useDesignDollControllers, useFeatureFlagIntegration, useIsDesignDollControllersEnabled } from '../hooks/useFeatureFlagIntegration';
+import { useFeatureFlagIntegration, useIsDesignDollControllersEnabled } from '../hooks/useFeatureFlagIntegration';
+import { ControllerState } from '../lib/experimental/controllers/MainControllers';
 import { usePoseService } from '../context/ServiceContext';
 import './Canvas3D.css';
 
@@ -69,7 +70,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const [isPointerInsideFrame, setIsPointerInsideFrame] = useState(false);
   const [showExportFrame, setShowExportFrame] = useState(false);
   const isMiniViewEnabled = useFeatureFlag('USE_MINI_VIEW');
-  const controllers = useDesignDollControllers();
+  const [controllers, setControllers] = useState<ControllerState[]>([]);
   const featureFlagIntegration = useFeatureFlagIntegration();
   const isDesignDollControllersEnabled = useIsDesignDollControllersEnabled();
   const currentCameraRef = useRef<THREE.Camera | null>(null);
@@ -93,6 +94,8 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
       setUnlinkedJoints(poseService.getUnlinkedJoints());
       // Skeleton → Controllers: синхронизируем контроллеры при каждом изменении позы
       featureFlagIntegration.syncControllersFromPose(data);
+      const mc = featureFlagIntegration.getMainControllers();
+      if (mc) setControllers(mc.getAllControllers());
     });
     return () => {
       canvasLogger.info('Canvas3D unmounting');
@@ -108,6 +111,8 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     };
     // Инициализация: ставим контроллеры на текущие позиции суставов
     featureFlagIntegration.syncControllersFromPose(poseService.getPoseData());
+    const mc = featureFlagIntegration.getMainControllers();
+    if (mc) setControllers(mc.getAllControllers());
     return () => {
       featureFlagIntegration.onJointUpdate = undefined;
     };
