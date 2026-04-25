@@ -50,7 +50,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   defaultExportResolution: '1K',
   defaultExportAspect: '1:1',
   confirmOnResetPose: false,
-  controllerSize: 0.24,
+  controllerSize: 0.08,
 };
 
 const STORAGE_KEY = 'poseflow-app-settings-v1';
@@ -116,11 +116,10 @@ export function loadAppSettings(): AppSettings {
           ? (parsed.controllerSize as number)
           : DEFAULT_APP_SETTINGS.controllerSize;
         // If stored size is too small (likely from old version), reset to default
-        if (rawSize < 0.2) {
-          console.log('loadAppSettings: controllerSize too small, resetting to default', rawSize);
+        if (rawSize < 0.04) {
           return DEFAULT_APP_SETTINGS.controllerSize;
         }
-        return clamp(rawSize, 0.2, 0.5);
+        return clamp(rawSize, 0.04, 0.5);
       })(),
     };
     
