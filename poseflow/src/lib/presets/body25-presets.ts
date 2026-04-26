@@ -19,19 +19,19 @@ export function createTPose(): PoseData {
   return {
     [Body25Index.NOSE]: { x: 0, y: 1.6, z: 0 },
     [Body25Index.NECK]: { x: 0, y: 1.4, z: 0 },
-    [Body25Index.RIGHT_SHOULDER]: { x: 0.3, y: 1.35, z: 0 },
-    [Body25Index.RIGHT_ELBOW]: { x: 0.6, y: 1.35, z: 0 },
-    [Body25Index.RIGHT_WRIST]: { x: 0.9, y: 1.35, z: 0 },
-    [Body25Index.LEFT_SHOULDER]: { x: -0.3, y: 1.35, z: 0 },
-    [Body25Index.LEFT_ELBOW]: { x: -0.6, y: 1.35, z: 0 },
-    [Body25Index.LEFT_WRIST]: { x: -0.9, y: 1.35, z: 0 },
+    [Body25Index.RIGHT_SHOULDER]: { x: 0.183,  y: 1.35, z: 0 },
+    [Body25Index.RIGHT_ELBOW]:    { x: 0.47,   y: 1.35, z: 0 },
+    [Body25Index.RIGHT_WRIST]:    { x: 0.71,   y: 1.35, z: 0 },
+    [Body25Index.LEFT_SHOULDER]:  { x: -0.183, y: 1.35, z: 0 },
+    [Body25Index.LEFT_ELBOW]:     { x: -0.47,  y: 1.35, z: 0 },
+    [Body25Index.LEFT_WRIST]:     { x: -0.71,  y: 1.35, z: 0 },
     [Body25Index.MID_HIP]: { x: 0, y: 0.9, z: 0 },
-    [Body25Index.RIGHT_HIP]: { x: 0.15, y: 0.85, z: 0 },
-    [Body25Index.RIGHT_KNEE]: { x: 0.15, y: 0.45, z: 0 },
-    [Body25Index.RIGHT_ANKLE]: { x: 0.15, y: 0.05, z: 0 },
-    [Body25Index.LEFT_HIP]: { x: -0.15, y: 0.85, z: 0 },
-    [Body25Index.LEFT_KNEE]: { x: -0.15, y: 0.45, z: 0 },
-    [Body25Index.LEFT_ANKLE]: { x: -0.15, y: 0.05, z: 0 },
+    [Body25Index.RIGHT_HIP]:   { x: 0.15,  y: 0.85, z: 0 },
+    [Body25Index.RIGHT_KNEE]:  { x: 0.15,  y: 0.42, z: 0 },
+    [Body25Index.RIGHT_ANKLE]: { x: 0.15,  y: 0.05, z: 0 },
+    [Body25Index.LEFT_HIP]:    { x: -0.15, y: 0.85, z: 0 },
+    [Body25Index.LEFT_KNEE]:   { x: -0.15, y: 0.42, z: 0 },
+    [Body25Index.LEFT_ANKLE]:  { x: -0.15, y: 0.05, z: 0 },
     [Body25Index.RIGHT_EYE]: { x: 0.05, y: 1.65, z: 0.1 },
     [Body25Index.LEFT_EYE]: { x: -0.05, y: 1.65, z: 0.1 },
     [Body25Index.RIGHT_EAR]: { x: 0.1, y: 1.6, z: 0 },
@@ -49,21 +49,26 @@ export function createTPose(): PoseData {
  * A-Pose - руки вниз под углом
  */
 function createAPose(): PoseData {
+  // Руки опущены ~25° от вертикали наружу.
+  // Верхняя рука ≈0.287, предплечье ≈0.242 — длины сохранены от T-позы.
   const pose = createTPose();
-  pose[Body25Index.RIGHT_ELBOW] = { x: 0.35, y: 0.9, z: 0 };
-  pose[Body25Index.RIGHT_WRIST] = { x: 0.35, y: 0.5, z: 0 };
-  pose[Body25Index.LEFT_ELBOW] = { x: -0.35, y: 0.9, z: 0 };
-  pose[Body25Index.LEFT_WRIST] = { x: -0.35, y: 0.5, z: 0 };
+  pose[Body25Index.RIGHT_ELBOW] = { x: 0.30, y: 1.09, z: 0 };
+  pose[Body25Index.RIGHT_WRIST] = { x: 0.41, y: 0.87, z: 0 };
+  pose[Body25Index.LEFT_ELBOW]  = { x: -0.30, y: 1.09, z: 0 };
+  pose[Body25Index.LEFT_WRIST]  = { x: -0.41, y: 0.87, z: 0 };
   return pose;
 }
 
 /**
- * Standing - руки по швам
+ * Standing - руки по швам (~5° от вертикали)
  */
 function createStandingPose(): PoseData {
-  const pose = createAPose();
-  pose[Body25Index.RIGHT_SHOULDER] = { x: 0.2, y: 1.35, z: 0 };
-  pose[Body25Index.LEFT_SHOULDER] = { x: -0.2, y: 1.35, z: 0 };
+  // Верхняя рука ≈0.291, предплечье ≈0.241 — длины сохранены.
+  const pose = createTPose();
+  pose[Body25Index.RIGHT_ELBOW] = { x: 0.21, y: 1.06, z: 0 };
+  pose[Body25Index.RIGHT_WRIST] = { x: 0.23, y: 0.82, z: 0 };
+  pose[Body25Index.LEFT_ELBOW]  = { x: -0.21, y: 1.06, z: 0 };
+  pose[Body25Index.LEFT_WRIST]  = { x: -0.23, y: 0.82, z: 0 };
   return pose;
 }
 

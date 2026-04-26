@@ -98,21 +98,22 @@ export function defaultTPose(): PoseData {
   return {
     [Body25Index.NOSE]:            { x:  0.00, y: 1.60, z: 0.00 },
     [Body25Index.NECK]:            { x:  0.00, y: 1.40, z: 0.00 },
-    // Плечи: |1-2| = |1-5| = 1.2 × |8-9| = 1.2 × sqrt(0.025) ≈ 0.18974
-    // x = sqrt(1.44×0.025 − 0.05²) = sqrt(0.0335) ≈ 0.18303 → 0.183
+    // Плечи: |1-2|=|1-5|=1.2×|8-9|≈0.190, x=sqrt(0.0335)≈0.183
+    // Руки горизонтальны: верхняя рука 0.287 (3-2 = 0.47-0.183), предплечье 0.24 (4-3)
+    // Ноги: femur:tibia ≈ 1.22:1 → бедро 0.43, голень 0.37 (сумма 0.80)
     [Body25Index.RIGHT_SHOULDER]:  { x:  0.183, y: 1.35, z: 0.00 },
-    [Body25Index.RIGHT_ELBOW]:     { x:  0.60, y: 1.20, z: 0.00 },
-    [Body25Index.RIGHT_WRIST]:     { x:  0.80, y: 1.00, z: 0.00 },
+    [Body25Index.RIGHT_ELBOW]:     { x:  0.47,  y: 1.35, z: 0.00 },
+    [Body25Index.RIGHT_WRIST]:     { x:  0.71,  y: 1.35, z: 0.00 },
     [Body25Index.LEFT_SHOULDER]:   { x: -0.183, y: 1.35, z: 0.00 },
-    [Body25Index.LEFT_ELBOW]:      { x: -0.60, y: 1.20, z: 0.00 },
-    [Body25Index.LEFT_WRIST]:      { x: -0.80, y: 1.00, z: 0.00 },
-    [Body25Index.MID_HIP]:         { x:  0.00, y: 0.90, z: 0.00 },
-    [Body25Index.RIGHT_HIP]:       { x:  0.15, y: 0.85, z: 0.00 },
-    [Body25Index.RIGHT_KNEE]:      { x:  0.15, y: 0.45, z: 0.00 },
-    [Body25Index.RIGHT_ANKLE]:     { x:  0.15, y: 0.05, z: 0.00 },
-    [Body25Index.LEFT_HIP]:        { x: -0.15, y: 0.85, z: 0.00 },
-    [Body25Index.LEFT_KNEE]:       { x: -0.15, y: 0.45, z: 0.00 },
-    [Body25Index.LEFT_ANKLE]:      { x: -0.15, y: 0.05, z: 0.00 },
+    [Body25Index.LEFT_ELBOW]:      { x: -0.47,  y: 1.35, z: 0.00 },
+    [Body25Index.LEFT_WRIST]:      { x: -0.71,  y: 1.35, z: 0.00 },
+    [Body25Index.MID_HIP]:         { x:  0.00,  y: 0.90, z: 0.00 },
+    [Body25Index.RIGHT_HIP]:       { x:  0.15,  y: 0.85, z: 0.00 },
+    [Body25Index.RIGHT_KNEE]:      { x:  0.15,  y: 0.42, z: 0.00 },
+    [Body25Index.RIGHT_ANKLE]:     { x:  0.15,  y: 0.05, z: 0.00 },
+    [Body25Index.LEFT_HIP]:        { x: -0.15,  y: 0.85, z: 0.00 },
+    [Body25Index.LEFT_KNEE]:       { x: -0.15,  y: 0.42, z: 0.00 },
+    [Body25Index.LEFT_ANKLE]:      { x: -0.15,  y: 0.05, z: 0.00 },
     [Body25Index.RIGHT_EYE]:       { x:  0.05, y: 1.65, z: 0.10 },
     [Body25Index.LEFT_EYE]:        { x: -0.05, y: 1.65, z: 0.10 },
     [Body25Index.RIGHT_EAR]:       { x:  0.10, y: 1.60, z: 0.00 },
