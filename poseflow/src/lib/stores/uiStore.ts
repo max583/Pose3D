@@ -11,10 +11,9 @@ export interface UIState {
   // Модальные окна
   isSettingsModalOpen: boolean;
   isExportModalOpen: boolean;
-  isFeatureFlagPanelOpen: boolean;
-  
+
   // Активные вкладки/панели
-  activeSidebarTab: 'pose' | 'settings' | 'export' | 'experimental';
+  activeSidebarTab: 'pose' | 'settings' | 'export';
   activeSettingsTab: 'general' | 'camera' | 'export' | 'advanced';
   
   // Уведомления
@@ -36,8 +35,7 @@ export interface UIState {
   closeSettingsModal: () => void;
   openExportModal: () => void;
   closeExportModal: () => void;
-  toggleFeatureFlagPanel: () => void;
-  setActiveSidebarTab: (tab: 'pose' | 'settings' | 'export' | 'experimental') => void;
+  setActiveSidebarTab: (tab: 'pose' | 'settings' | 'export') => void;
   setActiveSettingsTab: (tab: 'general' | 'camera' | 'export' | 'advanced') => void;
   showNotification: (message: string, type?: 'info' | 'success' | 'warning' | 'error', duration?: number) => void;
   hideNotification: () => void;
@@ -52,7 +50,6 @@ export const useUIStore = create<UIState>()(
       sidebarCollapsed: false,
       isSettingsModalOpen: false,
       isExportModalOpen: false,
-      isFeatureFlagPanelOpen: false,
       activeSidebarTab: 'pose',
       activeSettingsTab: 'general',
       notification: null,
@@ -68,9 +65,7 @@ export const useUIStore = create<UIState>()(
       
       openExportModal: () => set({ isExportModalOpen: true }),
       closeExportModal: () => set({ isExportModalOpen: false }),
-      
-      toggleFeatureFlagPanel: () => set((state) => ({ isFeatureFlagPanelOpen: !state.isFeatureFlagPanelOpen })),
-      
+
       setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
       setActiveSettingsTab: (tab) => set({ activeSettingsTab: tab }),
       

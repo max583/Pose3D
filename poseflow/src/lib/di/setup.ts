@@ -7,7 +7,6 @@ import { PoseService } from '../../services/PoseService';
 import { CameraService } from '../../services/cameraService';
 import { ExportService } from '../../services/ExportService';
 import { FeatureFlagService } from '../feature-flags/FeatureFlagService';
-import { FeatureFlagIntegration } from '../experimental/integration/FeatureFlagIntegration';
 
 /**
  * Настройка контейнера с регистрацией всех сервисов
@@ -38,18 +37,6 @@ export function setupContainer(container: Container = defaultContainer): Contain
   container.register(
     ServiceKeys.FeatureFlagService,
     () => new FeatureFlagService({ debug: import.meta.env.DEV }),
-    { singleton: true }
-  );
-
-  // FeatureFlagIntegration - синглтон, зависит от FeatureFlagService
-  container.register(
-    ServiceKeys.FeatureFlagIntegration,
-    (container) => {
-      const featureFlagService = container.get<FeatureFlagService>(ServiceKeys.FeatureFlagService);
-      const integration = new FeatureFlagIntegration(featureFlagService);
-      integration.initialize();
-      return integration;
-    },
     { singleton: true }
   );
 

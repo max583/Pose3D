@@ -10,7 +10,6 @@ import { uiLogger, exportLogger } from './lib/logger';
 import { FeatureFlagProvider } from './context/FeatureFlagContext';
 import { ServiceProvider } from './context/ServiceContext';
 import { usePoseService, useExportService } from './context/ServiceContext';
-import { FeatureFlagPanel } from './components/FeatureFlagPanel';
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -79,9 +78,6 @@ const AppContent: React.FC = () => {
       <StatusBar />
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      
-      {/* Панель feature flags (только в dev режиме) */}
-      <FeatureFlagPanel position="top-right" />
     </div>
   );
 };

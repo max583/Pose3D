@@ -1,16 +1,12 @@
 // Skeleton3D.tsx - Полный скелет BODY_25
 import React, { useMemo, useState, useCallback } from 'react';
-import * as THREE from 'three';
 import { PoseData, Body25Index, JointPosition, ManipulationMode } from '../../lib/body25/body25-types';
 import { BODY25_CONNECTIONS } from '../../lib/body25/body25-connections';
 import { KEYPOINT_MAP } from '../../lib/body25/body25-keypoints';
 import { IK_END_EFFECTORS } from '../../lib/body25/IKChains';
 import { Joint } from './Joint';
 import { Bone } from './Bone';
-import { CenterOfGravity } from './CenterOfGravity';
-import { JointGizmo } from './JointGizmo';
 import { skeletonLogger } from '../../lib/logger';
-import { useFeatureFlag } from '../../context/FeatureFlagContext';
 
 interface Skeleton3DProps {
   poseData: PoseData;
@@ -28,10 +24,6 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
   unlinkedJoints = new Set(),
 }) => {
   const [isAnyJointDragging, setIsAnyJointDragging] = useState(false);
-
-  // Feature flags for experimental components
-  const showCoG = useFeatureFlag('USE_CENTER_OF_GRAVITY');
-  const showGizmos = useFeatureFlag('USE_RING_GIZMOS');
 
   // Callback для начала drag
   const handleDragStart = useCallback(() => {
@@ -98,27 +90,6 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
 
       {/* Суставы (точки) */}
       {joints}
-
-      {/* Center of Gravity (experimental) */}
-      {showCoG && <CenterOfGravity poseData={poseData} />}
-
-      {/* Ring Gizmos (experimental) */}
-      {showGizmos && (
-        <>
-          {Object.entries(poseData).map(([indexStr, position]) => {
-            const index = parseInt(indexStr) as Body25Index;
-            const metadata = KEYPOINT_MAP.get(index)!;
-            return (
-              <JointGizmo
-                key={`gizmo-${index}`}
-                jointIndex={index}
-                position={new THREE.Vector3(position.x, position.y, position.z)}
-                onRotate={() => {}}
-              />
-            );
-          })}
-        </>
-      )}
     </group>
   );
 };

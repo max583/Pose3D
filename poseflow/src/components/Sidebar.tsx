@@ -4,7 +4,6 @@ import { getAllPosePresets } from '../lib/presets/body25-presets';
 import { ManipulationMode } from '../lib/body25/body25-types';
 import { uiLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { useIsDesignDollControllersEnabled } from '../hooks/useFeatureFlagIntegration';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -20,7 +19,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [canRedo, setCanRedo] = useState(false);
   const [mode, setMode] = useState<ManipulationMode>(poseService.manipulationMode);
   const presets = getAllPosePresets();
-  const isDesignDollControllersEnabled = useIsDesignDollControllersEnabled();
 
   // Обновляем состояние кнопок при изменении позы
   useEffect(() => {
@@ -72,32 +70,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {!isDesignDollControllersEnabled && (
-        <div className="sidebar-section">
-          <h3>Mode</h3>
-          <div className="btn-row">
-            <button
-              className={`btn btn-mode ${mode === 'fk' ? 'btn-mode-active' : 'btn-secondary'}`}
-              onClick={() => handleModeChange('fk')}
-              title="FK: двигает сустав со всеми потомками"
-            >
-              FK
-            </button>
-            <button
-              className={`btn btn-mode ${mode === 'ik' ? 'btn-mode-active' : 'btn-secondary'}`}
-              onClick={() => handleModeChange('ik')}
-              title="IK: решает цепочку от конечной точки"
-            >
-              IK
-            </button>
-          </div>
-          <div className="mode-hint">
-            {mode === 'fk'
-              ? 'FK: сустав двигает всех потомков'
-              : 'IK: drag кисти/стопы решает цепочку'}
-          </div>
+      <div className="sidebar-section">
+        <h3>Mode</h3>
+        <div className="btn-row">
+          <button
+            className={`btn btn-mode ${mode === 'fk' ? 'btn-mode-active' : 'btn-secondary'}`}
+            onClick={() => handleModeChange('fk')}
+            title="FK: двигает сустав со всеми потомками"
+          >
+            FK
+          </button>
+          <button
+            className={`btn btn-mode ${mode === 'ik' ? 'btn-mode-active' : 'btn-secondary'}`}
+            onClick={() => handleModeChange('ik')}
+            title="IK: решает цепочку от конечной точки"
+          >
+            IK
+          </button>
         </div>
-      )}
+        <div className="mode-hint">
+          {mode === 'fk'
+            ? 'FK: сустав двигает всех потомков'
+            : 'IK: drag кисти/стопы решает цепочку'}
+        </div>
+      </div>
 
       <div className="sidebar-section">
         <h3>POSE PRESETS</h3>

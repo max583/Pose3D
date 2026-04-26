@@ -6,14 +6,11 @@ import { Skeleton3D } from './skeleton/Skeleton3D';
 import { CameraControls, CameraController } from './controls/CameraControls';
 import { ExportFrame, ExportFrameData, AspectRatio, Resolution } from './ExportFrame';
 import { MiniView } from './MiniView';
-import { ControllerVisual } from './experimental/ControllerVisual';
 import { PoseData, Body25Index, JointPosition } from '../lib/body25/body25-types';
 import { canvasLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getCanvasSceneStyle } from '../lib/canvasColorSchemes';
 import { useFeatureFlag } from '../context/FeatureFlagContext';
-import { useFeatureFlagIntegration, useIsDesignDollControllersEnabled } from '../hooks/useFeatureFlagIntegration';
-import { ControllerState } from '../lib/experimental/controllers/MainControllers';
 import { usePoseService } from '../context/ServiceContext';
 import './Canvas3D.css';
 
@@ -66,13 +63,9 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const [manipulationMode, setManipulationMode] = useState<ReturnType<typeof poseService.getManipulationMode>>(() => poseService.getManipulationMode());
   const [unlinkedJoints, setUnlinkedJoints] = useState<Set<Body25Index>>(() => poseService.getUnlinkedJoints());
   const [isDragging, setIsDragging] = useState(false);
-  const [isControllerDragging, setIsControllerDragging] = useState(false);
   const [isPointerInsideFrame, setIsPointerInsideFrame] = useState(false);
   const [showExportFrame, setShowExportFrame] = useState(false);
   const isMiniViewEnabled = useFeatureFlag('USE_MINI_VIEW');
-  const [controllers, setControllers] = useState<ControllerState[]>([]);
-  const featureFlagIntegration = useFeatureFlagIntegration();
-  const isDesignDollControllersEnabled = useIsDesignDollControllersEnabled();
   const currentCameraRef = useRef<THREE.Camera | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const orbitControlsRef = useRef<any>(null);
@@ -92,31 +85,12 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
       setPoseData(data);
       setManipulationMode(poseService.getManipulationMode());
       setUnlinkedJoints(poseService.getUnlinkedJoints());
-      // Skeleton → Controllers: синхронизируем контроллеры при каждом изменении позы
-      featureFlagIntegration.syncControllersFromPose(data);
-      const mc = featureFlagIntegration.getMainControllers();
-      if (mc) setControllers(mc.getAllControllers());
     });
     return () => {
       canvasLogger.info('Canvas3D unmounting');
       unsubscribe();
     };
   }, []);
-
-  // Привязка контроллеров к PoseService (выполняется один раз при монтировании)
-  useEffect(() => {
-    // Controllers → Skeleton: при перемещении контроллера обновляем сустав
-    featureFlagIntegration.onJointUpdate = (index, pos) => {
-      poseService.updateJoint(index, pos);
-    };
-    // Инициализация: ставим контроллеры на текущие позиции суставов
-    featureFlagIntegration.syncControllersFromPose(poseService.getPoseData());
-    const mc = featureFlagIntegration.getMainControllers();
-    if (mc) setControllers(mc.getAllControllers());
-    return () => {
-      featureFlagIntegration.onJointUpdate = undefined;
-    };
-  }, [featureFlagIntegration, poseService]);
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — undo/redo; M — mirror
   useEffect(() => {
@@ -160,16 +134,6 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     poseService.toggleJointLink(index);
   }, []);
 
-  // Обработчик выбора контроллера DesignDoll
-  const handleControllerSelect = useCallback((controllerId: string) => {
-    canvasLogger.debug(`Controller selected: ${controllerId}`);
-    // TODO: Implement controller selection logic
-    // This could activate the controller in MainControllers
-    if (featureFlagIntegration.getMainControllers()) {
-      featureFlagIntegration.getMainControllers()?.setActiveController(controllerId);
-    }
-  }, [featureFlagIntegration]);
-
   // Callback для Skeleton3D - начало drag
   const handleDragStart = useCallback(() => {
     setIsDragging(true);
@@ -181,18 +145,6 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     setIsDragging(false);
     canvasLogger.debug('Joint drag ended, enabling OrbitControls');
   }, []);
-
-  // Bridge: перемещение контроллера → обновление сустава в PoseService
-  const handleControllerPositionChange = useCallback((
-    controllerId: string,
-    pos: { x: number; y: number; z: number },
-  ) => {
-    const mc = featureFlagIntegration.getMainControllers();
-    const controller = mc?.getController(controllerId);
-    if (!controller) return;
-    const dragJoint = controller.dragJoint ?? controller.linkedJoints[0];
-    poseService.updateJoint(dragJoint, { ...pos, confidence: 1.0 });
-  }, [featureFlagIntegration, poseService]);
 
   // Отслеживаем, находится ли pointer внутри рамки экспорта
   useEffect(() => {
@@ -290,19 +242,6 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
           unlinkedJoints={unlinkedJoints}
         />
 
-        {/* Контроллеры DesignDoll (если включены) */}
-        {controllers.map((controller) => (
-          <ControllerVisual
-            key={controller.id}
-            controller={controller}
-            onSelect={handleControllerSelect}
-            onPositionChange={handleControllerPositionChange}
-            onDragStart={() => setIsControllerDragging(true)}
-            onDragEnd={() => setIsControllerDragging(false)}
-            isInteractive={true}
-          />
-        ))}
-
         {/* Модели (если есть) */}
         {Array.from({ length: modelsCount }).map((_, i) => (
           <group key={i} position={[i * 2 - modelsCount, 0, 0]}>
@@ -317,7 +256,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         <OrbitControls
           ref={orbitControlsRef}
           makeDefault
-          enabled={!isDragging && !isControllerDragging && !isPointerInsideFrame}
+          enabled={!isDragging && !isPointerInsideFrame}
           minPolarAngle={0}
           maxPolarAngle={Math.PI / 2}
           enablePan={true}
@@ -357,10 +296,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         <div className="canvas3d-info">
           <span>3D Viewport - BODY_25</span>
           <span>
-            25 joints •
-            {isDesignDollControllersEnabled
-              ? ' DesignDoll Mode'
-              : ` ${manipulationMode === 'fk' ? 'FK Mode' : 'IK Mode'}`}
+            25 joints • {manipulationMode === 'fk' ? 'FK Mode' : 'IK Mode'}
           </span>
           {isDragging && <span className="drag-indicator">✋ Dragging joint...</span>}
           {showExportFrame && !isPointerInsideFrame && <span className="drag-indicator">🎯 Edit pose outside frame</span>}

@@ -24,7 +24,6 @@ export const ServiceKeys = {
   CameraService: Symbol('CameraService'),
   ExportService: Symbol('ExportService'),
   FeatureFlagService: Symbol('FeatureFlagService'),
-  FeatureFlagIntegration: Symbol('FeatureFlagIntegration'),
 } as const;
 
 export type ServiceKey = keyof typeof ServiceKeys | symbol;
