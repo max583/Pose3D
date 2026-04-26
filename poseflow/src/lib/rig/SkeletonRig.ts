@@ -43,6 +43,18 @@ export interface SkeletonRig {
    * Число сегментов = DEFAULT_NECK_SEGMENTS.
    */
   neck: VirtualChain;
+
+  /**
+   * Суммарные углы позвоночника (радианы). Синхронизированы с spine.rotations.
+   * bendX — наклон вперёд/назад (вокруг X), bendZ — боковой наклон (вокруг Z),
+   * twistY — скручивание (вокруг Y).
+   */
+  spineAngles: { bendX: number; bendZ: number; twistY: number };
+
+  /**
+   * Суммарные углы шеи (радианы). Синхронизированы с neck.rotations.
+   */
+  neckAngles: { bendX: number; bendZ: number; twistY: number };
 }
 
 /**
@@ -82,6 +94,8 @@ export function createDefaultRig(): SkeletonRig {
     localRotations,
     spine: createVirtualChain(DEFAULT_SPINE_SEGMENTS, spineLength),
     neck: createVirtualChain(DEFAULT_NECK_SEGMENTS, neckLength),
+    spineAngles: { bendX: 0, bendZ: 0, twistY: 0 },
+    neckAngles:  { bendX: 0, bendZ: 0, twistY: 0 },
   };
 }
 
@@ -109,5 +123,7 @@ export function cloneRig(rig: SkeletonRig): SkeletonRig {
       segmentLength: rig.neck.segmentLength,
       rotations: rig.neck.rotations.map(q => q.clone()),
     },
+    spineAngles: { ...rig.spineAngles },
+    neckAngles:  { ...rig.neckAngles },
   };
 }

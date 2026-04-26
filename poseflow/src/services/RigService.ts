@@ -8,11 +8,12 @@
 //   - кэш PoseData (инвалидируется при изменении rig)
 //   - подписки на изменения
 
-import { Vector3 } from 'three';
+import { Quaternion, Vector3 } from 'three';
 import { PoseData } from '../lib/body25/body25-types';
 import { SkeletonRig, createDefaultRig, cloneRig } from '../lib/rig/SkeletonRig';
 import { resolveSkeletonPose } from '../lib/rig/resolveSkeleton';
 import { rigFromPose } from '../lib/rig/inverseFK';
+import { setBend } from '../lib/rig/VirtualChain';
 import { UndoStack } from '../lib/UndoStack';
 import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
 import { Body25Index } from '../lib/body25/body25-types';
@@ -145,6 +146,70 @@ export class RigService {
     this.notifyListeners();
   }
 
+  // ─── Gizmo drag operations (без undo-снимка — beginDrag() вызывается перед серией) ──
+
+  /**
+   * Начать drag-операцию: сохранить undo-снимок текущего rig.
+   * Вызывать один раз в onPointerDown гизмо.
+   */
+  beginDrag(): void {
+    this.undoStack.push(cloneRig(this.rig));
+  }
+
+  /** Переместить таз на дельту (мировые координаты). */
+  applyPelvisTranslate(dx: number, dy: number, dz: number): void {
+    this.rig.rootPosition.x += dx;
+    this.rig.rootPosition.y += dy;
+    this.rig.rootPosition.z += dz;
+    this.poseCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Повернуть таз вокруг мировой оси.
+   * @param axis — 'x' | 'y' | 'z'
+   * @param angle — угол в радианах (delta)
+   */
+  applyPelvisRotate(axis: 'x' | 'y' | 'z', angle: number): void {
+    const axisVec =
+      axis === 'x' ? new Vector3(1, 0, 0) :
+      axis === 'y' ? new Vector3(0, 1, 0) :
+                     new Vector3(0, 0, 1);
+    const q = new Quaternion().setFromAxisAngle(axisVec, angle);
+    // Premultiply: поворот в мировом пространстве
+    this.rig.rootRotation.premultiply(q);
+    this.poseCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Добавить изгиб позвоночника.
+   * @param deltaX — дельта наклона вперёд/назад (рад)
+   * @param deltaZ — дельта бокового наклона (рад)
+   */
+  applySpineBend(deltaX: number, deltaZ: number): void {
+    const angles = this.rig.spineAngles;
+    const maxBend = Math.PI * 0.5; // ±90°
+    angles.bendX = clamp(angles.bendX + deltaX, -maxBend, maxBend);
+    angles.bendZ = clamp(angles.bendZ + deltaZ, -maxBend, maxBend);
+    this.rig.spine = setBend(this.rig.spine, angles.bendX, angles.bendZ, angles.twistY);
+    this.poseCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Добавить скручивание позвоночника. Ограничение: ±45°.
+   * @param delta — дельта угла скручивания (рад)
+   */
+  applySpineTwist(delta: number): void {
+    const angles = this.rig.spineAngles;
+    const maxTwist = Math.PI / 4; // ±45°
+    angles.twistY = clamp(angles.twistY + delta, -maxTwist, maxTwist);
+    this.rig.spine = setBend(this.rig.spine, angles.bendX, angles.bendZ, angles.twistY);
+    this.poseCache = null;
+    this.notifyListeners();
+  }
+
   // ─── Undo / Redo ───────────────────────────────────────────────────────────
 
   undo(): void {
@@ -185,4 +250,12 @@ export class RigService {
   dispose(): void {
     this.listeners = [];
   }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

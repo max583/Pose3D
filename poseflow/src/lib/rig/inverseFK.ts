@@ -56,6 +56,7 @@ export function rigFromPose(pose: PoseData): SkeletonRig {
     // Разложим на Euler и установим через setBend
     const { x: bendX, y: twistY, z: bendZ } = eulerFromQuat(spineRot);
     rig.spine = setBend(rig.spine, bendX, bendZ, twistY);
+    rig.spineAngles = { bendX, bendZ, twistY };
     accRotations.set(Body25Index.NECK, spineRot);
   } else {
     accRotations.set(Body25Index.NECK, new Quaternion());
@@ -75,6 +76,7 @@ export function rigFromPose(pose: PoseData): SkeletonRig {
     const neckRot = quaternionFromTo(restDir, actualDir);
     const { x: bendX, y: twistY, z: bendZ } = eulerFromQuat(neckRot);
     rig.neck = setBend(rig.neck, bendX, bendZ, twistY);
+    rig.neckAngles = { bendX, bendZ, twistY };
 
     // Накопленный поворот NOSE = поворот NECK * поворот neck-цепочки
     const neckAccRot = accRotations.get(Body25Index.NECK) ?? new Quaternion();

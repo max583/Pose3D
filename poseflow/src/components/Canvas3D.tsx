@@ -11,8 +11,11 @@ import { canvasLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getCanvasSceneStyle } from '../lib/canvasColorSchemes';
 import { useFeatureFlag } from '../context/FeatureFlagContext';
-import { usePoseService, useSelectionService } from '../context/ServiceContext';
+import { usePoseService, useSelectionService, useRigService } from '../context/ServiceContext';
 import { ElementId, ELEMENT_LABELS } from '../lib/rig/elements';
+import { Body25Index } from '../lib/body25/body25-types';
+import { PelvisController } from './controllers/PelvisController';
+import { SpineController } from './controllers/SpineController';
 import './Canvas3D.css';
 
 interface Canvas3DProps {
@@ -56,6 +59,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const { settings, effectiveTheme } = useAppSettings();
   const poseService = usePoseService();
   const selectionService = useSelectionService();
+  const rigService = useRigService();
 
   const [poseData, setPoseData] = useState<PoseData>(() => poseService.getPoseData());
   const [selectedElement, setSelectedElement] = useState<ElementId | null>(
@@ -221,6 +225,24 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
           selectedElement={selectedElement}
           onElementSelect={handleElementSelect}
         />
+
+        {/* Контроллеры гизмо — рендерятся только для выделенного элемента */}
+        {selectedElement === 'pelvis' && poseData[Body25Index.MID_HIP] && (
+          <PelvisController
+            rootPos={poseData[Body25Index.MID_HIP]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'spine' && poseData[Body25Index.MID_HIP] && poseData[Body25Index.NECK] && (
+          <SpineController
+            spineMiddle={{
+              x: (poseData[Body25Index.MID_HIP]!.x + poseData[Body25Index.NECK]!.x) / 2,
+              y: (poseData[Body25Index.MID_HIP]!.y + poseData[Body25Index.NECK]!.y) / 2,
+              z: (poseData[Body25Index.MID_HIP]!.z + poseData[Body25Index.NECK]!.z) / 2,
+            }}
+            rigService={rigService}
+          />
+        )}
 
         {/* Модели (если есть) */}
         {Array.from({ length: modelsCount }).map((_, i) => (
