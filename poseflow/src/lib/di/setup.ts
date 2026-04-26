@@ -7,15 +7,31 @@ import { PoseService } from '../../services/PoseService';
 import { CameraService } from '../../services/cameraService';
 import { ExportService } from '../../services/ExportService';
 import { FeatureFlagService } from '../feature-flags/FeatureFlagService';
+import { RigService } from '../../services/RigService';
+import { SelectionService } from '../../services/SelectionService';
 
 /**
  * Настройка контейнера с регистрацией всех сервисов
  */
 export function setupContainer(container: Container = defaultContainer): Container {
-  // PoseService - синглтон
+  // RigService - синглтон (первичный источник истины позы)
+  container.register(
+    ServiceKeys.RigService,
+    () => new RigService(),
+    { singleton: true }
+  );
+
+  // PoseService - синглтон (обёртка над RigService для совместимости)
   container.register(
     ServiceKeys.PoseService,
-    () => new PoseService(),
+    () => new PoseService(container.get<RigService>(ServiceKeys.RigService)),
+    { singleton: true }
+  );
+
+  // SelectionService - синглтон
+  container.register(
+    ServiceKeys.SelectionService,
+    () => new SelectionService(),
     { singleton: true }
   );
 

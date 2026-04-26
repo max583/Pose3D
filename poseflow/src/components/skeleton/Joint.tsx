@@ -1,116 +1,59 @@
-// Joint.tsx - Интерактивная сфера (точка скелета)
+// Joint.tsx - Интерактивная сфера (точка скелета).
+// Stage 0: клик → выделение элемента через SelectionService.
+// Drag-манипуляции добавляются в Stage 1+ через гизмо.
+
 import React, { useRef, useState, useCallback, memo } from 'react';
-import { Body25Index, JointPosition } from '../../lib/body25/body25-types';
-import { useTransformDrag } from '../../hooks/useTransformDrag';
+import { Body25Index } from '../../lib/body25/body25-types';
+import { JointPosition } from '../../lib/body25/body25-types';
 import { skeletonLogger } from '../../lib/logger';
 
 interface JointProps {
   index: Body25Index;
   position: JointPosition;
   color: string;
-  onPositionChange: (index: Body25Index, position: JointPosition) => void;
-  onToggleLink?: (index: Body25Index) => void;
   radius?: number;
-  isGlobalDragging?: boolean;
-  onGlobalDragStart?: () => void;
-  onGlobalDragEnd?: () => void;
-  /** В IK-режиме — конечная точка цепочки (кисть/стопа) */
-  isEndEffector?: boolean;
-  /** Сустав отключён от FK-пропагации */
-  isUnlinked?: boolean;
+  /** Сустав принадлежит выделенному элементу — подсвечиваем ярче. */
+  isSelected?: boolean;
+  /** Клик по суставу — выбрать элемент. */
+  onClick?: (index: Body25Index) => void;
 }
 
 const JointComponent: React.FC<JointProps> = ({
   index,
   position,
   color,
-  onPositionChange,
-  onToggleLink,
   radius = 0.02,
-  isGlobalDragging = false,
-  onGlobalDragStart,
-  onGlobalDragEnd,
-  isEndEffector = false,
-  isUnlinked = false,
+  isSelected = false,
+  onClick,
 }) => {
   const meshRef = useRef<any>(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Хук для drag-and-drop
-  const { isDragging, handlePointerDown } = useTransformDrag({
-    index,
-    onPositionChange,
-  });
-
-  // Обработчик начала перетаскивания
-  const handleDragStart = useCallback((e: any) => {
+  const handleClick = useCallback((e: any) => {
     e.stopPropagation();
-    skeletonLogger.debug(`Joint ${index} pointer down`);
-    onGlobalDragStart?.();
-    handlePointerDown(e);
-  }, [index, handlePointerDown, onGlobalDragStart]);
-
-  // Обработчик окончания перетаскивания
-  const handleDragEnd = useCallback(() => {
-    skeletonLogger.debug(`Joint ${index} pointer up`);
-    onGlobalDragEnd?.();
-  }, [onGlobalDragEnd]);
-
-  // Слушаем окончание drag на window
-  React.useEffect(() => {
-    if (isDragging) {
-      const handleGlobalPointerUp = () => {
-        handleDragEnd();
-      };
-      window.addEventListener('pointerup', handleGlobalPointerUp);
-      return () => {
-        window.removeEventListener('pointerup', handleGlobalPointerUp);
-      };
-    }
-    return undefined;
-  }, [isDragging, handleDragEnd]);
-
-  // Правая кнопка мыши — переключить FK-связь
-  const handleContextMenu = useCallback((e: any) => {
-    e.stopPropagation();
-    e.nativeEvent?.preventDefault?.();
-    onToggleLink?.(index);
-  }, [index, onToggleLink]);
+    skeletonLogger.debug(`Joint ${index} clicked`);
+    onClick?.(index);
+  }, [index, onClick]);
 
   const handlePointerOver = useCallback((e: any) => {
     e.stopPropagation();
     setIsHovered(true);
-    if (!isDragging) {
-      document.body.style.cursor = 'grab';
-    }
-  }, [isDragging]);
+    document.body.style.cursor = 'pointer';
+  }, []);
 
   const handlePointerOut = useCallback((e: any) => {
     e.stopPropagation();
     setIsHovered(false);
-    if (!isDragging) {
-      document.body.style.cursor = 'default';
-    }
-  }, [isDragging]);
+    document.body.style.cursor = 'default';
+  }, []);
 
-  // Обновляем курсор при drag
   React.useEffect(() => {
-    if (isDragging) {
-      document.body.style.cursor = 'grabbing';
-    } else if (isHovered) {
-      document.body.style.cursor = 'grab';
-    } else {
-      document.body.style.cursor = 'default';
-    }
     return () => {
       document.body.style.cursor = 'default';
     };
-  }, [isDragging, isHovered]);
+  }, []);
 
-  // End-effectors в IK-режиме — чуть крупнее и ярче
-  const effectiveRadius = isEndEffector ? radius * 1.5 : radius;
-  // Unlinked-суставы — полупрозрачные
-  const opacity = isUnlinked ? 0.45 : 1.0;
+  const effectiveRadius = isSelected ? radius * 1.4 : radius;
 
   return (
     <mesh
@@ -118,23 +61,15 @@ const JointComponent: React.FC<JointProps> = ({
       position={[position.x, position.y, position.z]}
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
-      onPointerDown={handleDragStart}
-      onContextMenu={handleContextMenu}
+      onClick={handleClick}
     >
       <sphereGeometry args={[effectiveRadius, 16, 16]} />
       <meshStandardMaterial
-        color={isUnlinked ? '#888888' : color}
-        emissive={
-          isDragging ? '#ffffff'
-          : isEndEffector ? '#ffffff'
-          : isHovered ? color
-          : 'transparent'
-        }
-        emissiveIntensity={isDragging ? 0.8 : isEndEffector ? 0.25 : isHovered ? 0.3 : 0}
+        color={color}
+        emissive={isSelected ? color : isHovered ? color : 'transparent'}
+        emissiveIntensity={isSelected ? 0.6 : isHovered ? 0.3 : 0}
         roughness={0.3}
         metalness={0.2}
-        transparent={isUnlinked}
-        opacity={opacity}
       />
     </mesh>
   );

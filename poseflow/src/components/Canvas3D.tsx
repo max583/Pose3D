@@ -6,12 +6,13 @@ import { Skeleton3D } from './skeleton/Skeleton3D';
 import { CameraControls, CameraController } from './controls/CameraControls';
 import { ExportFrame, ExportFrameData, AspectRatio, Resolution } from './ExportFrame';
 import { MiniView } from './MiniView';
-import { PoseData, Body25Index, JointPosition } from '../lib/body25/body25-types';
+import { PoseData } from '../lib/body25/body25-types';
 import { canvasLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { getCanvasSceneStyle } from '../lib/canvasColorSchemes';
 import { useFeatureFlag } from '../context/FeatureFlagContext';
-import { usePoseService } from '../context/ServiceContext';
+import { usePoseService, useSelectionService } from '../context/ServiceContext';
+import { ElementId, ELEMENT_LABELS } from '../lib/rig/elements';
 import './Canvas3D.css';
 
 interface Canvas3DProps {
@@ -21,10 +22,10 @@ interface Canvas3DProps {
 }
 
 // Внутренний компонент для установки камеры в ref
-const CameraRefSetter: React.FC<{ cameraRef: React.MutableRefObject<THREE.Camera | null>; onCameraChange?: (camera: THREE.Camera) => void }> = ({
-  cameraRef,
-  onCameraChange
-}) => {
+const CameraRefSetter: React.FC<{
+  cameraRef: React.MutableRefObject<THREE.Camera | null>;
+  onCameraChange?: (camera: THREE.Camera) => void;
+}> = ({ cameraRef, onCameraChange }) => {
   const { camera } = useThree();
 
   useEffect(() => {
@@ -38,39 +39,34 @@ const CameraRefSetter: React.FC<{ cameraRef: React.MutableRefObject<THREE.Camera
   return null;
 };
 
-// Компонент для осей (использует THREE.AxesHelper напрямую)
+// Компонент для осей
 function AxesHelper({ size = 2 }: { size?: number }) {
   const helperRef = useRef<THREE.LineSegments>(null);
 
-  // Создаём AxesHelper через three.js напрямую
   const axesHelper = useMemo(() => {
-    const helper = new THREE.AxesHelper(size);
-    return helper;
+    return new THREE.AxesHelper(size);
   }, [size]);
 
-  useFrame(() => {
-    // AxesHelper не нуждается в обновлении каждый кадр
-  });
+  useFrame(() => {});
 
-  // primitive позволяет использовать three.js объекты напрямую
   return <primitive object={axesHelper} ref={helperRef} />;
 }
 
 export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraChange, onExportFrame }) => {
   const { settings, effectiveTheme } = useAppSettings();
   const poseService = usePoseService();
+  const selectionService = useSelectionService();
+
   const [poseData, setPoseData] = useState<PoseData>(() => poseService.getPoseData());
-  const [manipulationMode, setManipulationMode] = useState<ReturnType<typeof poseService.getManipulationMode>>(() => poseService.getManipulationMode());
-  const [unlinkedJoints, setUnlinkedJoints] = useState<Set<Body25Index>>(() => poseService.getUnlinkedJoints());
-  const [isDragging, setIsDragging] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<ElementId | null>(
+    () => selectionService.getSelected()
+  );
   const [isPointerInsideFrame, setIsPointerInsideFrame] = useState(false);
   const [showExportFrame, setShowExportFrame] = useState(false);
   const isMiniViewEnabled = useFeatureFlag('USE_MINI_VIEW');
   const currentCameraRef = useRef<THREE.Camera | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const orbitControlsRef = useRef<any>(null);
 
-  // Обновляем камеру через ref (без лишних ре-рендеров)
   const handleCameraChange = useCallback((camera: THREE.Camera) => {
     currentCameraRef.current = camera;
     if (onCameraChange) {
@@ -83,14 +79,20 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     canvasLogger.info('Canvas3D mounted, subscribing to poseService');
     const unsubscribe = poseService.subscribe((data) => {
       setPoseData(data);
-      setManipulationMode(poseService.getManipulationMode());
-      setUnlinkedJoints(poseService.getUnlinkedJoints());
     });
     return () => {
       canvasLogger.info('Canvas3D unmounting');
       unsubscribe();
     };
-  }, []);
+  }, [poseService]);
+
+  // Подписываемся на изменения выделения
+  useEffect(() => {
+    const unsubscribe = selectionService.subscribe((element) => {
+      setSelectedElement(element);
+    });
+    return unsubscribe;
+  }, [selectionService]);
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — undo/redo; M — mirror
   useEffect(() => {
@@ -117,36 +119,14 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [poseService]);
 
+  // Клик по суставу → выделить элемент
+  const handleElementSelect = useCallback((element: ElementId | null) => {
+    selectionService.setSelected(element);
+  }, [selectionService]);
 
-  // Обработчик изменения позиции сустава
-  const handleJointPositionChange = useCallback((
-    index: Body25Index,
-    position: JointPosition,
-  ) => {
-    canvasLogger.debug(`Joint ${index} position changed`, position);
-    poseService.updateJoint(index, position);
-  }, []);
-
-  // Переключение FK-связи (правая кнопка мыши на суставе)
-  const handleToggleJointLink = useCallback((index: Body25Index) => {
-    poseService.toggleJointLink(index);
-  }, []);
-
-  // Callback для Skeleton3D - начало drag
-  const handleDragStart = useCallback(() => {
-    setIsDragging(true);
-    canvasLogger.debug('Joint drag started, disabling OrbitControls');
-  }, []);
-
-  // Callback для Skeleton3D - окончание drag
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-    canvasLogger.debug('Joint drag ended, enabling OrbitControls');
-  }, []);
-
-  // Отслеживаем, находится ли pointer внутри рамки экспорта
+  // Отслеживаем pointer внутри рамки экспорта
   useEffect(() => {
     if (!showExportFrame) {
       setIsPointerInsideFrame(false);
@@ -209,11 +189,13 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
 
       <Canvas
         camera={{ position: [0, 2, 5], fov: 50 }}
-        style={{
-          background: sceneStyle.background,
+        style={{ background: sceneStyle.background }}
+        onPointerMissed={() => {
+          // Клик мимо скелета → снять выделение
+          selectionService.setSelected(null);
         }}
       >
-        {/* Освещение (подбирается под схему canvas) */}
+        {/* Освещение */}
         <ambientLight intensity={sceneStyle.ambientIntensity} />
         <pointLight position={[10, 10, 10]} intensity={sceneStyle.pointMainIntensity} />
         <pointLight position={[-10, 10, -10]} intensity={sceneStyle.pointFillIntensity} />
@@ -236,10 +218,8 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         {/* Скелет BODY_25 */}
         <Skeleton3D
           poseData={poseData}
-          onJointPositionChange={handleJointPositionChange}
-          onToggleJointLink={handleToggleJointLink}
-          manipulationMode={manipulationMode}
-          unlinkedJoints={unlinkedJoints}
+          selectedElement={selectedElement}
+          onElementSelect={handleElementSelect}
         />
 
         {/* Модели (если есть) */}
@@ -252,11 +232,10 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
           </group>
         ))}
 
-        {/* Управление камерой - отключаем во время drag joint ИЛИ когда pointer внутри рамки */}
+        {/* Управление камерой */}
         <OrbitControls
-          ref={orbitControlsRef}
           makeDefault
-          enabled={!isDragging && !isPointerInsideFrame}
+          enabled={!isPointerInsideFrame}
           minPolarAngle={0}
           maxPolarAngle={Math.PI / 2}
           enablePan={true}
@@ -264,20 +243,16 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
           rotateSpeed={settings.orbitRotateSpeed}
           zoomSpeed={settings.orbitZoomSpeed}
           mouseButtons={{
-            LEFT: undefined,               // ЛКМ — только скелет, камера не вращается
-            MIDDLE: THREE.MOUSE.PAN,       // СКМ (зажать) — панорамирование
-            RIGHT: THREE.MOUSE.ROTATE,     // ПКМ (зажать) — вращение камеры
+            LEFT: undefined,
+            MIDDLE: THREE.MOUSE.PAN,
+            RIGHT: THREE.MOUSE.ROTATE,
           }}
         />
 
-        {/* Контролы камеры (внутри Canvas для доступа к useThree) */}
         <CameraController />
-
-        {/* Устанавливаем камеру в ref */}
         <CameraRefSetter cameraRef={currentCameraRef} onCameraChange={onCameraChange} />
       </Canvas>
 
-      {/* Кнопки управления камерой (вне Canvas) */}
       <CameraControls />
 
       {/* Мини-вид (Step 8) */}
@@ -285,8 +260,8 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         <div className="mini-view-container">
           <MiniView
             poseData={poseData}
-            manipulationMode={manipulationMode}
-            unlinkedJoints={unlinkedJoints}
+            manipulationMode="fk"
+            unlinkedJoints={new Set()}
             mainCameraRef={currentCameraRef}
           />
         </div>
@@ -295,12 +270,18 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
       {settings.showViewportOverlay && (
         <div className="canvas3d-info">
           <span>3D Viewport - BODY_25</span>
-          <span>
-            25 joints • {manipulationMode === 'fk' ? 'FK Mode' : 'IK Mode'}
-          </span>
-          {isDragging && <span className="drag-indicator">✋ Dragging joint...</span>}
-          {showExportFrame && !isPointerInsideFrame && <span className="drag-indicator">🎯 Edit pose outside frame</span>}
-          {showExportFrame && isPointerInsideFrame && <span className="drag-indicator">📐 Frame edit mode</span>}
+          <span>25 joints</span>
+          {selectedElement && (
+            <span className="selected-element-info">
+              ● {ELEMENT_LABELS[selectedElement]}
+            </span>
+          )}
+          {showExportFrame && !isPointerInsideFrame && (
+            <span className="drag-indicator">🎯 Edit pose outside frame</span>
+          )}
+          {showExportFrame && isPointerInsideFrame && (
+            <span className="drag-indicator">📐 Frame edit mode</span>
+          )}
         </div>
       )}
     </div>

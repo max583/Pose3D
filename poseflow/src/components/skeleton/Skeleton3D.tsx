@@ -1,67 +1,58 @@
 // Skeleton3D.tsx - Полный скелет BODY_25
-import React, { useMemo, useState, useCallback } from 'react';
-import { PoseData, Body25Index, JointPosition, ManipulationMode } from '../../lib/body25/body25-types';
+// Stage 0: только визуализация + клик по суставу/кости → выделение элемента.
+// Drag-манипуляции добавляются в Stage 1+ через гизмо.
+
+import React, { useMemo, useCallback } from 'react';
+import { PoseData, Body25Index } from '../../lib/body25/body25-types';
 import { BODY25_CONNECTIONS } from '../../lib/body25/body25-connections';
 import { KEYPOINT_MAP } from '../../lib/body25/body25-keypoints';
-import { IK_END_EFFECTORS } from '../../lib/body25/IKChains';
 import { Joint } from './Joint';
 import { Bone } from './Bone';
-import { skeletonLogger } from '../../lib/logger';
+import { ElementId, getElementForJoint, ELEMENT_TO_JOINTS } from '../../lib/rig/elements';
 
 interface Skeleton3DProps {
   poseData: PoseData;
-  onJointPositionChange: (index: Body25Index, position: JointPosition) => void;
-  onToggleJointLink?: (index: Body25Index) => void;
-  manipulationMode?: ManipulationMode;
-  unlinkedJoints?: Set<Body25Index>;
+  /** ID выделенного элемента (null — ничего не выделено). */
+  selectedElement?: ElementId | null;
+  /** Клик по суставу — выбрать элемент. */
+  onElementSelect?: (element: ElementId | null) => void;
 }
 
 const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
   poseData,
-  onJointPositionChange,
-  onToggleJointLink,
-  manipulationMode = 'fk',
-  unlinkedJoints = new Set(),
+  selectedElement = null,
+  onElementSelect,
 }) => {
-  const [isAnyJointDragging, setIsAnyJointDragging] = useState(false);
+  // Набор суставов выделенного элемента для подсветки
+  const selectedJoints = useMemo<Set<Body25Index>>(() => {
+    if (!selectedElement) return new Set();
+    return new Set(ELEMENT_TO_JOINTS.get(selectedElement) ?? []);
+  }, [selectedElement]);
 
-  // Callback для начала drag
-  const handleDragStart = useCallback(() => {
-    setIsAnyJointDragging(true);
-    skeletonLogger.debug('Joint drag started');
-  }, []);
-
-  // Callback для окончания drag
-  const handleDragEnd = useCallback(() => {
-    setIsAnyJointDragging(false);
-    skeletonLogger.debug('Joint drag ended');
-  }, []);
+  const handleJointClick = useCallback((index: Body25Index) => {
+    const element = getElementForJoint(index);
+    onElementSelect?.(element);
+  }, [onElementSelect]);
 
   // Мемоизируем суставы
   const joints = useMemo(() => {
     return Object.entries(poseData).map(([indexStr, position]) => {
       const index = parseInt(indexStr) as Body25Index;
       const metadata = KEYPOINT_MAP.get(index)!;
+      if (!metadata) return null;
 
-      const isEndEffector = manipulationMode === 'ik' && IK_END_EFFECTORS.has(index);
-      const isUnlinked = unlinkedJoints.has(index);
       return (
         <Joint
           key={index}
           index={index}
           position={position}
           color={metadata.color}
-          onPositionChange={onJointPositionChange}
-          onToggleLink={onToggleJointLink}
-          isGlobalDragging={isAnyJointDragging}
-          onGlobalDragStart={handleDragStart}
-          onGlobalDragEnd={handleDragEnd}
-          isEndEffector={isEndEffector}
-          isUnlinked={isUnlinked}
+          isSelected={selectedJoints.has(index)}
+          onClick={handleJointClick}
         />
       );
     });
-  }, [poseData, onJointPositionChange, onToggleJointLink, isAnyJointDragging, handleDragStart, handleDragEnd, manipulationMode, unlinkedJoints]);
+  }, [poseData, selectedJoints, handleJointClick]);
 
   // Мемоизируем кости
   const bones = useMemo(() => {
@@ -69,7 +60,6 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
       const from = poseData[connection.from];
       const to = poseData[connection.to];
 
-      // Не рисуем кость, если одна из точек отсутствует
       if (!from || !to) return null;
 
       return (
@@ -94,31 +84,8 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
   );
 };
 
-// Оптимизированная версия с React.memo
-export const Skeleton3D = React.memo(Skeleton3DComponent, (prevProps, nextProps) => {
-  // Кастомная функция сравнения для оптимизации
-  // Сравниваем только необходимые пропсы
-  
-  // 1. Проверяем, изменились ли данные позы
-  const poseDataChanged = prevProps.poseData !== nextProps.poseData;
-  if (poseDataChanged) return false;
-  
-  // 2. Проверяем режим манипуляции
-  if (prevProps.manipulationMode !== nextProps.manipulationMode) return false;
-  
-  // 3. Проверяем unlinkedJoints (сравниваем размер и содержимое)
-  const prevUnlinked = prevProps.unlinkedJoints || new Set();
-  const nextUnlinked = nextProps.unlinkedJoints || new Set();
-  
-  if (prevUnlinked.size !== nextUnlinked.size) return false;
-  
-  // Проверяем, есть ли различия в содержимом
-  for (const joint of prevUnlinked) {
-    if (!nextUnlinked.has(joint)) return false;
-  }
-  
-  // 4. Функции обратного вызова - всегда считаем их неизменными
-  // (они должны быть мемоизированы в родительском компоненте)
-  
+export const Skeleton3D = React.memo(Skeleton3DComponent, (prev, next) => {
+  if (prev.poseData !== next.poseData) return false;
+  if (prev.selectedElement !== next.selectedElement) return false;
   return true;
 });

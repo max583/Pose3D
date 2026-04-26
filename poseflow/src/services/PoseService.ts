@@ -1,261 +1,61 @@
-// PoseService — управление позой BODY_25 с поддержкой undo/redo и FK/IK
-import { Vector3 } from 'three';
-import { Body25Index, JointPosition, ManipulationMode, PoseData } from '../lib/body25/body25-types';
-import { SkeletonGraph } from '../lib/body25/SkeletonGraph';
-import { getIKChainForJoint } from '../lib/body25/IKChains';
-import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
-import { solveFABRIK } from '../lib/solvers/FABRIKSolver';
-import { UndoStack } from '../lib/UndoStack';
-import { canvasLogger, errorLogger } from '../lib/logger';
+// PoseService — совместимая обёртка над RigService.
+// После перехода на rotation-tree архитектуру PoseData является производным
+// от SkeletonRig. Этот класс предоставляет совместимый API для Skeleton3D,
+// ExportService, пресетов, mirror, undo/redo.
+//
+// Методы updateJoint, setJointPosition, toggleJointLink, setManipulationMode
+// удалены — управление суставами теперь через контроллеры (Stage 1+).
 
-// Снимок состояния всех скелетов (массив для будущего Step 9 — множественные фигуры)
-type SkeletonsSnapshot = PoseData[];
+import { Body25Index, PoseData } from '../lib/body25/body25-types';
+import { RigService } from './RigService';
 
 export class PoseService {
-  private skeletons: PoseData[];
-  private activeSkeletonId: number;
-  private undoStack: UndoStack<SkeletonsSnapshot>;
-  private listeners: Array<(data: PoseData) => void> = [];
-  private graph: SkeletonGraph;
-  manipulationMode: ManipulationMode = 'fk';
+  private rigService: RigService;
 
-  constructor() {
-    this.skeletons = [this.createTPose()];
-    this.activeSkeletonId = 0;
-    this.undoStack = new UndoStack<SkeletonsSnapshot>(50);
-    this.graph = new SkeletonGraph();
-    this.graph.computeBoneLengths(this.skeletons[0]);
-  }
-
-  // ─── Snapshot helpers ─────────────────────────────────────────────────────
-
-  private snapshot(): SkeletonsSnapshot {
-    return this.skeletons.map(s => ({ ...s }));
-  }
-
-  private restoreSnapshot(snap: SkeletonsSnapshot): void {
-    this.skeletons = snap.map(s => ({ ...s }));
-    if (this.activeSkeletonId >= this.skeletons.length) {
-      this.activeSkeletonId = 0;
-    }
+  constructor(rigService: RigService) {
+    this.rigService = rigService;
   }
 
   // ─── Undo / Redo ───────────────────────────────────────────────────────────
 
-  undo(): void {
-    const prev = this.undoStack.undo(this.snapshot());
-    if (!prev) return;
-    this.restoreSnapshot(prev);
-    this.notifyListeners();
-    canvasLogger.debug('Undo applied');
-  }
+  undo(): void { this.rigService.undo(); }
+  redo(): void { this.rigService.redo(); }
 
-  redo(): void {
-    const next = this.undoStack.redo(this.snapshot());
-    if (!next) return;
-    this.restoreSnapshot(next);
-    this.notifyListeners();
-    canvasLogger.debug('Redo applied');
-  }
+  get canUndo(): boolean { return this.rigService.canUndo; }
+  get canRedo(): boolean { return this.rigService.canRedo; }
 
-  get canUndo(): boolean { return this.undoStack.canUndo; }
-  get canRedo(): boolean { return this.undoStack.canRedo; }
+  // ─── Active pose access ────────────────────────────────────────────────────
 
-  // ─── Active skeleton access ────────────────────────────────────────────────
-
-  /** Текущие данные активного скелета */
+  /** Текущие данные позы (производное от SkeletonRig). */
   getPoseData(): PoseData {
-    return { ...this.skeletons[this.activeSkeletonId] };
+    return this.rigService.getPoseData();
   }
 
-  /** Заменить позу активного скелета (с сохранением в undo) */
+  /** Заменить позу (конвертируется в SkeletonRig через inverseFK). */
   setPoseData(data: PoseData): void {
-    this.undoStack.push(this.snapshot());
-    this.skeletons[this.activeSkeletonId] = { ...data };
-    this.graph.computeBoneLengths(data);
-    this.notifyListeners();
-  }
-
-  /** Доступ к графу для FK/IK */
-  getGraph(): SkeletonGraph { return this.graph; }
-
-  /** Переключить FK-связь сустава с родителем */
-  toggleJointLink(index: Body25Index): void {
-    const linked = this.graph.isLinked(index);
-    this.graph.setLinked(index, !linked);
-    this.notifyListeners();
-  }
-
-  isJointLinked(index: Body25Index): boolean {
-    return this.graph.isLinked(index);
-  }
-
-  /** Множество суставов с отключённой FK-пропагацией */
-  getUnlinkedJoints(): Set<Body25Index> {
-    const result = new Set<Body25Index>();
-    for (let i = 0; i < 25; i++) {
-      if (!this.graph.isLinked(i as Body25Index)) {
-        result.add(i as Body25Index);
-      }
-    }
-    return result;
-  }
-
-  /** Обновить позицию одной точки (с сохранением в undo, с FK/IK) */
-  updateJoint(index: Body25Index, position: JointPosition): void {
-    try {
-      this.undoStack.push(this.snapshot());
-      if (this.manipulationMode === 'fk') {
-        const updated = this.graph.applyFK(this.skeletons[this.activeSkeletonId], index, position);
-        this.skeletons[this.activeSkeletonId] = updated;
-      } else {
-        // IK mode
-        const chain = getIKChainForJoint(index);
-        if (chain) {
-          this.applyIK(index, position, chain.joints, chain.root);
-        } else {
-          // Сустав не входит в IK-цепочку — FK fallback
-          const updated = this.graph.applyFK(this.skeletons[this.activeSkeletonId], index, position);
-          this.skeletons[this.activeSkeletonId] = updated;
-        }
-      }
-      this.notifyListeners();
-    } catch (error) {
-      errorLogger.error('Failed to update joint position', {
-        index,
-        position,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
-  }
-
-  /** Получить позицию точки */
-  getJointPosition(index: Body25Index): JointPosition {
-    return { ...this.skeletons[this.activeSkeletonId][index] };
-  }
-
-  /** Установить позицию сустава напрямую (без FK/IK) */
-  setJointPosition(index: Body25Index, position: JointPosition): void {
-    this.undoStack.push(this.snapshot());
-    this.skeletons[this.activeSkeletonId][index] = { ...position };
-    this.notifyListeners();
-  }
-
-  /** Получить текущий режим манипуляции */
-  getManipulationMode(): ManipulationMode {
-    return this.manipulationMode;
-  }
-
-  /** Установить режим манипуляции */
-  setManipulationMode(mode: ManipulationMode): void {
-    this.manipulationMode = mode;
+    this.rigService.loadPose(data);
   }
 
   // ─── Subscriptions ─────────────────────────────────────────────────────────
 
   subscribe(listener: (data: PoseData) => void): () => void {
-    this.listeners.push(listener);
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
-  }
-
-  private notifyListeners(): void {
-    try {
-      const data = this.getPoseData();
-      this.listeners.forEach(l => l(data));
-    } catch (error) {
-      errorLogger.error('Failed to notify listeners', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  // ─── IK ───────────────────────────────────────────────────────────────────
-
-  private applyIK(
-    draggedJoint: Body25Index,
-    newPosition: JointPosition,
-    chainIndices: Body25Index[],
-    rootIndex: Body25Index,
-  ): void {
-    const pose = this.skeletons[this.activeSkeletonId];
-
-    // Строим цепочку Vector3 от root до конца
-    const chainVecs = chainIndices.map(idx => {
-      const j = pose[idx];
-      return new Vector3(j.x, j.y, j.z);
-    });
-
-    // Длины костей вдоль цепочки
-    const boneLengths = chainIndices.slice(0, -1).map((idx, i) =>
-      this.graph.getBoneLength(idx, chainIndices[i + 1]),
-    );
-
-    // Целевая позиция — куда тащим
-    const target = new Vector3(newPosition.x, newPosition.y, newPosition.z);
-
-    // Если тащим не конец — пересчитываем target как конец цепочки
-    // при условии что draggedJoint — промежуточный сустав
-    const { chain: solved } = solveFABRIK({ chain: chainVecs, target, boneLengths });
-
-    // Применяем результат к позе
-    for (let i = 0; i < chainIndices.length; i++) {
-      pose[chainIndices[i]] = {
-        ...pose[chainIndices[i]],
-        x: solved[i].x,
-        y: solved[i].y,
-        z: solved[i].z,
-      };
-    }
+    return this.rigService.subscribe(listener);
   }
 
   // ─── Pose helpers ──────────────────────────────────────────────────────────
 
-  mirrorPose(): void {
-    this.undoStack.push(this.snapshot());
-    const pose = { ...this.skeletons[this.activeSkeletonId] };
-    const center = pose[Body25Index.MID_HIP].x;
-    for (const [right, left] of MIRROR_PAIRS) {
-      const rPos = pose[right];
-      const lPos = pose[left];
-      pose[right] = { ...lPos, x: 2 * center - lPos.x };
-      pose[left]  = { ...rPos, x: 2 * center - rPos.x };
-    }
-    this.skeletons[this.activeSkeletonId] = pose as PoseData;
-    this.notifyListeners();
-  }
+  mirrorPose(): void { this.rigService.mirrorPose(); }
+  reset(): void { this.rigService.resetPose(); }
+  scale(factor: number): void { this.rigService.scalePose(factor); }
+  translate(x: number, y: number, z: number): void { this.rigService.translatePose(x, y, z); }
 
-  reset(): void {
-    this.undoStack.push(this.snapshot());
-    this.skeletons[this.activeSkeletonId] = this.createTPose();
-    this.notifyListeners();
-  }
+  // ─── Skeleton count (совместимость Step 9) ─────────────────────────────────
+  // Multiple skeleton support будет добавлен позже через отдельный сервис.
 
-  scale(factor: number): void {
-    this.undoStack.push(this.snapshot());
-    const pose = this.skeletons[this.activeSkeletonId];
-    Object.keys(pose).forEach(key => {
-      const idx = parseInt(key) as Body25Index;
-      const j = pose[idx];
-      pose[idx] = { ...j, x: j.x * factor, y: j.y * factor, z: j.z * factor };
-    });
-    this.notifyListeners();
-  }
+  getSkeletonCount(): number { return 1; }
+  getActiveSkeletonId(): number { return 0; }
 
-  translate(offsetX: number, offsetY: number, offsetZ: number): void {
-    this.undoStack.push(this.snapshot());
-    const pose = this.skeletons[this.activeSkeletonId];
-    Object.keys(pose).forEach(key => {
-      const idx = parseInt(key) as Body25Index;
-      const j = pose[idx];
-      pose[idx] = { ...j, x: j.x + offsetX, y: j.y + offsetY, z: j.z + offsetZ };
-    });
-    this.notifyListeners();
-  }
-
-  // ─── T-Pose / A-Pose / Standing ───────────────────────────────────────────
+  // ─── Pose presets / creation ───────────────────────────────────────────────
 
   createTPose(): PoseData {
     return {
@@ -286,86 +86,7 @@ export class PoseService {
       [Body25Index.RIGHT_HEEL]:      { x: 0.15,  y: 0.0,  z: -0.1 },
     };
   }
-
-  createAPose(): PoseData {
-    const pose = this.createTPose();
-    pose[Body25Index.RIGHT_ELBOW] = { x: 0.35, y: 0.9, z: 0 };
-    pose[Body25Index.RIGHT_WRIST] = { x: 0.35, y: 0.6, z: 0 };
-    pose[Body25Index.LEFT_ELBOW]  = { x: -0.35, y: 0.9, z: 0 };
-    pose[Body25Index.LEFT_WRIST]  = { x: -0.35, y: 0.6, z: 0 };
-    return pose;
-  }
-
-  createStandingPose(): PoseData {
-    const pose = this.createAPose();
-    pose[Body25Index.RIGHT_SHOULDER] = { x: 0.2,  y: 1.35, z: 0 };
-    pose[Body25Index.LEFT_SHOULDER]  = { x: -0.2, y: 1.35, z: 0 };
-    return pose;
-  }
-
-  // ─── Multiple skeletons support (Step 9) ──────────────────────────────────
-
-  getSkeletonCount(): number {
-    return this.skeletons.length;
-  }
-
-  getActiveSkeletonId(): number {
-    return this.activeSkeletonId;
-  }
-
-  setActiveSkeletonId(id: number): void {
-    if (id < 0 || id >= this.skeletons.length) {
-      throw new Error(`Invalid skeleton id: ${id}`);
-    }
-    if (id !== this.activeSkeletonId) {
-      this.undoStack.push(this.snapshot());
-      this.activeSkeletonId = id;
-      this.notifyListeners();
-    }
-  }
-
-  addSkeleton(): number {
-    this.undoStack.push(this.snapshot());
-    const newPose = { ...this.skeletons[this.activeSkeletonId] };
-    this.skeletons.push(newPose);
-    this.notifyListeners();
-    return this.skeletons.length - 1;
-  }
-
-  removeSkeleton(id: number): void {
-    if (this.skeletons.length <= 1) {
-      throw new Error('Cannot remove the last skeleton');
-    }
-    if (id < 0 || id >= this.skeletons.length) {
-      throw new Error(`Invalid skeleton id: ${id}`);
-    }
-    this.undoStack.push(this.snapshot());
-    this.skeletons.splice(id, 1);
-    if (this.activeSkeletonId >= id && this.activeSkeletonId > 0) {
-      this.activeSkeletonId = Math.max(0, this.activeSkeletonId - 1);
-    }
-    this.notifyListeners();
-  }
-
-  getSkeletonPose(id: number): PoseData {
-    if (id < 0 || id >= this.skeletons.length) {
-      throw new Error(`Invalid skeleton id: ${id}`);
-    }
-    return { ...this.skeletons[id] };
-  }
-
-  setSkeletonPose(id: number, data: PoseData): void {
-    if (id < 0 || id >= this.skeletons.length) {
-      throw new Error(`Invalid skeleton id: ${id}`);
-    }
-    this.undoStack.push(this.snapshot());
-    this.skeletons[id] = { ...data };
-    if (id === this.activeSkeletonId) {
-      this.graph.computeBoneLengths(data);
-    }
-    this.notifyListeners();
-  }
 }
 
-// Синглтон экземпляр PoseService для обратной совместимости
-export const poseService = new PoseService();
+// Синглтон: создаётся в DI container (src/lib/di/setup.ts).
+// Не экспортируем прямой синглтон — используется через ServiceContext.

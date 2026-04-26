@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PoseService } from '../services/PoseService';
+import { RigService } from '../services/RigService';
 import { SkeletonGraph } from '../lib/body25/SkeletonGraph';
 import { solveFABRIK } from '../lib/solvers/FABRIKSolver';
 import { Body25Index, JointPosition } from '../lib/body25/body25-types';
@@ -15,7 +16,7 @@ describe('Baseline Regression Tests', () => {
     let poseService: PoseService;
     
     beforeEach(() => {
-      poseService = new PoseService();
+      poseService = new PoseService(new RigService());
     });
     
     it('should initialize with T-pose containing 25 joints', () => {
@@ -208,7 +209,7 @@ describe('Baseline Regression Tests', () => {
   
   describe('Integration: PoseService + SkeletonGraph', () => {
     it('should maintain bone lengths after pose translation', () => {
-      const poseService = new PoseService();
+      const poseService = new PoseService(new RigService());
       const pose = poseService.getPoseData();
       const graph = new SkeletonGraph();
       graph.computeBoneLengths(pose);

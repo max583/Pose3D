@@ -13,6 +13,8 @@ import { PoseService } from '../services/PoseService';
 import { CameraService } from '../services/cameraService';
 import { ExportService } from '../services/ExportService';
 import { FeatureFlagService } from '../lib/feature-flags/FeatureFlagService';
+import { RigService } from '../services/RigService';
+import { SelectionService } from '../services/SelectionService';
 import { canvasLogger } from '../lib/logger';
 
 interface ServiceContextValue {
@@ -21,6 +23,8 @@ interface ServiceContextValue {
   cameraService: ICameraService;
   exportService: IExportService;
   featureFlagService: IFeatureFlagService;
+  rigService: RigService;
+  selectionService: SelectionService;
 }
 
 const ServiceContext = createContext<ServiceContextValue | null>(null);
@@ -40,6 +44,8 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({
     cameraService: container.get<ICameraService>(ServiceKeys.CameraService),
     exportService: container.get<IExportService>(ServiceKeys.ExportService),
     featureFlagService: container.get<IFeatureFlagService>(ServiceKeys.FeatureFlagService),
+    rigService: container.get<RigService>(ServiceKeys.RigService),
+    selectionService: container.get<SelectionService>(ServiceKeys.SelectionService),
   };
 
   return (
@@ -69,7 +75,7 @@ export const usePoseService = (): IPoseService => {
   const context = useContext(ServiceContext);
   if (!context) {
     canvasLogger.warn('[ServiceContext] usePoseService called outside ServiceProvider, using fallback');
-    return new PoseService();
+    return new PoseService(new RigService());
   }
   return context.poseService;
 };
@@ -108,4 +114,28 @@ export const useFeatureFlagService = (): IFeatureFlagService => {
     return new FeatureFlagService({ debug: typeof import.meta !== 'undefined' && import.meta.env?.DEV });
   }
   return context.featureFlagService;
+};
+
+/**
+ * Хук для получения RigService.
+ */
+export const useRigService = (): RigService => {
+  const context = useContext(ServiceContext);
+  if (!context) {
+    canvasLogger.warn('[ServiceContext] useRigService called outside ServiceProvider, using fallback');
+    return new RigService();
+  }
+  return context.rigService;
+};
+
+/**
+ * Хук для получения SelectionService.
+ */
+export const useSelectionService = (): SelectionService => {
+  const context = useContext(ServiceContext);
+  if (!context) {
+    canvasLogger.warn('[ServiceContext] useSelectionService called outside ServiceProvider, using fallback');
+    return new SelectionService();
+  }
+  return context.selectionService;
 };
