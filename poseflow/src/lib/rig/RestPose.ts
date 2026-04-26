@@ -98,10 +98,12 @@ export function defaultTPose(): PoseData {
   return {
     [Body25Index.NOSE]:            { x:  0.00, y: 1.60, z: 0.00 },
     [Body25Index.NECK]:            { x:  0.00, y: 1.40, z: 0.00 },
-    [Body25Index.RIGHT_SHOULDER]:  { x:  0.30, y: 1.35, z: 0.00 },
+    // Плечи: |1-2| = |1-5| = 1.2 × |8-9| = 1.2 × sqrt(0.025) ≈ 0.18974
+    // x = sqrt(1.44×0.025 − 0.05²) = sqrt(0.0335) ≈ 0.18303 → 0.183
+    [Body25Index.RIGHT_SHOULDER]:  { x:  0.183, y: 1.35, z: 0.00 },
     [Body25Index.RIGHT_ELBOW]:     { x:  0.60, y: 1.20, z: 0.00 },
     [Body25Index.RIGHT_WRIST]:     { x:  0.80, y: 1.00, z: 0.00 },
-    [Body25Index.LEFT_SHOULDER]:   { x: -0.30, y: 1.35, z: 0.00 },
+    [Body25Index.LEFT_SHOULDER]:   { x: -0.183, y: 1.35, z: 0.00 },
     [Body25Index.LEFT_ELBOW]:      { x: -0.60, y: 1.20, z: 0.00 },
     [Body25Index.LEFT_WRIST]:      { x: -0.80, y: 1.00, z: 0.00 },
     [Body25Index.MID_HIP]:         { x:  0.00, y: 0.90, z: 0.00 },
