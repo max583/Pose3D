@@ -5,6 +5,26 @@
 
 ## [Unreleased]
 
+### Added — Stage 1: Pelvis + Spine controllers (2026-04-27)
+
+- **PelvisController**: 3 стрелки трансляции (X/Y/Z, camera-plane drag) + 3 кольца вращения
+- **SpineController**: кольцо скручивания ±45° (горизонт. XZ), кольцо изгиба вперёд/назад ±45° (верт. YZ), кольцо бокового изгиба ±15° (верт. XY)
+- **Дуга позвоночника**: кость NECK→MID_HIP заменена 4 сегментами по реальным позициям VirtualChain; `RigService.getVirtualPositions()`
+- `useGizmoDrag` хук: отключает OrbitControls на время drag, screen-delta callbacks
+- `RigService`: `beginDrag()`, `applyPelvisTranslate/Rotate`, `applySpineBend`, `applySpineTwist`
+- `SkeletonRig`: поля `spineAngles` / `neckAngles` — синхронизированы с VirtualChain, клонируются в undo/redo
+- Клик по суставу/кости → выделение элемента, гизмо видны только у выделенного
+- **144 unit-теста** (было 131 после Stage 0)
+
+### Added — Stage 0: Rotation-tree архитектура (2026-04-27)
+
+- `src/lib/rig/`: `SkeletonRig`, `RestPose`, `VirtualChain`, `resolveSkeleton`, `inverseFK`, `elements`
+- `RigService` — первичный источник истины; `PoseService` — обёртка для совместимости
+- `SelectionService` — выделение элементов тела кликом
+- Удалён весь экспериментальный код предыдущих попыток (`MainControllers`, `DragAdapter`, `SpineChain`, `SkullGroup`, `FixedLengthSolver`, `FeatureFlagIntegration`)
+- Пропорции: shoulder = 1.2 × hip, плечо:предплечье ≈ 1.20:1, бедро:голень ≈ 1.22:1
+- **131 unit-тест**
+
 ### Added
 
 - Инженерные практики: ADR (`ai/decisions/`), `CHANGELOG.md`, граница логика/UI в `CLAUDE.md` (P1).

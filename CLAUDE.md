@@ -119,8 +119,8 @@ Keep **non-trivial algorithms** out of components: anything that looks like reus
 
 ## Current status
 
-Steps 1–7 of DesignDoll controls: **DONE**. See `ai/tasks/archive/steps-1-7-completed.md`.
-**Next: Step 8 (Mini-view)**. See `PLAN.md` for remaining steps 8–11.
+Rotation-tree архитектура (Stage 0) и контроллеры таза + позвоночника (Stage 1): **DONE**. 144 тестов. См. `STATUS.md`.
+**Next: Stage 2 (Neck controller)**. Перед началом — интервью по параметрам шеи. План: `C:\Users\Max\.claude\plans\zippy-zooming-crescent.md`.
 
 ## Unit tests (required)
 
