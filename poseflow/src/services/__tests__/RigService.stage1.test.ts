@@ -95,13 +95,13 @@ describe('RigService — Stage 1 gizmo operations', () => {
     expect(svc.getRig().spineAngles.bendZ).toBeCloseTo(0.1, 5);
   });
 
-  it('applySpineBend ограничивает bendX/bendZ до ±π/2', () => {
+  it('applySpineBend ограничивает bendX до ±45° и bendZ до ±15°', () => {
     svc.beginDrag();
     svc.applySpineBend(5, -5);
 
     const { bendX, bendZ } = svc.getRig().spineAngles;
-    expect(bendX).toBeCloseTo(Math.PI / 2, 5);
-    expect(bendZ).toBeCloseTo(-Math.PI / 2, 5);
+    expect(bendX).toBeCloseTo(Math.PI / 4, 5);           // ±45°
+    expect(bendZ).toBeCloseTo(-15 * Math.PI / 180, 5);   // ±15°
   });
 
   it('applySpineBend сдвигает позицию NECK', () => {

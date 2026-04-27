@@ -189,9 +189,10 @@ export class RigService {
    */
   applySpineBend(deltaX: number, deltaZ: number): void {
     const angles = this.rig.spineAngles;
-    const maxBend = Math.PI * 0.5; // ±90°
-    angles.bendX = clamp(angles.bendX + deltaX, -maxBend, maxBend);
-    angles.bendZ = clamp(angles.bendZ + deltaZ, -maxBend, maxBend);
+    const maxBendX = Math.PI / 4;          // ±45° вперёд/назад
+    const maxBendZ = 15 * Math.PI / 180;   // ±15° в стороны
+    angles.bendX = clamp(angles.bendX + deltaX, -maxBendX, maxBendX);
+    angles.bendZ = clamp(angles.bendZ + deltaZ, -maxBendZ, maxBendZ);
     this.rig.spine = setBend(this.rig.spine, angles.bendX, angles.bendZ, angles.twistY);
     this.poseCache = null;
     this.notifyListeners();

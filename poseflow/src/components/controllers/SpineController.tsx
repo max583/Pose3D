@@ -1,11 +1,14 @@
 // src/components/controllers/SpineController.tsx
-// Гизмо позвоночника: два кольца.
+// Гизмо позвоночника: три кольца.
 //
-// Кольцо скручивания (фиолетовое, XZ-плоскость, горизонтальное):
-//   Drag влево/вправо (screenDx) → twistY (±45°).
+// Скручивание (фиолетовое, XZ-плоскость горизонтальное):
+//   Drag dx → twistY (±45°).
 //
-// Кольцо наклона вперёд/назад (оранжевое, XY-плоскость, вертикальное фронтальное):
-//   Drag вверх/вниз (screenDy) → bendX.
+// Изгиб вперёд/назад (оранжевое, YZ-плоскость вертикальное):
+//   Drag dy → bendX. Кольцо в плоскости движения — видно сбоку.
+//
+// Изгиб влево/вправо (жёлтое, XY-плоскость вертикальное фронтальное):
+//   Drag dx → bendZ. Кольцо в плоскости движения — видно спереди.
 
 import React from 'react';
 import { RigService } from '../../services/RigService';
@@ -13,12 +16,13 @@ import { useGizmoDrag } from '../../hooks/useGizmoDrag';
 
 // ─── Настройки визуала ────────────────────────────────────────────────────────
 
-const RING_OUTER = 0.38;
-const RING_TUBE  = 0.006;   // тонкие кольца
-const HIT_TUBE   = 0.05;    // невидимая hit-зона
+const RING_OUTER      = 0.38;
+const RING_OUTER_SIDE = 0.32;  // кольцо бокового изгиба чуть меньше — не перекрывает
+const RING_TUBE       = 0.006;
+const HIT_TUBE        = 0.05;
 
-const BEND_SENS  = 0.010;   // rad/px
-const TWIST_SENS = 0.010;   // rad/px
+const BEND_SENS  = 0.010;  // rad/px
+const TWIST_SENS = 0.010;  // rad/px
 
 // ─── TwistRing ─── горизонтальное кольцо (скручивание вокруг Y) ───────────────
 
@@ -29,7 +33,6 @@ function TwistRing({ rigService }: { rigService: RigService }) {
   );
 
   return (
-    // XZ-плоскость: TorusGeometry по умолчанию в XY, поворот π/2 вокруг X → XZ
     <group rotation={[Math.PI / 2, 0, 0]}>
       <mesh>
         <torusGeometry args={[RING_OUTER, RING_TUBE, 8, 64]} />
@@ -43,16 +46,15 @@ function TwistRing({ rigService }: { rigService: RigService }) {
   );
 }
 
-// ─── BendRing ─── вертикальное кольцо (наклон вперёд/назад вокруг X) ─────────
+// ─── ForwardBendRing ─── вертикальное кольцо YZ (изгиб вперёд/назад, вокруг X) ─
 
-function BendRing({ rigService }: { rigService: RigService }) {
+function ForwardBendRing({ rigService }: { rigService: RigService }) {
   const { handlePointerDown } = useGizmoDrag(
     () => rigService.beginDrag(),
     (_, dy) => rigService.applySpineBend(dy * BEND_SENS, 0),
   );
 
   return (
-    // YZ-плоскость (вращение вокруг X): поворот π/2 вокруг Y
     <group rotation={[0, Math.PI / 2, 0]}>
       <mesh>
         <torusGeometry args={[RING_OUTER, RING_TUBE, 8, 64]} />
@@ -60,6 +62,29 @@ function BendRing({ rigService }: { rigService: RigService }) {
       </mesh>
       <mesh onPointerDown={handlePointerDown}>
         <torusGeometry args={[RING_OUTER, HIT_TUBE, 8, 64]} />
+        <meshBasicMaterial transparent opacity={0} depthTest={false} />
+      </mesh>
+    </group>
+  );
+}
+
+// ─── LateralBendRing ─── вертикальное кольцо XY (изгиб вправо/влево, вокруг Z) ─
+
+function LateralBendRing({ rigService }: { rigService: RigService }) {
+  const { handlePointerDown } = useGizmoDrag(
+    () => rigService.beginDrag(),
+    // Позитивный Z-поворот наклоняет верхушку влево → инвертируем
+    (dx) => rigService.applySpineBend(0, -dx * BEND_SENS),
+  );
+
+  return (
+    <group>
+      <mesh>
+        <torusGeometry args={[RING_OUTER_SIDE, RING_TUBE, 8, 64]} />
+        <meshBasicMaterial color="#ddcc00" depthTest={false} />
+      </mesh>
+      <mesh onPointerDown={handlePointerDown}>
+        <torusGeometry args={[RING_OUTER_SIDE, HIT_TUBE, 8, 64]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -78,8 +103,9 @@ export function SpineController({ spineMiddle, rigService }: SpineControllerProp
 
   return (
     <group position={pos}>
-      <TwistRing rigService={rigService} />
-      <BendRing  rigService={rigService} />
+      <TwistRing       rigService={rigService} />
+      <ForwardBendRing rigService={rigService} />
+      <LateralBendRing rigService={rigService} />
     </group>
   );
 }
