@@ -62,6 +62,9 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const rigService = useRigService();
 
   const [poseData, setPoseData] = useState<PoseData>(() => poseService.getPoseData());
+  const [spineSegmentPositions, setSpineSegmentPositions] = useState(
+    () => rigService.getVirtualPositions().spine.map(v => ({ x: v.x, y: v.y, z: v.z })),
+  );
   const [selectedElement, setSelectedElement] = useState<ElementId | null>(
     () => selectionService.getSelected()
   );
@@ -83,12 +86,14 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
     canvasLogger.info('Canvas3D mounted, subscribing to poseService');
     const unsubscribe = poseService.subscribe((data) => {
       setPoseData(data);
+      const vp = rigService.getVirtualPositions();
+      setSpineSegmentPositions(vp.spine.map(v => ({ x: v.x, y: v.y, z: v.z })));
     });
     return () => {
       canvasLogger.info('Canvas3D unmounting');
       unsubscribe();
     };
-  }, [poseService]);
+  }, [poseService, rigService]);
 
   // Подписываемся на изменения выделения
   useEffect(() => {
@@ -224,6 +229,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
           poseData={poseData}
           selectedElement={selectedElement}
           onElementSelect={handleElementSelect}
+          spineSegmentPositions={spineSegmentPositions}
         />
 
         {/* Контроллеры гизмо — рендерятся только для выделенного элемента */}

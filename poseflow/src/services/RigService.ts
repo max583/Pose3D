@@ -11,7 +11,7 @@
 import { Quaternion, Vector3 } from 'three';
 import { PoseData } from '../lib/body25/body25-types';
 import { SkeletonRig, createDefaultRig, cloneRig } from '../lib/rig/SkeletonRig';
-import { resolveSkeletonPose } from '../lib/rig/resolveSkeleton';
+import { resolveSkeleton, VirtualChainPositions } from '../lib/rig/resolveSkeleton';
 import { rigFromPose } from '../lib/rig/inverseFK';
 import { setBend } from '../lib/rig/VirtualChain';
 import { UndoStack } from '../lib/UndoStack';
@@ -23,7 +23,7 @@ type RigListener = (pose: PoseData) => void;
 export class RigService {
   private rig: SkeletonRig;
   private undoStack: UndoStack<SkeletonRig>;
-  private poseCache: PoseData | null = null;
+  private resolvedCache: { pose: PoseData; virtualPositions: VirtualChainPositions } | null = null;
   private listeners: RigListener[] = [];
 
   constructor() {
@@ -42,7 +42,7 @@ export class RigService {
   setRig(newRig: SkeletonRig): void {
     this.undoStack.push(cloneRig(this.rig));
     this.rig = newRig;
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -50,10 +50,19 @@ export class RigService {
 
   /** Получить текущую позу (кэшируется до следующего изменения rig). */
   getPoseData(): PoseData {
-    if (!this.poseCache) {
-      this.poseCache = resolveSkeletonPose(this.rig);
+    return this.getResolved().pose;
+  }
+
+  /** Получить промежуточные позиции сегментов позвоночника и шеи. */
+  getVirtualPositions(): VirtualChainPositions {
+    return this.getResolved().virtualPositions;
+  }
+
+  private getResolved() {
+    if (!this.resolvedCache) {
+      this.resolvedCache = resolveSkeleton(this.rig);
     }
-    return this.poseCache;
+    return this.resolvedCache;
   }
 
   // ─── Load from PoseData (для пресетов, mirror, reset) ─────────────────────
@@ -65,7 +74,7 @@ export class RigService {
   loadPose(pose: PoseData): void {
     this.undoStack.push(cloneRig(this.rig));
     this.rig = rigFromPose(pose);
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -75,7 +84,7 @@ export class RigService {
   resetPose(): void {
     this.undoStack.push(cloneRig(this.rig));
     this.rig = createDefaultRig();
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -96,7 +105,7 @@ export class RigService {
 
     this.undoStack.push(cloneRig(this.rig));
     this.rig = rigFromPose(mirrored as PoseData);
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -126,7 +135,7 @@ export class RigService {
 
     this.undoStack.push(cloneRig(this.rig));
     this.rig = newRig;
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -142,7 +151,7 @@ export class RigService {
 
     this.undoStack.push(cloneRig(this.rig));
     this.rig = newRig;
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -161,7 +170,7 @@ export class RigService {
     this.rig.rootPosition.x += dx;
     this.rig.rootPosition.y += dy;
     this.rig.rootPosition.z += dz;
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -178,7 +187,7 @@ export class RigService {
     const q = new Quaternion().setFromAxisAngle(axisVec, angle);
     // Premultiply: поворот в мировом пространстве
     this.rig.rootRotation.premultiply(q);
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -194,7 +203,7 @@ export class RigService {
     angles.bendX = clamp(angles.bendX + deltaX, -maxBendX, maxBendX);
     angles.bendZ = clamp(angles.bendZ + deltaZ, -maxBendZ, maxBendZ);
     this.rig.spine = setBend(this.rig.spine, angles.bendX, angles.bendZ, angles.twistY);
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -207,7 +216,7 @@ export class RigService {
     const maxTwist = Math.PI / 4; // ±45°
     angles.twistY = clamp(angles.twistY + delta, -maxTwist, maxTwist);
     this.rig.spine = setBend(this.rig.spine, angles.bendX, angles.bendZ, angles.twistY);
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -217,7 +226,7 @@ export class RigService {
     const prev = this.undoStack.undo(cloneRig(this.rig));
     if (!prev) return;
     this.rig = prev;
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 
@@ -225,7 +234,7 @@ export class RigService {
     const next = this.undoStack.redo(cloneRig(this.rig));
     if (!next) return;
     this.rig = next;
-    this.poseCache = null;
+    this.resolvedCache = null;
     this.notifyListeners();
   }
 

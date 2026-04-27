@@ -10,18 +10,26 @@ import { Joint } from './Joint';
 import { Bone } from './Bone';
 import { ElementId, getElementForJoint, ELEMENT_TO_JOINTS } from '../../lib/rig/elements';
 
+type Pt = { x: number; y: number; z: number };
+
 interface Skeleton3DProps {
   poseData: PoseData;
   /** ID выделенного элемента (null — ничего не выделено). */
   selectedElement?: ElementId | null;
   /** Клик по суставу — выбрать элемент. */
   onElementSelect?: (element: ElementId | null) => void;
+  /**
+   * Промежуточные позиции сегментов позвоночника (MID_HIP → NECK).
+   * Если передано — кость NECK→MID_HIP заменяется дугой из сегментов.
+   */
+  spineSegmentPositions?: Pt[];
 }
 
 const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
   poseData,
   selectedElement = null,
   onElementSelect,
+  spineSegmentPositions,
 }) => {
   // Набор суставов выделенного элемента для подсветки
   const selectedJoints = useMemo<Set<Body25Index>>(() => {
@@ -56,22 +64,51 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
 
   // Мемоизируем кости
   const bones = useMemo(() => {
-    return BODY25_CONNECTIONS.map((connection, idx) => {
+    const result: (React.ReactElement | null)[] = [];
+
+    for (let idx = 0; idx < BODY25_CONNECTIONS.length; idx++) {
+      const connection = BODY25_CONNECTIONS[idx];
+
+      // Кость NECK→MID_HIP заменяем сегментированной дугой, если есть позиции сегментов
+      const isSpineBone =
+        connection.from === Body25Index.NECK &&
+        connection.to === Body25Index.MID_HIP;
+
+      if (isSpineBone && spineSegmentPositions && spineSegmentPositions.length > 0) {
+        const midHip = poseData[Body25Index.MID_HIP];
+        if (midHip) {
+          // Точки дуги: MID_HIP → seg[0] → seg[1] → ... → seg[n-1] (= NECK)
+          const points: Pt[] = [midHip, ...spineSegmentPositions];
+          for (let i = 0; i < points.length - 1; i++) {
+            result.push(
+              <Bone
+                key={`spine-seg-${i}`}
+                from={points[i]}
+                to={points[i + 1]}
+                color={connection.color}
+              />,
+            );
+          }
+        }
+        continue;
+      }
+
       const from = poseData[connection.from];
       const to = poseData[connection.to];
+      if (!from || !to) { result.push(null); continue; }
 
-      if (!from || !to) return null;
-
-      return (
+      result.push(
         <Bone
           key={`${connection.from}-${connection.to}-${idx}`}
           from={from}
           to={to}
           color={connection.color}
-        />
+        />,
       );
-    });
-  }, [poseData]);
+    }
+
+    return result;
+  }, [poseData, spineSegmentPositions]);
 
   return (
     <group name="skeleton">
