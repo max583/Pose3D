@@ -78,11 +78,22 @@ export function resolveSkeleton(rig: SkeletonRig): {
     neckRot,
     neckRestDir,
   );
-  const nosePos = neckSegPositions[neckSegPositions.length - 1];
+  const nosePosFromChain = neckSegPositions[neckSegPositions.length - 1];
   const noseRot = getEndRotation(rig.neck, neckRot);
 
+  // --- Голова: поворот жёсткого блока {NOSE, глаза, уши} вокруг NECK ---
+  // noseOffset = вектор от NECK до NOSE после шейной цепочки
+  const noseOffset = nosePosFromChain.clone().sub(neckPos);
+  noseOffset.applyQuaternion(rig.headRotation);
+  const nosePos = neckPos.clone().add(noseOffset);
+  // Накопленный поворот для NOSE = конец шейной цепочки × поворот головы
+  const headOri = noseRot.clone().multiply(rig.headRotation);
+
+  // Обновляем последний сегмент шейной дуги, чтобы она заканчивалась в правильном NOSE
+  neckSegPositions[neckSegPositions.length - 1] = nosePos.clone();
+
   worldPositions.set(Body25Index.NOSE, nosePos);
-  accRotations.set(Body25Index.NOSE, noseRot);
+  accRotations.set(Body25Index.NOSE, headOri);
   pose[Body25Index.NOSE] = vec3ToJoint(nosePos);
 
   // --- 4. BFS по оставшимся суставам ---

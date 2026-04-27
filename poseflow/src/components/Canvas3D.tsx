@@ -17,6 +17,7 @@ import { Body25Index } from '../lib/body25/body25-types';
 import { PelvisController } from './controllers/PelvisController';
 import { SpineController } from './controllers/SpineController';
 import { NeckController } from './controllers/NeckController';
+import { HeadController } from './controllers/HeadController';
 import './Canvas3D.css';
 
 interface Canvas3DProps {
@@ -248,6 +249,12 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         {selectedElement === 'neck' && poseData[Body25Index.NECK] && (
           <NeckController
             neckPos={poseData[Body25Index.NECK]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'head' && poseData[Body25Index.NOSE] && (
+          <HeadController
+            nosePos={poseData[Body25Index.NOSE]!}
             rigService={rigService}
           />
         )}

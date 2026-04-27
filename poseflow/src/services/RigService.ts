@@ -8,7 +8,7 @@
 //   - кэш PoseData (инвалидируется при изменении rig)
 //   - подписки на изменения
 
-import { Quaternion, Vector3 } from 'three';
+import { Euler, Quaternion, Vector3 } from 'three';
 import { PoseData } from '../lib/body25/body25-types';
 import { SkeletonRig, createDefaultRig, cloneRig } from '../lib/rig/SkeletonRig';
 import { resolveSkeleton, VirtualChainPositions } from '../lib/rig/resolveSkeleton';
@@ -245,6 +245,60 @@ export class RigService {
     const maxTwist = Math.PI / 4; // ±45°
     angles.twistY = clamp(angles.twistY + delta, -maxTwist, maxTwist);
     this.rig.neck = setBend(this.rig.neck, angles.bendX, angles.bendZ, angles.twistY);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  // ─── Head rotation ────────────────────────────────────────────────────────
+
+  /**
+   * Обновить rig.headRotation из rig.headAngles.
+   * Порядок Euler: YXZ (сначала yaw, потом pitch, потом roll).
+   */
+  private updateHeadRotation(): void {
+    const { pitch, yaw, roll } = this.rig.headAngles;
+    this.rig.headRotation = new Quaternion().setFromEuler(
+      new Euler(pitch, yaw, roll, 'YXZ'),
+    );
+  }
+
+  /**
+   * Кивок вперёд/назад.
+   * Вперёд (подбородок к груди) +45°, назад (голова запрокинута) −30°.
+   * @param delta — дельта угла (рад)
+   */
+  applyHeadPitch(delta: number): void {
+    const angles = this.rig.headAngles;
+    const maxForward = 45 * Math.PI / 180;  // +45°
+    const maxBack    = 30 * Math.PI / 180;  // −30°
+    angles.pitch = clamp(angles.pitch + delta, -maxBack, maxForward);
+    this.updateHeadRotation();
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Поворот головы влево/вправо. Лимит ±80°.
+   * @param delta — дельта угла (рад)
+   */
+  applyHeadYaw(delta: number): void {
+    const angles = this.rig.headAngles;
+    const maxYaw = 80 * Math.PI / 180;
+    angles.yaw = clamp(angles.yaw + delta, -maxYaw, maxYaw);
+    this.updateHeadRotation();
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Боковой наклон головы. Лимит ±30°.
+   * @param delta — дельта угла (рад)
+   */
+  applyHeadRoll(delta: number): void {
+    const angles = this.rig.headAngles;
+    const maxRoll = 30 * Math.PI / 180;
+    angles.roll = clamp(angles.roll + delta, -maxRoll, maxRoll);
+    this.updateHeadRotation();
     this.resolvedCache = null;
     this.notifyListeners();
   }

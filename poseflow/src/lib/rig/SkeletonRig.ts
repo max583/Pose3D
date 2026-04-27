@@ -6,7 +6,7 @@
 // SkeletonRig — первичный источник истины.
 // PoseData (мировые позиции суставов) — производное, вычисляемое через resolveSkeleton().
 
-import { Quaternion, Vector3 } from 'three';
+import { Euler, Quaternion, Vector3 } from 'three';
 import { Body25Index } from '../body25/body25-types';
 import { RestPose, createRestPoseFromTPose } from './RestPose';
 import { VirtualChain, createVirtualChain } from './VirtualChain';
@@ -55,6 +55,16 @@ export interface SkeletonRig {
    * Суммарные углы шеи (радианы). Синхронизированы с neck.rotations.
    */
   neckAngles: { bendX: number; bendZ: number; twistY: number };
+
+  /**
+   * Поворот головы как жёсткого блока вокруг точки NECK.
+   * Применяется поверх шейной цепочки в resolveSkeleton.
+   * pitch — кивок вперёд(+)/назад(-), yaw — поворот влево/вправо, roll — наклон в сторону.
+   */
+  headAngles: { pitch: number; yaw: number; roll: number };
+
+  /** Кватернион, производный от headAngles (порядок YXZ). */
+  headRotation: Quaternion;
 }
 
 /**
@@ -96,6 +106,8 @@ export function createDefaultRig(): SkeletonRig {
     neck: createVirtualChain(DEFAULT_NECK_SEGMENTS, neckLength),
     spineAngles: { bendX: 0, bendZ: 0, twistY: 0 },
     neckAngles:  { bendX: 0, bendZ: 0, twistY: 0 },
+    headAngles:  { pitch: 0, yaw: 0, roll: 0 },
+    headRotation: new Quaternion(),
   };
 }
 
@@ -123,7 +135,18 @@ export function cloneRig(rig: SkeletonRig): SkeletonRig {
       segmentLength: rig.neck.segmentLength,
       rotations: rig.neck.rotations.map(q => q.clone()),
     },
-    spineAngles: { ...rig.spineAngles },
-    neckAngles:  { ...rig.neckAngles },
+    spineAngles:  { ...rig.spineAngles },
+    neckAngles:   { ...rig.neckAngles },
+    headAngles:   { ...rig.headAngles },
+    headRotation: rig.headRotation.clone(),
   };
+}
+
+/**
+ * Построить кватернион headRotation из headAngles (порядок YXZ).
+ */
+export function buildHeadRotation(angles: { pitch: number; yaw: number; roll: number }): Quaternion {
+  return new Quaternion().setFromEuler(
+    new Euler(angles.pitch, angles.yaw, angles.roll, 'YXZ'),
+  );
 }
