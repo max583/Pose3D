@@ -48,7 +48,7 @@ function TwistRing({ rigService }: { rigService: RigService }) {
 function BendRing({ rigService }: { rigService: RigService }) {
   const { handlePointerDown } = useGizmoDrag(
     () => rigService.beginDrag(),
-    (_, dy) => rigService.applySpineBend(-dy * BEND_SENS, 0),
+    (_, dy) => rigService.applySpineBend(dy * BEND_SENS, 0),
   );
 
   return (
