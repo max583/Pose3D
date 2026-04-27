@@ -52,8 +52,8 @@ function BendRing({ rigService }: { rigService: RigService }) {
   );
 
   return (
-    // XY-плоскость (вертикальное фронтальное кольцо): без поворота
-    <group>
+    // YZ-плоскость (вращение вокруг X): поворот π/2 вокруг Y
+    <group rotation={[0, Math.PI / 2, 0]}>
       <mesh>
         <torusGeometry args={[RING_OUTER, RING_TUBE, 8, 64]} />
         <meshBasicMaterial color="#ff8800" depthTest={false} />
