@@ -18,6 +18,7 @@ import { PelvisController } from './controllers/PelvisController';
 import { SpineController } from './controllers/SpineController';
 import { NeckController } from './controllers/NeckController';
 import { HeadController } from './controllers/HeadController';
+import { ArmController } from './controllers/ArmController';
 import './Canvas3D.css';
 
 interface Canvas3DProps {
@@ -255,6 +256,30 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         {selectedElement === 'head' && poseData[Body25Index.NOSE] && (
           <HeadController
             nosePos={poseData[Body25Index.NOSE]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'arm_r' &&
+          poseData[Body25Index.RIGHT_SHOULDER] &&
+          poseData[Body25Index.RIGHT_ELBOW] &&
+          poseData[Body25Index.RIGHT_WRIST] && (
+          <ArmController
+            side="r"
+            shoulderPos={poseData[Body25Index.RIGHT_SHOULDER]!}
+            elbowPos={poseData[Body25Index.RIGHT_ELBOW]!}
+            wristPos={poseData[Body25Index.RIGHT_WRIST]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'arm_l' &&
+          poseData[Body25Index.LEFT_SHOULDER] &&
+          poseData[Body25Index.LEFT_ELBOW] &&
+          poseData[Body25Index.LEFT_WRIST] && (
+          <ArmController
+            side="l"
+            shoulderPos={poseData[Body25Index.LEFT_SHOULDER]!}
+            elbowPos={poseData[Body25Index.LEFT_ELBOW]!}
+            wristPos={poseData[Body25Index.LEFT_WRIST]!}
             rigService={rigService}
           />
         )}

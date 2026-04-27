@@ -14,6 +14,14 @@ import { SkeletonRig, createDefaultRig, cloneRig } from '../lib/rig/SkeletonRig'
 import { resolveSkeleton, VirtualChainPositions } from '../lib/rig/resolveSkeleton';
 import { rigFromPose } from '../lib/rig/inverseFK';
 import { setBend } from '../lib/rig/VirtualChain';
+import {
+  ARM_JOINTS,
+  applyArmChainToRig,
+  getArmBoneLengths,
+  solveArmFABRIK,
+  twistElbow,
+  toVec3,
+} from '../lib/rig/armIK';
 import { UndoStack } from '../lib/UndoStack';
 import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
 import { Body25Index } from '../lib/body25/body25-types';
@@ -245,6 +253,55 @@ export class RigService {
     const maxTwist = Math.PI / 4; // ±45°
     angles.twistY = clamp(angles.twistY + delta, -maxTwist, maxTwist);
     this.rig.neck = setBend(this.rig.neck, angles.bendX, angles.bendZ, angles.twistY);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  // ─── Arm IK (Stage 4.1) ───────────────────────────────────────────────────
+
+  /**
+   * IK запястья: FABRIK-решение цепочки плечо→локоть→запястье.
+   * Плечо фиксировано; запястье движется к целевой мировой позиции.
+   *
+   * @param side  'r' | 'l'
+   * @param tx/ty/tz  целевая мировая позиция запястья
+   */
+  applyArmIK(side: 'r' | 'l', tx: number, ty: number, tz: number): void {
+    const pose = this.getPoseData();
+    const joints = ARM_JOINTS[side];
+
+    const shoulderPos = toVec3(pose[joints.shoulder]!);
+    const elbowPos    = toVec3(pose[joints.elbow]!);
+    const wristPos    = toVec3(pose[joints.wrist]!);
+    const target      = new Vector3(tx, ty, tz);
+
+    const boneLengths = getArmBoneLengths(this.rig, side);
+    const newChain    = solveArmFABRIK(shoulderPos, elbowPos, wristPos, target, boneLengths);
+
+    applyArmChainToRig(this.rig, side, shoulderPos, newChain[1], newChain[2]);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Скручивание локтя: поворот локтя вокруг оси плечо→запястье.
+   * Запястье и плечо остаются неподвижными.
+   *
+   * @param side   'r' | 'l'
+   * @param delta  угол поворота (рад)
+   */
+  applyElbowTwist(side: 'r' | 'l', delta: number): void {
+    const pose = this.getPoseData();
+    const joints = ARM_JOINTS[side];
+
+    const shoulderPos = toVec3(pose[joints.shoulder]!);
+    const elbowPos    = toVec3(pose[joints.elbow]!);
+    const wristPos    = toVec3(pose[joints.wrist]!);
+
+    const newElbow = twistElbow(shoulderPos, elbowPos, wristPos, delta);
+
+    // Запястье не двигается, но его localRot меняется (родитель-локоть переместился)
+    applyArmChainToRig(this.rig, side, shoulderPos, newElbow, wristPos);
     this.resolvedCache = null;
     this.notifyListeners();
   }
