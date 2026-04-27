@@ -1,7 +1,7 @@
 // src/lib/services/interfaces/IExportService.ts
 // Интерфейс сервиса экспорта данных
 
-import { PoseData } from '../../types/common';
+import { PoseData } from '../../body25/body25-types';
 import { Camera } from 'three';
 
 export interface ExportOptions {

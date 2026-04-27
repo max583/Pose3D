@@ -1,5 +1,9 @@
 # Матрица бэклога: PLAN ↔ рефакторинг DesignDoll
 
+> [ARCHIVED] 2026-04-28. Историческая матрица для старых шагов PLAN 8-11.
+> Не использовать как источник текущего roadmap. Актуальные источники:
+> `PLAN.md`, `STATUS.md`, `AGENTS.md`, `ai/docs/feature-task-template.md`.
+
 Связка между шагами [`PLAN.md`](../../PLAN.md) и фазами [`refactoring-plan-design-doll-controls.md`](./refactoring-plan-design-doll-controls.md). Обновлять при планировании спринта или смене приоритетов.
 
 **Легенда статусов:** `done` — сделано в коде; `next` — следующий запланированный шаг PLAN; `todo` — в очереди; `optional` — не обязателен для MVP DD.

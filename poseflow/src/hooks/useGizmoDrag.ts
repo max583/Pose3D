@@ -41,7 +41,7 @@ export function useGizmoDrag(
       stateRef.current = { x: e.clientX, y: e.clientY, active: true };
 
       // Отключаем OrbitControls на время drag
-      if (controls) (controls as { enabled: boolean }).enabled = false;
+      if (controls) (controls as unknown as { enabled: boolean }).enabled = false;
 
       onDragStart();
 
@@ -56,7 +56,7 @@ export function useGizmoDrag(
 
       const upHandler = () => {
         stateRef.current.active = false;
-        if (controls) (controls as { enabled: boolean }).enabled = true;
+        if (controls) (controls as unknown as { enabled: boolean }).enabled = true;
         onDragEnd?.();
         window.removeEventListener('pointermove', moveHandler);
         window.removeEventListener('pointerup', upHandler);

@@ -46,7 +46,7 @@ export function useCameraPlaneWorldDrag(
   const handlePointerDown = useCallback(
     (e: { clientX: number; clientY: number; stopPropagation: () => void }) => {
       e.stopPropagation();
-      if (controls) (controls as { enabled: boolean }).enabled = false;
+      if (controls) (controls as unknown as { enabled: boolean }).enabled = false;
 
       // Плоскость перпендикулярна камере и проходит через текущую позицию объекта
       const startPos = getCurrentPos();
@@ -76,7 +76,7 @@ export function useCameraPlaneWorldDrag(
 
       const upHandler = () => {
         activeRef.current = false;
-        if (controls) (controls as { enabled: boolean }).enabled = true;
+        if (controls) (controls as unknown as { enabled: boolean }).enabled = true;
         onDragEnd?.();
         window.removeEventListener('pointermove', moveHandler);
         window.removeEventListener('pointerup',   upHandler);

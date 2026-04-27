@@ -1,3 +1,7 @@
+# [ARCHIVED] 2026-04-28
+
+Исторический план baseline regression tests. Актуальная команда качества: `npm run verify` из `poseflow/`. Актуальные R3F/manual проверки: `ai/docs/r3f-smoke-manual-checklist.md`.
+
 # План создания baseline тестов для регрессии
 
 ## Цель

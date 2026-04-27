@@ -1,3 +1,7 @@
+# [ARCHIVED] 2026-04-28
+
+Исторический дизайн DI container. DI уже интегрирован; актуальное состояние см. в `PLAN.md`, `STATUS.md` и `poseflow/src/lib/di/`.
+
 # Архитектура Dependency Injection контейнера для PoseFlow
 
 ## Обзор

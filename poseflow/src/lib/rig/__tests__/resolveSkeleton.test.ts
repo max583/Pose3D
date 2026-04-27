@@ -44,7 +44,7 @@ describe('resolveSkeleton — T-поза', () => {
 
   it('все 25 суставов присутствуют в выходной позе', () => {
     for (let i = 0; i <= 24; i++) {
-      expect(pose[i]).toBeDefined();
+      expect(pose[i as Body25Index]).toBeDefined();
     }
   });
 });

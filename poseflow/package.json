@@ -5,11 +5,15 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "npx vite",
-    "build": "tsc && npx vite build",
+    "build": "npm run typecheck && npx vite build",
     "preview": "npx vite preview",
     "electron:dev": "concurrently \"npx vite\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npx vite build && electron-builder",
     "backend": "cd backend && python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload",
+    "typecheck": "npm run typecheck:app && npm run typecheck:node",
+    "typecheck:app": "tsc -p tsconfig.json --noEmit",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
+    "verify": "npm run typecheck && npm test && npx vite build",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --watch --config vitest.config.ts"
   },

@@ -7,10 +7,100 @@ import { exportLogger, errorLogger } from '../lib/logger';
 import { clipLineToRect } from '../lib/utils/geometry';
 
 export class ExportService {
+  exportToPNG(
+    poseData: PoseData,
+    size: number | { width: number; height: number } = 512,
+    camera?: THREE.Camera,
+  ): Promise<string> {
+    return ExportService.exportToPNG(poseData, size, camera);
+  }
+
+  exportToJSON(poseData: PoseData, camera?: THREE.Camera, resolution?: number): string {
+    return ExportService.exportToJSONString(poseData, camera, resolution);
+  }
+
+  downloadJSON(
+    poseData: PoseData,
+    filename: string = 'pose.json',
+    camera?: THREE.Camera,
+    resolution?: number,
+  ): void {
+    ExportService.downloadJSON(poseData, filename, camera, resolution);
+  }
+
+  exportToBody25Format(poseData: PoseData): number[] {
+    return ExportService.exportToBody25Format(poseData);
+  }
+
+  exportToOpenPoseJSON(
+    poseData: PoseData,
+    resolution: number = 512,
+    camera?: THREE.Camera,
+  ): OpenPoseJSON {
+    return ExportService.exportToOpenPoseJSON(poseData, resolution, camera);
+  }
+
+  downloadPNGWithCrop(
+    poseData: PoseData,
+    camera: THREE.Camera,
+    frameData: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      pixelAspectRatio?: number;
+      viewportWidth: number;
+      viewportHeight: number;
+    },
+    resolution: number,
+    filename: string = 'pose_cropped.png',
+  ): Promise<void> {
+    return ExportService.downloadPNGWithCrop(poseData, camera, frameData, resolution, filename);
+  }
+
+  projectTo2D(
+    joint: JointPosition,
+    camera: THREE.Camera,
+    canvasWidth: number,
+    canvasHeight: number,
+  ): [number, number] | null {
+    return ExportService.projectTo2D(joint, camera, canvasWidth, canvasHeight);
+  }
+
+  generateFilename(prefix: string = 'pose_export', extension: string = 'json'): string {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    return `${prefix}_${timestamp}.${extension}`;
+  }
+
+  downloadBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async copyToClipboard(json: string): Promise<boolean> {
+    try {
+      await navigator.clipboard.writeText(json);
+      return true;
+    } catch (error) {
+      exportLogger.error('Failed to copy JSON to clipboard', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }
+
+  dispose(): void {}
+
   /**
    * Проецирует 3D точку в 2D через камеру
    */
-  private static projectTo2D(
+  static projectTo2D(
     joint: JointPosition,
     camera: THREE.Camera,
     canvasWidth: number,
@@ -19,7 +109,9 @@ export class ExportService {
     try {
       // Обновляем матрицы камеры перед использованием
       camera.updateMatrixWorld();
-      camera.updateProjectionMatrix();
+      if ('updateProjectionMatrix' in camera) {
+        (camera as THREE.PerspectiveCamera | THREE.OrthographicCamera).updateProjectionMatrix();
+      }
 
       const point = new THREE.Vector3(joint.x, joint.y, joint.z);
       
@@ -112,6 +204,19 @@ export class ExportService {
   static exportToJSONString(poseData: PoseData, camera?: THREE.Camera, resolution?: number): string {
     const data = this.exportToOpenPoseJSON(poseData, resolution, camera);
     return JSON.stringify(data, null, 2);
+  }
+
+  static exportToBody25Format(poseData: PoseData): number[] {
+    const result: number[] = [];
+    for (let i = 0; i < 25; i++) {
+      const joint = poseData[i as Body25Index];
+      if (!joint) {
+        result.push(0, 0, 0);
+      } else {
+        result.push(joint.x, joint.y, joint.confidence ?? 1);
+      }
+    }
+    return result;
   }
 
   /**

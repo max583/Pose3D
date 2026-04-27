@@ -35,7 +35,7 @@ export function resolveSkeleton(rig: SkeletonRig): {
   pose: PoseData;
   virtualPositions: VirtualChainPositions;
 } {
-  const pose: PoseData = {};
+  const pose = {} as PoseData;
   const accRotations = new Map<Body25Index, Quaternion>();
   const worldPositions = new Map<Body25Index, Vector3>();
 

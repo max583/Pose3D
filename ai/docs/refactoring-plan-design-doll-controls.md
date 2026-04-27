@@ -1,5 +1,9 @@
 # План рефакторинга: переход на управление в стиле DesignDoll
 
+> [ARCHIVED] 2026-04-28. Исторический план до перехода на rotation-tree roadmap.
+> Не использовать как текущий план работ. Актуальные источники:
+> `PLAN.md`, `STATUS.md`, `AGENTS.md`, `ai/docs/feature-task-template.md`.
+
 Основание: [`design-doll-controls-poseflow-spec.md`](./design-doll-controls-poseflow-spec.md). Текущие шаги 8–11 в [`PLAN.md`](../../PLAN.md) частично совпадают с целевым UX DesignDoll; этот документ **расширяет** их моделью данных (фиксированные длины, позвоночник/шея, череп, лимиты, семь контроллеров, A+B+мини-вид).
 
 ---
