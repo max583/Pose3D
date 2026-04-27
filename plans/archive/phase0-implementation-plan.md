@@ -14,12 +14,12 @@
 - [x] Определены точки интеграции для новых систем
 
 ### 2. Созданы архитектурные документы
-- [x] **Система feature flags** - `plans/feature-flags-architecture.md`
-- [x] **Baseline тесты регрессии** - `plans/baseline-regression-tests-plan.md`
-- [x] **DI контейнер** - `plans/di-container-architecture.md`
-- [x] **Интерфейсы сервисов** - `plans/service-interfaces-specification.md`
+- [x] **Система feature flags** - `plans/archive/feature-flags-architecture.md`
+- [x] **Baseline тесты регрессии** - `plans/archive/baseline-regression-tests-plan.md`
+- [x] **DI контейнер** - `plans/archive/di-container-architecture.md`
+- [x] **Интерфейсы сервисов** - `plans/archive/service-interfaces-specification.md`
 - [x] **Анализ drag системы** - `plans/drag-system-analysis-design-doll-plan.md`
-- [x] **Прототип фиксированных длин** - `plans/fixed-length-prototype-design.md`
+- [x] **Прототип фиксированных длин** - `plans/archive/fixed-length-prototype-design.md`
 
 ## Детальный план реализации Фазы 0
 

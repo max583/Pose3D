@@ -8,12 +8,20 @@
 //   - кэш PoseData (инвалидируется при изменении rig)
 //   - подписки на изменения
 
-import { Quaternion, Vector3 } from 'three';
+import { Euler, Quaternion, Vector3 } from 'three';
 import { PoseData } from '../lib/body25/body25-types';
 import { SkeletonRig, createDefaultRig, cloneRig } from '../lib/rig/SkeletonRig';
 import { resolveSkeleton, VirtualChainPositions } from '../lib/rig/resolveSkeleton';
 import { rigFromPose } from '../lib/rig/inverseFK';
 import { setBend } from '../lib/rig/VirtualChain';
+import {
+  ARM_JOINTS,
+  applyArmChainToRig,
+  getArmBoneLengths,
+  solveArmFABRIK,
+  twistElbow,
+  toVec3,
+} from '../lib/rig/armIK';
 import { UndoStack } from '../lib/UndoStack';
 import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
 import { Body25Index } from '../lib/body25/body25-types';
@@ -216,6 +224,138 @@ export class RigService {
     const maxTwist = Math.PI / 4; // ±45°
     angles.twistY = clamp(angles.twistY + delta, -maxTwist, maxTwist);
     this.rig.spine = setBend(this.rig.spine, angles.bendX, angles.bendZ, angles.twistY);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Добавить изгиб шеи.
+   * @param deltaX — дельта наклона вперёд/назад (рад), лимит ±45°
+   * @param deltaZ — дельта бокового наклона (рад), лимит ±30°
+   */
+  applyNeckBend(deltaX: number, deltaZ: number): void {
+    const angles = this.rig.neckAngles;
+    const maxBendX = Math.PI / 4;          // ±45°
+    const maxBendZ = 30 * Math.PI / 180;   // ±30°
+    angles.bendX = clamp(angles.bendX + deltaX, -maxBendX, maxBendX);
+    angles.bendZ = clamp(angles.bendZ + deltaZ, -maxBendZ, maxBendZ);
+    this.rig.neck = setBend(this.rig.neck, angles.bendX, angles.bendZ, angles.twistY);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Добавить скручивание шеи. Ограничение: ±45°.
+   * @param delta — дельта угла скручивания (рад)
+   */
+  applyNeckTwist(delta: number): void {
+    const angles = this.rig.neckAngles;
+    const maxTwist = Math.PI / 4; // ±45°
+    angles.twistY = clamp(angles.twistY + delta, -maxTwist, maxTwist);
+    this.rig.neck = setBend(this.rig.neck, angles.bendX, angles.bendZ, angles.twistY);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  // ─── Arm IK (Stage 4.1) ───────────────────────────────────────────────────
+
+  /**
+   * IK запястья: FABRIK-решение цепочки плечо→локоть→запястье.
+   * Плечо фиксировано; запястье движется к целевой мировой позиции.
+   *
+   * @param side  'r' | 'l'
+   * @param tx/ty/tz  целевая мировая позиция запястья
+   */
+  applyArmIK(side: 'r' | 'l', tx: number, ty: number, tz: number): void {
+    const pose = this.getPoseData();
+    const joints = ARM_JOINTS[side];
+
+    const shoulderPos = toVec3(pose[joints.shoulder]!);
+    const elbowPos    = toVec3(pose[joints.elbow]!);
+    const wristPos    = toVec3(pose[joints.wrist]!);
+    const target      = new Vector3(tx, ty, tz);
+
+    const boneLengths = getArmBoneLengths(this.rig, side);
+    const newChain    = solveArmFABRIK(shoulderPos, elbowPos, wristPos, target, boneLengths);
+
+    applyArmChainToRig(this.rig, side, shoulderPos, newChain[1], newChain[2]);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Скручивание локтя: поворот локтя вокруг оси плечо→запястье.
+   * Запястье и плечо остаются неподвижными.
+   *
+   * @param side   'r' | 'l'
+   * @param delta  угол поворота (рад)
+   */
+  applyElbowTwist(side: 'r' | 'l', delta: number): void {
+    const pose = this.getPoseData();
+    const joints = ARM_JOINTS[side];
+
+    const shoulderPos = toVec3(pose[joints.shoulder]!);
+    const elbowPos    = toVec3(pose[joints.elbow]!);
+    const wristPos    = toVec3(pose[joints.wrist]!);
+
+    const newElbow = twistElbow(shoulderPos, elbowPos, wristPos, delta);
+
+    // Запястье не двигается, но его localRot меняется (родитель-локоть переместился)
+    applyArmChainToRig(this.rig, side, shoulderPos, newElbow, wristPos);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  // ─── Head rotation ────────────────────────────────────────────────────────
+
+  /**
+   * Обновить rig.headRotation из rig.headAngles.
+   * Порядок Euler: YXZ (сначала yaw, потом pitch, потом roll).
+   */
+  private updateHeadRotation(): void {
+    const { pitch, yaw, roll } = this.rig.headAngles;
+    this.rig.headRotation = new Quaternion().setFromEuler(
+      new Euler(pitch, yaw, roll, 'YXZ'),
+    );
+  }
+
+  /**
+   * Кивок вперёд/назад.
+   * Вперёд (подбородок к груди) +45°, назад (голова запрокинута) −30°.
+   * @param delta — дельта угла (рад)
+   */
+  applyHeadPitch(delta: number): void {
+    const angles = this.rig.headAngles;
+    const maxForward = 45 * Math.PI / 180;  // +45°
+    const maxBack    = 30 * Math.PI / 180;  // −30°
+    angles.pitch = clamp(angles.pitch + delta, -maxBack, maxForward);
+    this.updateHeadRotation();
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Поворот головы влево/вправо. Лимит ±80°.
+   * @param delta — дельта угла (рад)
+   */
+  applyHeadYaw(delta: number): void {
+    const angles = this.rig.headAngles;
+    const maxYaw = 80 * Math.PI / 180;
+    angles.yaw = clamp(angles.yaw + delta, -maxYaw, maxYaw);
+    this.updateHeadRotation();
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Боковой наклон головы. Лимит ±30°.
+   * @param delta — дельта угла (рад)
+   */
+  applyHeadRoll(delta: number): void {
+    const angles = this.rig.headAngles;
+    const maxRoll = 30 * Math.PI / 180;
+    angles.roll = clamp(angles.roll + delta, -maxRoll, maxRoll);
+    this.updateHeadRotation();
     this.resolvedCache = null;
     this.notifyListeners();
   }

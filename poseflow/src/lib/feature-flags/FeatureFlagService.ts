@@ -16,6 +16,7 @@ export class FeatureFlagService {
   private userContext: UserContext | null = null;
   private config: FeatureFlagsConfig;
   private listeners: Map<string, Array<(state: FeatureFlagState) => void>> = new Map();
+  private allListeners: Array<(key: string, state: FeatureFlagState) => void> = [];
   private readonly STORAGE_KEY = 'poseflow_feature_flags';
 
   constructor(config: Partial<FeatureFlagsConfig> = {}) {
@@ -191,6 +192,10 @@ export class FeatureFlagService {
     }
   }
 
+  getUserContext(): UserContext | null {
+    return this.userContext;
+  }
+
   /**
    * Пересчитать флаги для текущего пользователя
    */
@@ -356,6 +361,18 @@ export class FeatureFlagService {
     };
   }
 
+  subscribeToAll(listener: (key: string, state: FeatureFlagState) => void): () => void {
+    this.allListeners.push(listener);
+
+    for (const [key, state] of this.flags.entries()) {
+      listener(key, state);
+    }
+
+    return () => {
+      this.allListeners = this.allListeners.filter((item) => item !== listener);
+    };
+  }
+
   /**
    * Уведомить слушателей об изменении флага
    */
@@ -369,6 +386,14 @@ export class FeatureFlagService {
           console.error(`[FeatureFlagService] Error in listener for ${key}:`, error);
         }
       });
+    }
+
+    for (const listener of this.allListeners) {
+      try {
+        listener(key, state);
+      } catch (error) {
+        console.error(`[FeatureFlagService] Error in global listener for ${key}:`, error);
+      }
     }
   }
 
@@ -425,5 +450,36 @@ export class FeatureFlagService {
       null,
       2
     );
+  }
+
+  importFromJSON(json: string): void {
+    const parsed = JSON.parse(json);
+    const importedFlags = parsed?.flags;
+
+    if (typeof importedFlags !== 'object' || importedFlags === null) {
+      throw new Error('Invalid feature flags JSON');
+    }
+
+    for (const [key, value] of Object.entries(importedFlags)) {
+      if (!FEATURE_FLAGS[key]) continue;
+      const state = value as Partial<FeatureFlagState>;
+      const current = this.flags.get(key);
+      if (!current || typeof state.enabled !== 'boolean') continue;
+
+      const next: FeatureFlagState = {
+        enabled: state.enabled,
+        activatedForUser: typeof state.activatedForUser === 'boolean'
+          ? state.activatedForUser
+          : current.activatedForUser,
+        lastUpdated: typeof state.lastUpdated === 'string'
+          ? state.lastUpdated
+          : new Date().toISOString(),
+      };
+
+      this.flags.set(key, next);
+      this.notifyListeners(key, next);
+    }
+
+    this.saveFlags();
   }
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useCameraService } from '../context/ServiceContext';
 import {
   ThemeChoice,
   StoredAspect,
@@ -54,6 +55,7 @@ function Toggle({
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const { settings, updateSettings, resetSettings } = useAppSettings();
+  const cameraService = useCameraService();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,7 +69,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
 
   useEffect(() => {
     if (!open) return;
-    const t = window.setTimeout(() => panelRef.current?.querySelector('button, select')?.focus(), 50);
+    const t = window.setTimeout(() => {
+      panelRef.current?.querySelector<HTMLElement>('button, select')?.focus();
+    }, 50);
     return () => window.clearTimeout(t);
   }, [open]);
 

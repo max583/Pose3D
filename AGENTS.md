@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -51,7 +51,7 @@ React (Vite)  <--IPC-->  Electron  <--HTTP-->  Python FastAPI
 | `src/components/controllers/NeckController.tsx` | Neck bend/twist rings |
 | `src/components/controllers/HeadController.tsx` | Head yaw/pitch/roll rings |
 | `src/components/controllers/ArmController.tsx` | Wrist IK sphere + elbow twist arc |
-| `src/components/controls/CameraControls.tsx` | 3x3 compass grid (9 views) + Reset |
+| `src/components/controls/CameraControls.tsx` | 3×3 compass grid (9 views) + Reset |
 | `src/components/Sidebar.tsx` | Presets, Reset, Mirror, Undo/Redo, FK/IK toggle, Settings |
 | `src/services/ExportService.ts` | PNG export: `projectTo2D`, `clipLineToRect` (Liang-Barsky), `downloadPNGWithCrop` |
 | `src/services/RigService.ts` | Primary pose source of truth: `SkeletonRig`, undo/redo, controller mutations, resolved pose cache |
@@ -98,7 +98,7 @@ PNG: black background, colored bones/joints per OpenPose color spec.
 
 ## Definition of Done (DoD)
 
-Before every task, do a current-state probe: check `git status --short`, read the relevant current docs (`STATUS.md`, `PLAN.md`, `CLAUDE.md`) and inspect the actual code files that the task depends on. Treat code and `STATUS.md` as higher priority than stale plan entries.
+Before every task, do a current-state probe: check `git status --short`, read the relevant current docs (`STATUS.md`, `PLAN.md`, `AGENTS.md`) and inspect the actual code files that the task depends on. Treat code and `STATUS.md` as higher priority than stale plan entries.
 
 For every non-Lite feature task, first create or fill a short task brief using [`ai/docs/feature-task-template.md`](ai/docs/feature-task-template.md). Keep it small: current-state probe, goal, boundaries, touched files, acceptance criteria, tests, and manual check.
 
@@ -112,7 +112,7 @@ Before merging a feature branch (scale checklist to task size):
 4. If user-visible behavior changes — update **`CHANGELOG.md`** (repo root) and **`STATUS.md`** as needed.
 5. If the task introduces a new architectural choice — add or update an **ADR** under `ai/decisions/` (see `ai/decisions/README.md` for template).
 
-**Lite mode** (see below): DoD reduces to items **1** and **3**; skip 4-5 when there is no user-visible change.
+**Lite mode** (see below): DoD reduces to items **1** and **3**; skip 4–5 when there is no user-visible change.
 
 ## Git commit messages
 
@@ -123,7 +123,7 @@ Use prefixes (Russian or English body is fine; primary project language is Russi
 | `feat:` | New user-visible feature or capability |
 | `fix:` | Bug fix |
 | `test:` | Tests only |
-| `docs:` | Documentation, comments in `CLAUDE.md` / `PLAN.md` / `ai/docs/` |
+| `docs:` | Documentation, comments in `AGENTS.md` / `PLAN.md` / `ai/docs/` |
 | `chore:` | Tooling, deps, formatting, CI |
 
 Optional trailer in the body for traceability: `PLAN: step 8`, `DD: фаза A1`, or a link to the task.

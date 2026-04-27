@@ -1,3 +1,7 @@
+# [ARCHIVED] 2026-04-28
+
+Исторический дизайн feature flags. Актуальный реестр см. в `poseflow/src/lib/feature-flags/registry.ts`; старые DesignDoll flags из этого документа могут быть удалены из кода.
+
 # Архитектура системы Feature Flags для PoseFlow
 
 ## Обзор

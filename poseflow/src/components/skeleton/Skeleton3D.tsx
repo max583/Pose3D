@@ -23,6 +23,11 @@ interface Skeleton3DProps {
    * Если передано — кость NECK→MID_HIP заменяется дугой из сегментов.
    */
   spineSegmentPositions?: Pt[];
+  /**
+   * Промежуточные позиции сегментов шеи (NECK → NOSE).
+   * Если передано — кость NECK→NOSE заменяется дугой из сегментов.
+   */
+  neckSegmentPositions?: Pt[];
 }
 
 const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
@@ -30,6 +35,7 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
   selectedElement = null,
   onElementSelect,
   spineSegmentPositions,
+  neckSegmentPositions,
 }) => {
   // Набор суставов выделенного элемента для подсветки
   const selectedJoints = useMemo<Set<Body25Index>>(() => {
@@ -68,6 +74,29 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
 
     for (let idx = 0; idx < BODY25_CONNECTIONS.length; idx++) {
       const connection = BODY25_CONNECTIONS[idx];
+
+      // Кость NECK→NOSE заменяем сегментированной дугой шеи
+      const isNeckBone =
+        connection.from === Body25Index.NECK &&
+        connection.to === Body25Index.NOSE;
+
+      if (isNeckBone && neckSegmentPositions && neckSegmentPositions.length > 0) {
+        const neckJoint = poseData[Body25Index.NECK];
+        if (neckJoint) {
+          const points: Pt[] = [neckJoint, ...neckSegmentPositions];
+          for (let i = 0; i < points.length - 1; i++) {
+            result.push(
+              <Bone
+                key={`neck-seg-${i}`}
+                from={points[i]}
+                to={points[i + 1]}
+                color={connection.color}
+              />,
+            );
+          }
+        }
+        continue;
+      }
 
       // Кость NECK→MID_HIP заменяем сегментированной дугой, если есть позиции сегментов
       const isSpineBone =
@@ -108,7 +137,7 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
     }
 
     return result;
-  }, [poseData, spineSegmentPositions]);
+  }, [poseData, spineSegmentPositions, neckSegmentPositions]);
 
   return (
     <group name="skeleton">

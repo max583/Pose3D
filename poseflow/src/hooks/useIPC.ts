@@ -84,7 +84,10 @@ export const useIPC = () => {
         return await response.json();
       } catch (error) {
         ipcLogger.error('Log failed', error);
-        return { status: 'error', message: error.message };
+        return {
+          status: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        };
       }
     }
   };

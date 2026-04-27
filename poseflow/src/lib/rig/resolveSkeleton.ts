@@ -16,7 +16,6 @@ import { Body25Index, JointPosition, PoseData } from '../body25/body25-types';
 import { SkeletonRig } from './SkeletonRig';
 import { getBody25ChildrenMap, getBody25ParentMap } from './RestPose';
 import {
-  getEndPosition,
   getEndRotation,
   getSegmentPositions,
 } from './VirtualChain';
@@ -35,7 +34,7 @@ export function resolveSkeleton(rig: SkeletonRig): {
   pose: PoseData;
   virtualPositions: VirtualChainPositions;
 } {
-  const pose: PoseData = {};
+  const pose = {} as PoseData;
   const accRotations = new Map<Body25Index, Quaternion>();
   const worldPositions = new Map<Body25Index, Vector3>();
 
@@ -78,11 +77,22 @@ export function resolveSkeleton(rig: SkeletonRig): {
     neckRot,
     neckRestDir,
   );
-  const nosePos = neckSegPositions[neckSegPositions.length - 1];
+  const nosePosFromChain = neckSegPositions[neckSegPositions.length - 1];
   const noseRot = getEndRotation(rig.neck, neckRot);
 
+  // --- Голова: поворот жёсткого блока {NOSE, глаза, уши} вокруг NECK ---
+  // noseOffset = вектор от NECK до NOSE после шейной цепочки
+  const noseOffset = nosePosFromChain.clone().sub(neckPos);
+  noseOffset.applyQuaternion(rig.headRotation);
+  const nosePos = neckPos.clone().add(noseOffset);
+  // Накопленный поворот для NOSE = конец шейной цепочки × поворот головы
+  const headOri = noseRot.clone().multiply(rig.headRotation);
+
+  // Обновляем последний сегмент шейной дуги, чтобы она заканчивалась в правильном NOSE
+  neckSegPositions[neckSegPositions.length - 1] = nosePos.clone();
+
   worldPositions.set(Body25Index.NOSE, nosePos);
-  accRotations.set(Body25Index.NOSE, noseRot);
+  accRotations.set(Body25Index.NOSE, headOri);
   pose[Body25Index.NOSE] = vec3ToJoint(nosePos);
 
   // --- 4. BFS по оставшимся суставам ---

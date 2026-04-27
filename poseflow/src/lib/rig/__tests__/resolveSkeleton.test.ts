@@ -1,8 +1,8 @@
 // src/lib/rig/__tests__/resolveSkeleton.test.ts
 import { describe, it, expect } from 'vitest';
-import { Quaternion, Euler, Vector3 } from 'three';
-import { createDefaultRig, cloneRig } from '../SkeletonRig';
-import { resolveSkeleton, resolveSkeletonPose } from '../resolveSkeleton';
+import { Quaternion, Euler } from 'three';
+import { createDefaultRig } from '../SkeletonRig';
+import { resolveSkeleton } from '../resolveSkeleton';
 import { setBend } from '../VirtualChain';
 import { Body25Index } from '../../body25/body25-types';
 import { defaultTPose } from '../RestPose';
@@ -44,7 +44,7 @@ describe('resolveSkeleton — T-поза', () => {
 
   it('все 25 суставов присутствуют в выходной позе', () => {
     for (let i = 0; i <= 24; i++) {
-      expect(pose[i]).toBeDefined();
+      expect(pose[i as Body25Index]).toBeDefined();
     }
   });
 });

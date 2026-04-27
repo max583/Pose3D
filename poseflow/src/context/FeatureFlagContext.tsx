@@ -1,6 +1,6 @@
 // src/context/FeatureFlagContext.tsx
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { FeatureFlagService } from '../lib/feature-flags/FeatureFlagService';
 import { UserContext } from '../lib/feature-flags/types';
 

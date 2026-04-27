@@ -1,7 +1,7 @@
 // src/lib/services/interfaces/IFeatureFlagService.ts
 // Интерфейс сервиса управления feature flags
 
-import { FeatureFlagState, UserContext } from '../../types/common';
+import { FeatureFlagState, UserContext } from '../../feature-flags/types';
 
 export interface IFeatureFlagService {
   // ─── Проверка состояния флагов ────────────────────────────────────────────
@@ -58,8 +58,7 @@ export interface IFeatureFlagService {
     total: number;
     enabled: number;
     disabled: number;
-    canary: number;
-    rollout: number;
+    activatedForUser: number;
   };
   
   /** Экспортировать состояние флагов в JSON */

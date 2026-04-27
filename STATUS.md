@@ -2,7 +2,7 @@
 
 ## Текущая версия: v0.3.0-dev
 
-**Дата:** 2026-04-27
+**Дата:** 2026-04-28
 
 ---
 
@@ -42,17 +42,56 @@
 - Кость NECK→MID_HIP отрисовывается 4 сегментами по реальным позициям виртуальной цепочки
 - `RigService.getVirtualPositions()` возвращает промежуточные позиции сегментов
 
+### Контроллер шеи (Stage 2 — завершён)
+
+**NeckController** (выделение: клик на NOSE):
+- Фиолетовое горизонтальное кольцо — скручивание twistY, лимит ±45°
+- Оранжевое вертикальное кольцо (YZ) — изгиб вперёд/назад bendX, лимит ±45°
+- Жёлтое вертикальное кольцо (XY) — боковой изгиб bendZ, лимит ±30°
+- Кость NECK→NOSE отрисовывается 2 сегментами шейной дуги
+- `RigService`: `applyNeckBend`, `applyNeckTwist`
+- **152 unit-теста**
+
+### Контроллер головы (Stage 3 — завершён)
+
+**HeadController** (выделение: клик на RIGHT_EYE / LEFT_EYE / RIGHT_EAR / LEFT_EAR):
+- Голова = жёсткий блок {NOSE, глаза, уши}, pivot = NECK
+- Фиолетовое горизонтальное кольцо — поворот yaw, лимит ±80°
+- Оранжевое вертикальное кольцо (YZ) — кивок pitch, лимит −30°/+45° (асимметричный)
+- Жёлтое вертикальное кольцо (XY) — боковой наклон roll, лимит ±30°
+- Гизмо позиционируется у NOSE; вращение вокруг NECK
+- `SkeletonRig`: `headAngles` + `headRotation: Quaternion` (YXZ Euler)
+- `RigService`: `applyHeadPitch`, `applyHeadYaw`, `applyHeadRoll`
+- **162 unit-теста**
+
+### Контроллер рук (Stage 4.1 — завершён)
+
+**ArmController** (выделение: клик на RIGHT_ELBOW / RIGHT_WRIST или LEFT_ELBOW / LEFT_WRIST):
+- **Сфера на запястье** — camera-plane drag → FABRIK IK. Плечо фиксировано, цепочка плечо→локоть→запястье решается за 10 итераций
+- **Дуга скручивания локтя** — дуга ±45° с двумя стрелками; radius = расстояние от локтя до оси плечо→запястье; drag dx → вращение вокруг этой оси
+- `useCameraPlaneWorldDrag` — новый хук: плоскость ⊥ камере, raycast на каждый pointermove
+- `armIK.ts`: `solveArmFABRIK`, `twistElbow`, `worldPosToLocalRot`, `applyArmChainToRig`
+- `RigService`: `applyArmIK(side, x, y, z)`, `applyElbowTwist(side, delta)`
+- **174 unit-теста**
+
+### Инженерный workflow для vibe coding — обновлён
+- `PLAN.md` актуализирован как текущий roadmap; следующий продуктовый шаг: **Stage 4.2 ShoulderController**
+- `AGENTS.md` синхронизирован с rotation-tree архитектурой, командами качества и текущим статусом
+- Добавлен обязательный шаблон фичи: `ai/docs/feature-task-template.md`
+- Перед каждой non-Lite задачей требуется **current-state probe**: `git status --short`, `STATUS.md`, `PLAN.md`, `AGENTS.md`, релевантный код
+- Добавлен R3F smoke/manual checklist: `ai/docs/r3f-smoke-manual-checklist.md`
+- Устаревшие планы перенесены/помечены как archive/reference; активная навигация: `plans/README.md`, `ai/docs/README.md`
+- Команда качества: `npm run verify` = typecheck app/node + 174 tests + Vite/Electron build
+- Отдельный cleanup-слой: `npm run lint:unused` = строгая проверка unused locals/parameters
+- Старые ignored-отчёты тестирования удалены из `poseflow/`
+
 ---
 
 ## В работе (следующие этапы)
 
-По плану `C:\Users\Max\.claude\plans\zippy-zooming-crescent.md`:
-
 | Stage | Элемент | Статус |
 |-------|---------|--------|
-| Stage 2 | Шея (NeckController) | ⬜ Ожидает интервью |
-| Stage 3 | Голова (HeadController) | ⬜ Ожидает |
-| Stage 4 | Руки (ArmController, FABRIK IK) | ⬜ Ожидает |
+| Stage 4.2 | Плечо (ShoulderController) | ⬜ Следующий |
 | Stage 5 | Кисти (HandController) | ⬜ Ожидает |
 | Stage 6 | Ноги (LegController, FABRIK IK) | ⬜ Ожидает |
 | Stage 7 | Стопы (FootController) | ⬜ Ожидает |
@@ -60,7 +99,13 @@
 ---
 
 ## Известные ограничения
-- Шея, голова, руки, кисти, ноги, стопы ещё не имеют контроллеров — только выделение кликом
-- Виртуальная дуга шеи (NECK→NOSE) рисуется одной костью (аналогично spine до Stage 1)
+- Плечо пока управляется только через spine (нет отдельного ShoulderController — Stage 4.2)
+- Нет кистей, ног, стоп
 - Нет управления несколькими скелетами
 - Нет центра тяжести
+
+---
+
+## Последняя проверка
+
+2026-04-28: `npm run verify` и `npm run lint:unused` из `poseflow/` прошли успешно.

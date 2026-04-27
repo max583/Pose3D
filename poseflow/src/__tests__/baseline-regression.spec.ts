@@ -6,7 +6,7 @@ import { PoseService } from '../services/PoseService';
 import { RigService } from '../services/RigService';
 import { SkeletonGraph } from '../lib/body25/SkeletonGraph';
 import { solveFABRIK } from '../lib/solvers/FABRIKSolver';
-import { Body25Index, JointPosition } from '../lib/body25/body25-types';
+import { Body25Index } from '../lib/body25/body25-types';
 import { UndoStack } from '../lib/UndoStack';
 import { createTPose } from '../lib/presets/body25-presets';
 import { Vector3 } from 'three';

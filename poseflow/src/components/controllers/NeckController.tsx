@@ -1,34 +1,31 @@
-// src/components/controllers/SpineController.tsx
-// Гизмо позвоночника: три кольца.
+// src/components/controllers/NeckController.tsx
+// Гизмо шеи: три кольца, расположенные на суставе NECK.
 //
-// Скручивание (фиолетовое, XZ-плоскость горизонтальное):
-//   Drag dx → twistY (±45°).
+// Скручивание (фиолетовое, XZ горизонт.): drag dx → twistY (±45°).
+// Изгиб вперёд/назад (оранжевое, YZ верт.): drag dy → bendX (±45°).
+// Изгиб в сторону (жёлтое, XY верт.): drag dx → bendZ (±30°).
 //
-// Изгиб вперёд/назад (оранжевое, YZ-плоскость вертикальное):
-//   Drag dy → bendX. Кольцо в плоскости движения — видно сбоку.
-//
-// Изгиб влево/вправо (жёлтое, XY-плоскость вертикальное фронтальное):
-//   Drag dx → bendZ. Кольцо в плоскости движения — видно спереди.
+// Кольца меньше, чем у SpineController — шея короткая.
 
 import { RigService } from '../../services/RigService';
 import { useGizmoDrag } from '../../hooks/useGizmoDrag';
 
 // ─── Настройки визуала ────────────────────────────────────────────────────────
 
-const RING_OUTER      = 0.38;
-const RING_OUTER_SIDE = 0.32;  // кольцо бокового изгиба чуть меньше — не перекрывает
+const RING_OUTER      = 0.22;  // меньше, чем у spine (0.38)
+const RING_OUTER_SIDE = 0.18;  // боковое кольцо чуть меньше
 const RING_TUBE       = 0.006;
-const HIT_TUBE        = 0.05;
+const HIT_TUBE        = 0.04;
 
 const BEND_SENS  = 0.010;  // rad/px
 const TWIST_SENS = 0.010;  // rad/px
 
-// ─── TwistRing ─── горизонтальное кольцо (скручивание вокруг Y) ───────────────
+// ─── TwistRing ────────────────────────────────────────────────────────────────
 
 function TwistRing({ rigService }: { rigService: RigService }) {
   const { handlePointerDown } = useGizmoDrag(
     () => rigService.beginDrag(),
-    (dx) => rigService.applySpineTwist(dx * TWIST_SENS),
+    (dx) => rigService.applyNeckTwist(dx * TWIST_SENS),
   );
 
   return (
@@ -45,12 +42,12 @@ function TwistRing({ rigService }: { rigService: RigService }) {
   );
 }
 
-// ─── ForwardBendRing ─── вертикальное кольцо YZ (изгиб вперёд/назад, вокруг X) ─
+// ─── ForwardBendRing ──────────────────────────────────────────────────────────
 
 function ForwardBendRing({ rigService }: { rigService: RigService }) {
   const { handlePointerDown } = useGizmoDrag(
     () => rigService.beginDrag(),
-    (_, dy) => rigService.applySpineBend(dy * BEND_SENS, 0),
+    (_, dy) => rigService.applyNeckBend(dy * BEND_SENS, 0),
   );
 
   return (
@@ -67,13 +64,12 @@ function ForwardBendRing({ rigService }: { rigService: RigService }) {
   );
 }
 
-// ─── LateralBendRing ─── вертикальное кольцо XY (изгиб вправо/влево, вокруг Z) ─
+// ─── LateralBendRing ─────────────────────────────────────────────────────────
 
 function LateralBendRing({ rigService }: { rigService: RigService }) {
   const { handlePointerDown } = useGizmoDrag(
     () => rigService.beginDrag(),
-    // Позитивный Z-поворот наклоняет верхушку влево → инвертируем
-    (dx) => rigService.applySpineBend(0, -dx * BEND_SENS),
+    (dx) => rigService.applyNeckBend(0, -dx * BEND_SENS),
   );
 
   return (
@@ -90,15 +86,20 @@ function LateralBendRing({ rigService }: { rigService: RigService }) {
   );
 }
 
-// ─── SpineController ──────────────────────────────────────────────────────────
+// ─── NeckController ───────────────────────────────────────────────────────────
 
-interface SpineControllerProps {
-  spineMiddle: { x: number; y: number; z: number };
+interface NeckControllerProps {
+  /** Мировая позиция сустава NECK. */
+  neckPos: { x: number; y: number; z: number };
   rigService: RigService;
 }
 
-export function SpineController({ spineMiddle, rigService }: SpineControllerProps) {
-  const pos: [number, number, number] = [spineMiddle.x, spineMiddle.y, spineMiddle.z];
+/**
+ * Гизмо управления шеей.
+ * Рендерить внутри R3F Canvas когда selectedElement === 'neck'.
+ */
+export function NeckController({ neckPos, rigService }: NeckControllerProps) {
+  const pos: [number, number, number] = [neckPos.x, neckPos.y, neckPos.z];
 
   return (
     <group position={pos}>

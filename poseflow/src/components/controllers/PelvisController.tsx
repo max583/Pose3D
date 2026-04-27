@@ -5,7 +5,7 @@
 // Drag по стрелке → перемещает таз вдоль соответствующей мировой оси.
 // Drag по кольцу → вращает таз вокруг соответствующей мировой оси.
 
-import React, { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { RigService } from '../../services/RigService';
@@ -91,7 +91,7 @@ function TranslationArrow({ axis, origin, rigService }: TranslationArrowProps) {
 
     let prevProj = startProj;
 
-    if (controls) (controls as { enabled: boolean }).enabled = false;
+    if (controls) (controls as unknown as { enabled: boolean }).enabled = false;
     rigService.beginDrag();
 
     const moveHandler = (ev: PointerEvent) => {
@@ -107,7 +107,7 @@ function TranslationArrow({ axis, origin, rigService }: TranslationArrowProps) {
     };
 
     const upHandler = () => {
-      if (controls) (controls as { enabled: boolean }).enabled = true;
+      if (controls) (controls as unknown as { enabled: boolean }).enabled = true;
       window.removeEventListener('pointermove', moveHandler);
       window.removeEventListener('pointerup', upHandler);
     };

@@ -1,7 +1,7 @@
 // src/lib/solvers/RotationSolver.ts
 // Утилиты для вращения точек вокруг осей
 
-import { Vector3 } from 'three';
+import { Matrix4, Vector3 } from 'three';
 
 /**
  * Вращает точку вокруг оси, проходящей через центр
@@ -21,7 +21,7 @@ export function rotateAround(
   const relativePoint = point.clone().sub(center);
   
   // Применяем матрицу вращения
-  const rotationMatrix = new THREE.Matrix4().makeRotationAxis(axis, angle);
+  const rotationMatrix = new Matrix4().makeRotationAxis(axis, angle);
   relativePoint.applyMatrix4(rotationMatrix);
   
   // Возвращаем точку обратно в мировые координаты
@@ -31,10 +31,10 @@ export function rotateAround(
 /**
  * Вычисляет ось вращения на основе выбранного кольца гизмо
  * @param axis - 'x', 'y', или 'z'
- * @param jointPosition - Позиция сустава
+ * @param _jointPosition - Позиция сустава
  * @returns Нормализованный вектор оси
  */
-export function getGizmoAxis(axis: 'x' | 'y' | 'z', jointPosition: Vector3): Vector3 {
+export function getGizmoAxis(axis: 'x' | 'y' | 'z', _jointPosition: Vector3): Vector3 {
   switch (axis) {
     case 'x':
       return new Vector3(1, 0, 0);
@@ -117,6 +117,3 @@ export function isPointOnGizmoRing(
   const distanceToCenter = projected.length();
   return Math.abs(distanceToCenter - radius) < threshold;
 }
-
-// Re-export THREE для использования в этой файле
-import * as THREE from 'three';

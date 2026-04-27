@@ -16,6 +16,9 @@ import { ElementId, ELEMENT_LABELS } from '../lib/rig/elements';
 import { Body25Index } from '../lib/body25/body25-types';
 import { PelvisController } from './controllers/PelvisController';
 import { SpineController } from './controllers/SpineController';
+import { NeckController } from './controllers/NeckController';
+import { HeadController } from './controllers/HeadController';
+import { ArmController } from './controllers/ArmController';
 import './Canvas3D.css';
 
 interface Canvas3DProps {
@@ -65,6 +68,9 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const [spineSegmentPositions, setSpineSegmentPositions] = useState(
     () => rigService.getVirtualPositions().spine.map(v => ({ x: v.x, y: v.y, z: v.z })),
   );
+  const [neckSegmentPositions, setNeckSegmentPositions] = useState(
+    () => rigService.getVirtualPositions().neck.map(v => ({ x: v.x, y: v.y, z: v.z })),
+  );
   const [selectedElement, setSelectedElement] = useState<ElementId | null>(
     () => selectionService.getSelected()
   );
@@ -74,13 +80,6 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const currentCameraRef = useRef<THREE.Camera | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  const handleCameraChange = useCallback((camera: THREE.Camera) => {
-    currentCameraRef.current = camera;
-    if (onCameraChange) {
-      onCameraChange(camera);
-    }
-  }, [onCameraChange]);
-
   // Подписываемся на изменения позы
   useEffect(() => {
     canvasLogger.info('Canvas3D mounted, subscribing to poseService');
@@ -88,6 +87,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
       setPoseData(data);
       const vp = rigService.getVirtualPositions();
       setSpineSegmentPositions(vp.spine.map(v => ({ x: v.x, y: v.y, z: v.z })));
+      setNeckSegmentPositions(vp.neck.map(v => ({ x: v.x, y: v.y, z: v.z })));
     });
     return () => {
       canvasLogger.info('Canvas3D unmounting');
@@ -230,12 +230,49 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
           selectedElement={selectedElement}
           onElementSelect={handleElementSelect}
           spineSegmentPositions={spineSegmentPositions}
+          neckSegmentPositions={neckSegmentPositions}
         />
 
         {/* Контроллеры гизмо — рендерятся только для выделенного элемента */}
         {selectedElement === 'pelvis' && poseData[Body25Index.MID_HIP] && (
           <PelvisController
             rootPos={poseData[Body25Index.MID_HIP]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'neck' && poseData[Body25Index.NECK] && (
+          <NeckController
+            neckPos={poseData[Body25Index.NECK]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'head' && poseData[Body25Index.NOSE] && (
+          <HeadController
+            nosePos={poseData[Body25Index.NOSE]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'arm_r' &&
+          poseData[Body25Index.RIGHT_SHOULDER] &&
+          poseData[Body25Index.RIGHT_ELBOW] &&
+          poseData[Body25Index.RIGHT_WRIST] && (
+          <ArmController
+            side="r"
+            shoulderPos={poseData[Body25Index.RIGHT_SHOULDER]!}
+            elbowPos={poseData[Body25Index.RIGHT_ELBOW]!}
+            wristPos={poseData[Body25Index.RIGHT_WRIST]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'arm_l' &&
+          poseData[Body25Index.LEFT_SHOULDER] &&
+          poseData[Body25Index.LEFT_ELBOW] &&
+          poseData[Body25Index.LEFT_WRIST] && (
+          <ArmController
+            side="l"
+            shoulderPos={poseData[Body25Index.LEFT_SHOULDER]!}
+            elbowPos={poseData[Body25Index.LEFT_ELBOW]!}
+            wristPos={poseData[Body25Index.LEFT_WRIST]!}
             rigService={rigService}
           />
         )}
