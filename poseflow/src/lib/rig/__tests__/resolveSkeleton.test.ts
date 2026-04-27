@@ -1,8 +1,8 @@
 // src/lib/rig/__tests__/resolveSkeleton.test.ts
 import { describe, it, expect } from 'vitest';
-import { Quaternion, Euler, Vector3 } from 'three';
-import { createDefaultRig, cloneRig } from '../SkeletonRig';
-import { resolveSkeleton, resolveSkeletonPose } from '../resolveSkeleton';
+import { Quaternion, Euler } from 'three';
+import { createDefaultRig } from '../SkeletonRig';
+import { resolveSkeleton } from '../resolveSkeleton';
 import { setBend } from '../VirtualChain';
 import { Body25Index } from '../../body25/body25-types';
 import { defaultTPose } from '../RestPose';

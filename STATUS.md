@@ -2,7 +2,7 @@
 
 ## Текущая версия: v0.3.0-dev
 
-**Дата:** 2026-04-27
+**Дата:** 2026-04-28
 
 ---
 
@@ -74,6 +74,17 @@
 - `RigService`: `applyArmIK(side, x, y, z)`, `applyElbowTwist(side, delta)`
 - **174 unit-теста**
 
+### Инженерный workflow для vibe coding — обновлён
+- `PLAN.md` актуализирован как текущий roadmap; следующий продуктовый шаг: **Stage 4.2 ShoulderController**
+- `AGENTS.md` синхронизирован с rotation-tree архитектурой, командами качества и текущим статусом
+- Добавлен обязательный шаблон фичи: `ai/docs/feature-task-template.md`
+- Перед каждой non-Lite задачей требуется **current-state probe**: `git status --short`, `STATUS.md`, `PLAN.md`, `AGENTS.md`, релевантный код
+- Добавлен R3F smoke/manual checklist: `ai/docs/r3f-smoke-manual-checklist.md`
+- Устаревшие планы перенесены/помечены как archive/reference; активная навигация: `plans/README.md`, `ai/docs/README.md`
+- Команда качества: `npm run verify` = typecheck app/node + 174 tests + Vite/Electron build
+- Отдельный cleanup-слой: `npm run lint:unused` = строгая проверка unused locals/parameters
+- Старые ignored-отчёты тестирования удалены из `poseflow/`
+
 ---
 
 ## В работе (следующие этапы)
@@ -92,3 +103,9 @@
 - Нет кистей, ног, стоп
 - Нет управления несколькими скелетами
 - Нет центра тяжести
+
+---
+
+## Последняя проверка
+
+2026-04-28: `npm run verify` и `npm run lint:unused` из `poseflow/` прошли успешно.

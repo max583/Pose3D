@@ -7,7 +7,6 @@
 //
 // Кольца меньше, чем у SpineController — шея короткая.
 
-import React from 'react';
 import { RigService } from '../../services/RigService';
 import { useGizmoDrag } from '../../hooks/useGizmoDrag';
 

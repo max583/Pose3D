@@ -59,7 +59,6 @@ describe('setBend + getEndPosition (изгиб вперёд)', () => {
     const restDir = new Vector3(0, 1, 0);
 
     const positions = getSegmentPositions(bent, start, parentRot, restDir);
-    const end = positions[positions.length - 1];
 
     // Общая длина пути по сегментам должна быть равна TOTAL_LENGTH
     let pathLen = 0;

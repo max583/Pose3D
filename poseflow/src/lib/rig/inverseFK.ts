@@ -16,7 +16,7 @@
 
 import { Quaternion, Vector3 } from 'three';
 import { Body25Index, PoseData } from '../body25/body25-types';
-import { SkeletonRig, cloneRig, createDefaultRig } from './SkeletonRig';
+import { SkeletonRig, createDefaultRig } from './SkeletonRig';
 import { getBody25ParentMap } from './RestPose';
 import { setBend } from './VirtualChain';
 
@@ -141,17 +141,8 @@ export function rigFromPose(pose: PoseData): SkeletonRig {
         childP.z - parentP.z,
       ).normalize();
 
-      // Направление в rest-позе в мировом пространстве = parentAccRot * restDir
-      const restDirWorld = restDir.clone().applyQuaternion(parentAccRot);
-
-      // Мировой поворот от rest к actual
-      const worldRot = quaternionFromTo(restDirWorld, actualDirWorld);
-
-      // Локальный поворот = inv(parentAccRot) * worldRot * parentAccRot
-      // Точнее: localRot такой, что parentAccRot * localRot * restDir = actualDirWorld (в world)
-      // localRot = inv(parentAccRot) * quaternionFromTo(restDirWorld, actualDirWorld) * parentAccRot
-      // Но проще: localRot = quaternionFromTo(restDir, localActualDir)
-      // где localActualDir = inv(parentAccRot) * actualDirWorld
+      // localRot такой, что parentAccRot * localRot * restDir = actualDirWorld (в world).
+      // Для этого переводим actualDirWorld в локальное пространство родителя.
       const invParentRot = parentAccRot.clone().invert();
       const localActualDir = actualDirWorld.clone().applyQuaternion(invParentRot);
       const localRot = quaternionFromTo(restDir, localActualDir);

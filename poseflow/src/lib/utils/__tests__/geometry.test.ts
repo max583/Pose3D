@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { clipLineToRect } from '../geometry';
 
 const RECT = { xmin: 0, ymin: 0, xmax: 100, ymax: 100 };
-const EPS = 1e-9;
 
 function clip(x0: number, y0: number, x1: number, y1: number) {
   return clipLineToRect(x0, y0, x1, y1, RECT.xmin, RECT.ymin, RECT.xmax, RECT.ymax);

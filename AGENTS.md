@@ -18,6 +18,7 @@ npm run dev              # Vite dev server at http://127.0.0.1:5173
 npm run electron:dev     # With Electron
 npm run backend          # Python FastAPI at http://127.0.0.1:8000
 npm run typecheck        # TypeScript check: app + Electron/Vite configs
+npm run lint:unused      # Explicit unused locals/parameters check (not part of verify)
 npm run build            # Typecheck + Vite/Electron build
 npm run verify           # Typecheck + tests + Vite/Electron build
 npm test                 # All tests (vitest --config vitest.config.ts)
@@ -158,6 +159,8 @@ Every new piece of logic **must** ship with unit tests in the same commit. No ex
 **Lite mode exception:** CSS tweaks, config constants, and single-line wrappers that delegate entirely to already-tested code may skip tests.
 
 Run before committing: `npm run verify` (from `poseflow/`, runs typecheck, tests, and Vite/Electron build)
+
+Optional cleanup check: `npm run lint:unused` (from `poseflow/`) before larger refactors or when touching broad TypeScript surfaces.
 
 ## Lite mode (skip formal workflow)
 

@@ -1,6 +1,5 @@
 // src/lib/rig/__tests__/RestPose.test.ts
 import { describe, it, expect } from 'vitest';
-import { Vector3 } from 'three';
 import {
   createRestPoseFromTPose,
   createRestPoseFromPose,

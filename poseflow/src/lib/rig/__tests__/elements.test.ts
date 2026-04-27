@@ -2,7 +2,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   JOINT_TO_ELEMENT,
-  ELEMENT_TO_JOINTS,
   getElementForJoint,
   getJointsForElement,
   ALL_ELEMENTS,

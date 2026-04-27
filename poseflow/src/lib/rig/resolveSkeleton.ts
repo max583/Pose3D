@@ -16,7 +16,6 @@ import { Body25Index, JointPosition, PoseData } from '../body25/body25-types';
 import { SkeletonRig } from './SkeletonRig';
 import { getBody25ChildrenMap, getBody25ParentMap } from './RestPose';
 import {
-  getEndPosition,
   getEndRotation,
   getSegmentPositions,
 } from './VirtualChain';

@@ -80,13 +80,6 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const currentCameraRef = useRef<THREE.Camera | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  const handleCameraChange = useCallback((camera: THREE.Camera) => {
-    currentCameraRef.current = camera;
-    if (onCameraChange) {
-      onCameraChange(camera);
-    }
-  }, [onCameraChange]);
-
   // Подписываемся на изменения позы
   useEffect(() => {
     canvasLogger.info('Canvas3D mounted, subscribing to poseService');

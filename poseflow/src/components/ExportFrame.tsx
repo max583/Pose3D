@@ -1,6 +1,5 @@
 // ExportFrame.tsx - Рамка кадра для экспорта с drag и resize
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import * as THREE from 'three';
 import { exportLogger } from '../lib/logger';
 import './ExportFrame.css';
 
@@ -20,12 +19,6 @@ export interface ExportFrameData {
   viewportHeight: number;
   viewportAspectRatio: number;
 }
-
-const RESOLUTION_MAP: Record<Resolution, number> = {
-  '1K': 1024,
-  '2K': 2048,
-  '4K': 4096,
-};
 
 // Правильные aspect ratio (ширина / высота)
 const ASPECT_RATIO_MAP: Record<Exclude<AspectRatio, 'free'>, number> = {
@@ -168,7 +161,6 @@ export const ExportFrame: React.FC<ExportFrameProps> = ({
           setFrame({ x: newX, y: newY, width: newWidth, height: newHeight });
         } else {
           // free mode — просто масштабируем
-          const currentFrame = frameRef.current;
           // Проценты остаются теми же — CSS сделает масштабирование
         }
       }, 50);

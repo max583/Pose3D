@@ -5,7 +5,7 @@
 //
 // Активируется при selectedElement === 'arm_r' / 'arm_l'.
 
-import React, { useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import { RigService } from '../../services/RigService';
 import { useGizmoDrag } from '../../hooks/useGizmoDrag';

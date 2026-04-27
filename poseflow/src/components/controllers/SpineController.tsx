@@ -10,7 +10,6 @@
 // Изгиб влево/вправо (жёлтое, XY-плоскость вертикальное фронтальное):
 //   Drag dx → bendZ. Кольцо в плоскости движения — видно спереди.
 
-import React from 'react';
 import { RigService } from '../../services/RigService';
 import { useGizmoDrag } from '../../hooks/useGizmoDrag';
 

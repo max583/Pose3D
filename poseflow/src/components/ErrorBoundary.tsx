@@ -1,5 +1,5 @@
 // ErrorBoundary.tsx - Перехват ошибок для диагностики
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { errorLogger } from '../lib/logger';
 
 interface Props {

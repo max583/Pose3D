@@ -9,7 +9,6 @@
 //
 // Кольца меньше, чем у NeckController (0.22) — голова — маленький элемент.
 
-import React from 'react';
 import { RigService } from '../../services/RigService';
 import { useGizmoDrag } from '../../hooks/useGizmoDrag';
 

@@ -2,17 +2,6 @@
 import { Body25Index, PoseData, PosePreset } from '../../lib/body25/body25-types';
 
 /**
- * Создаём базовую структуру позы с нулевыми значениями
- */
-function createEmptyPose(): PoseData {
-  const pose: any = {};
-  for (let i = 0; i < 25; i++) {
-    pose[i] = { x: 0, y: 0, z: 0, confidence: 1 };
-  }
-  return pose;
-}
-
-/**
  * T-Pose - руки в стороны
  */
 export function createTPose(): PoseData {

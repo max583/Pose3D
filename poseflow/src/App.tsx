@@ -14,7 +14,6 @@ import './App.css';
 
 const AppContent: React.FC = () => {
   const { appInfo, healthStatus } = useIPC();
-  const [currentCamera, setCurrentCamera] = useState<THREE.Camera | undefined>(undefined);
   const [settingsOpen, setSettingsOpen] = useState(false);
   
   const poseService = usePoseService();
@@ -23,10 +22,6 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     uiLogger.info('App initialized');
   }, []);
-
-  const handleCameraChange = (camera: THREE.Camera) => {
-    setCurrentCamera(camera);
-  };
 
   const handleExportFrame = async (frameData: ExportFrameData, camera: THREE.Camera) => {
     exportLogger.info('Export frame requested', frameData);
@@ -69,7 +64,6 @@ const AppContent: React.FC = () => {
         />
         <main className="app-main">
           <Canvas3D
-            onCameraChange={handleCameraChange}
             onExportFrame={handleExportFrame}
           />
         </main>

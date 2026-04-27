@@ -32,6 +32,7 @@
 - `npm test` из `poseflow/`: 174 unit-теста проходят.
 - `npx vite build` из `poseflow/`: Vite-сборка проходит.
 - `npm run typecheck` из `poseflow/`: проверяет React/app и Electron/Vite configs отдельными `tsconfig`.
+- `npm run lint:unused` из `poseflow/`: отдельный строгий слой для unused locals/parameters; не входит в базовый `verify`.
 - `npm run build` из `poseflow/`: typecheck + Vite/Electron build.
 - `npm run verify` из `poseflow/`: typecheck + unit-тесты + Vite/Electron build.
 
@@ -249,6 +250,27 @@ React/R3F controllers
 - `plans/README.md` — новый вход в папку `plans/` со ссылками на актуальные документы.
 - Полезные исторические планы перенесены в `plans/archive/` и помечены `[ARCHIVED]`.
 - Дублирующие Phase 4/старые roadmap-документы удалены из рабочей папки `plans/`.
+
+### T8 — Отдельный unused lint
+
+**Статус:** выполнено 2026-04-28.  
+**Цель:** вернуть строгий контроль unused-кода без превращения базового `verify` в шумный и хрупкий gate.
+
+Реализовано:
+
+- Добавлена команда `npm run lint:unused`.
+- Текущие unused locals/parameters вычищены; команда проходит зелёно.
+- Основной `npm run verify` остаётся приёмочным gate: typecheck + tests + build.
+
+### T9 — Очистка локальных ignored-отчётов
+
+**Статус:** выполнено 2026-04-28.  
+**Цель:** убрать из рабочей папки старые локальные отчёты тестирования, которые не отслеживались Git и противоречили текущим источникам истины.
+
+Реализовано:
+
+- Удалены ignored-файлы `poseflow/testing-readiness-report.md` и `poseflow/design-doll-testing-report.md`.
+- `git status --short --ignored` больше не показывает эти отчёты.
 
 ---
 

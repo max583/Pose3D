@@ -5,7 +5,7 @@
 // Drag по стрелке → перемещает таз вдоль соответствующей мировой оси.
 // Drag по кольцу → вращает таз вокруг соответствующей мировой оси.
 
-import React, { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { RigService } from '../../services/RigService';

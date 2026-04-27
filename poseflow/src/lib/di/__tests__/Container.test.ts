@@ -109,7 +109,7 @@ describe('Container', () => {
         dispose: () => { disposed = true; }
       }), { singleton: true });
 
-      const service = container.get<any>('Service');
+      container.get<any>('Service');
       const result = container.unregister('Service');
       expect(result).toBe(true);
       expect(disposed).toBe(true);
