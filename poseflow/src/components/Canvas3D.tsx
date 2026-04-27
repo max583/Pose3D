@@ -16,6 +16,7 @@ import { ElementId, ELEMENT_LABELS } from '../lib/rig/elements';
 import { Body25Index } from '../lib/body25/body25-types';
 import { PelvisController } from './controllers/PelvisController';
 import { SpineController } from './controllers/SpineController';
+import { NeckController } from './controllers/NeckController';
 import './Canvas3D.css';
 
 interface Canvas3DProps {
@@ -65,6 +66,9 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const [spineSegmentPositions, setSpineSegmentPositions] = useState(
     () => rigService.getVirtualPositions().spine.map(v => ({ x: v.x, y: v.y, z: v.z })),
   );
+  const [neckSegmentPositions, setNeckSegmentPositions] = useState(
+    () => rigService.getVirtualPositions().neck.map(v => ({ x: v.x, y: v.y, z: v.z })),
+  );
   const [selectedElement, setSelectedElement] = useState<ElementId | null>(
     () => selectionService.getSelected()
   );
@@ -88,6 +92,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
       setPoseData(data);
       const vp = rigService.getVirtualPositions();
       setSpineSegmentPositions(vp.spine.map(v => ({ x: v.x, y: v.y, z: v.z })));
+      setNeckSegmentPositions(vp.neck.map(v => ({ x: v.x, y: v.y, z: v.z })));
     });
     return () => {
       canvasLogger.info('Canvas3D unmounting');
@@ -230,12 +235,19 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
           selectedElement={selectedElement}
           onElementSelect={handleElementSelect}
           spineSegmentPositions={spineSegmentPositions}
+          neckSegmentPositions={neckSegmentPositions}
         />
 
         {/* Контроллеры гизмо — рендерятся только для выделенного элемента */}
         {selectedElement === 'pelvis' && poseData[Body25Index.MID_HIP] && (
           <PelvisController
             rootPos={poseData[Body25Index.MID_HIP]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'neck' && poseData[Body25Index.NECK] && (
+          <NeckController
+            neckPos={poseData[Body25Index.NECK]!}
             rigService={rigService}
           />
         )}

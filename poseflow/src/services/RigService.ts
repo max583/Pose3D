@@ -220,6 +220,35 @@ export class RigService {
     this.notifyListeners();
   }
 
+  /**
+   * Добавить изгиб шеи.
+   * @param deltaX — дельта наклона вперёд/назад (рад), лимит ±45°
+   * @param deltaZ — дельта бокового наклона (рад), лимит ±30°
+   */
+  applyNeckBend(deltaX: number, deltaZ: number): void {
+    const angles = this.rig.neckAngles;
+    const maxBendX = Math.PI / 4;          // ±45°
+    const maxBendZ = 30 * Math.PI / 180;   // ±30°
+    angles.bendX = clamp(angles.bendX + deltaX, -maxBendX, maxBendX);
+    angles.bendZ = clamp(angles.bendZ + deltaZ, -maxBendZ, maxBendZ);
+    this.rig.neck = setBend(this.rig.neck, angles.bendX, angles.bendZ, angles.twistY);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Добавить скручивание шеи. Ограничение: ±45°.
+   * @param delta — дельта угла скручивания (рад)
+   */
+  applyNeckTwist(delta: number): void {
+    const angles = this.rig.neckAngles;
+    const maxTwist = Math.PI / 4; // ±45°
+    angles.twistY = clamp(angles.twistY + delta, -maxTwist, maxTwist);
+    this.rig.neck = setBend(this.rig.neck, angles.bendX, angles.bendZ, angles.twistY);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
   // ─── Undo / Redo ───────────────────────────────────────────────────────────
 
   undo(): void {
