@@ -1,10 +1,38 @@
 .sidebar {
   width: 280px;
+  position: relative;
+  flex: 0 0 280px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+}
+
+.sidebar-collapse {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  z-index: 1;
+}
+
+.sidebar-collapse:hover {
+  background: #4d4d4d;
+  border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 .sidebar-section {

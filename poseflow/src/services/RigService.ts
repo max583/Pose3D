@@ -13,7 +13,7 @@ import { PoseData } from '../lib/body25/body25-types';
 import { SkeletonRig, createDefaultRig, cloneRig } from '../lib/rig/SkeletonRig';
 import { resolveSkeleton, VirtualChainPositions } from '../lib/rig/resolveSkeleton';
 import { rigFromPose } from '../lib/rig/inverseFK';
-import { setBend } from '../lib/rig/VirtualChain';
+import { setBend, setBendAtStart } from '../lib/rig/VirtualChain';
 import {
   ARM_JOINTS,
   applyArmChainToRig,
@@ -22,6 +22,15 @@ import {
   twistElbow,
   toVec3,
 } from '../lib/rig/armIK';
+import {
+  LEG_JOINTS,
+  applyLegChainToRig,
+  getLegBoneLengths,
+  solveLegIKWithinLimits,
+  twistKnee,
+} from '../lib/rig/legIK';
+import { applyFootRotationDelta, FootAxis } from '../lib/rig/footFK';
+import { applyShoulderDelta, ShoulderAxis } from '../lib/rig/shoulderFK';
 import { UndoStack } from '../lib/UndoStack';
 import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
 import { Body25Index } from '../lib/body25/body25-types';
@@ -200,6 +209,21 @@ export class RigService {
   }
 
   /**
+   * Повернуть таз вокруг локальной оси скелета.
+   * Используется root-гизмо у MID_HIP, которое визуально следует за rootRotation.
+   */
+  applyPelvisRotateLocal(axis: 'x' | 'y' | 'z', angle: number): void {
+    const axisVec =
+      axis === 'x' ? new Vector3(1, 0, 0) :
+      axis === 'y' ? new Vector3(0, 1, 0) :
+                     new Vector3(0, 0, 1);
+    const q = new Quaternion().setFromAxisAngle(axisVec, angle);
+    this.rig.rootRotation.multiply(q).normalize();
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
    * Добавить изгиб позвоночника.
    * @param deltaX — дельта наклона вперёд/назад (рад)
    * @param deltaZ — дельта бокового наклона (рад)
@@ -239,7 +263,7 @@ export class RigService {
     const maxBendZ = 30 * Math.PI / 180;   // ±30°
     angles.bendX = clamp(angles.bendX + deltaX, -maxBendX, maxBendX);
     angles.bendZ = clamp(angles.bendZ + deltaZ, -maxBendZ, maxBendZ);
-    this.rig.neck = setBend(this.rig.neck, angles.bendX, angles.bendZ, angles.twistY);
+    this.rig.neck = setBendAtStart(this.rig.neck, angles.bendX, angles.bendZ, angles.twistY);
     this.resolvedCache = null;
     this.notifyListeners();
   }
@@ -304,6 +328,87 @@ export class RigService {
     applyArmChainToRig(this.rig, side, shoulderPos, newElbow, wristPos);
     this.resolvedCache = null;
     this.notifyListeners();
+  }
+
+  // ─── Leg IK (Stage 6.1) ──────────────────────────────────────────────────
+
+  /**
+   * IK лодыжки: FABRIK-решение цепочки бедро→колено→лодыжка.
+   * Бедро фиксировано; лодыжка движется к целевой мировой позиции.
+   */
+  applyLegIK(side: 'r' | 'l', tx: number, ty: number, tz: number): void {
+    const pose = this.getPoseData();
+    const joints = LEG_JOINTS[side];
+
+    const hipPos = toVec3(pose[joints.hip]!);
+    const kneePos = toVec3(pose[joints.knee]!);
+    const anklePos = toVec3(pose[joints.ankle]!);
+    const target = new Vector3(tx, ty, tz);
+
+    const boneLengths = getLegBoneLengths(this.rig, side);
+    const bodyForward = new Vector3(0, 0, 1).applyQuaternion(this.rig.rootRotation);
+    const bodyUp = new Vector3(0, 1, 0).applyQuaternion(this.rig.rootRotation);
+    const newChain = solveLegIKWithinLimits(
+      hipPos,
+      kneePos,
+      anklePos,
+      target,
+      boneLengths,
+      bodyForward,
+      bodyUp,
+      side,
+    );
+    if (!newChain) return;
+
+    applyLegChainToRig(this.rig, side, hipPos, newChain[1], newChain[2]);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  /**
+   * Скручивание колена: поворот колена вокруг оси бедро→лодыжка.
+   * Бедро и лодыжка остаются на месте.
+   */
+  applyKneeTwist(side: 'r' | 'l', delta: number): void {
+    const pose = this.getPoseData();
+    const joints = LEG_JOINTS[side];
+
+    const hipPos = toVec3(pose[joints.hip]!);
+    const kneePos = toVec3(pose[joints.knee]!);
+    const anklePos = toVec3(pose[joints.ankle]!);
+    const newKnee = twistKnee(hipPos, kneePos, anklePos, delta);
+
+    applyLegChainToRig(this.rig, side, hipPos, newKnee, anklePos);
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  // ─── Foot FK (Stage 7) ───────────────────────────────────────────────────
+
+  /** Поворот стопы как жёсткой группы toe/heel вокруг ANKLE. */
+  applyFootRotation(side: 'r' | 'l', axis: FootAxis, delta: number): void {
+    const applied = applyFootRotationDelta(this.rig, side, axis, delta);
+    if (applied === 0) return;
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  // ─── Shoulder FK (Stage 4.2) ──────────────────────────────────────────────
+
+  /** Поворот плечевого пояса: двигает SHOULDER относительно NECK. */
+  applyShoulderFK(side: 'r' | 'l', axis: ShoulderAxis, delta: number): void {
+    const applied = applyShoulderDelta(this.rig, side, axis, delta);
+    if (applied === 0) return;
+    this.resolvedCache = null;
+    this.notifyListeners();
+  }
+
+  applyShoulderRaise(side: 'r' | 'l', delta: number): void {
+    this.applyShoulderFK(side, 'raise', delta);
+  }
+
+  applyShoulderForward(side: 'r' | 'l', delta: number): void {
+    this.applyShoulderFK(side, 'forward', delta);
   }
 
   // ─── Head rotation ────────────────────────────────────────────────────────

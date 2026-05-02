@@ -1,9 +1,10 @@
 // src/lib/rig/__tests__/VirtualChain.test.ts
 import { describe, it, expect } from 'vitest';
-import { Quaternion, Vector3 } from 'three';
+import { Euler, Quaternion, Vector3 } from 'three';
 import {
   createVirtualChain,
   setBend,
+  setBendAtStart,
   getEndPosition,
   getSegmentPositions,
   getEndRotation,
@@ -107,6 +108,21 @@ describe('setBend + getTotalBendAngle/getTotalTwistAngle', () => {
     const neutral = setBend(chain, 0, 0, 0);
     expect(getTotalBendAngle(neutral)).toBeCloseTo(0);
     expect(getTotalTwistAngle(neutral)).toBeCloseTo(0);
+  });
+});
+
+describe('setBendAtStart', () => {
+  it('puts the full bend into the first chain segment', () => {
+    const chain = createVirtualChain(2, TOTAL_LENGTH);
+    const bent = setBendAtStart(chain, Math.PI / 6, Math.PI / 8, 0);
+
+    const first = new Euler().setFromQuaternion(bent.rotations[0], 'YXZ');
+    const second = new Euler().setFromQuaternion(bent.rotations[1], 'YXZ');
+
+    expect(first.x).toBeCloseTo(Math.PI / 6);
+    expect(first.z).toBeCloseTo(Math.PI / 8);
+    expect(second.x).toBeCloseTo(0);
+    expect(second.z).toBeCloseTo(0);
   });
 });
 

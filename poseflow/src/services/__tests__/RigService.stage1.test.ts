@@ -2,6 +2,7 @@
 // Тесты для Stage 1: beginDrag, applyPelvis*, applySpine* методов.
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Quaternion, Vector3 } from 'three';
 import { RigService } from '../RigService';
 import { Body25Index } from '../../lib/body25/body25-types';
 
@@ -83,6 +84,20 @@ describe('RigService — Stage 1 gizmo operations', () => {
     const rot = svc.getRig().rootRotation;
     expect(rot.y).toBeCloseTo(Math.sin(Math.PI / 4), 3);
     expect(rot.w).toBeCloseTo(Math.cos(Math.PI / 4), 3);
+  });
+
+  it('applyPelvisRotateLocal вращает вокруг текущей локальной оси скелета', () => {
+    svc.beginDrag();
+    svc.applyPelvisRotate('y', Math.PI / 2);
+    const before = svc.getRig().rootRotation.clone();
+
+    svc.applyPelvisRotateLocal('x', Math.PI / 2);
+
+    const expected = before.clone().multiply(
+      new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2),
+    );
+    const actual = svc.getRig().rootRotation;
+    expect(Math.abs(actual.dot(expected))).toBeCloseTo(1, 5);
   });
 
   // ─── applySpineBend ───────────────────────────────────────────────────────────

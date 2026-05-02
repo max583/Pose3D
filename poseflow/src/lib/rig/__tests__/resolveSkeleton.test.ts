@@ -1,6 +1,6 @@
 // src/lib/rig/__tests__/resolveSkeleton.test.ts
 import { describe, it, expect } from 'vitest';
-import { Quaternion, Euler } from 'three';
+import { Quaternion, Euler, Vector3 } from 'three';
 import { createDefaultRig } from '../SkeletonRig';
 import { resolveSkeleton } from '../resolveSkeleton';
 import { setBend } from '../VirtualChain';
@@ -11,6 +11,10 @@ import { getBoneLength } from '../RestPose';
 /** Расстояние между двумя JointPosition */
 function dist(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
+}
+
+function toVector(p: { x: number; y: number; z: number }) {
+  return new Vector3(p.x, p.y, p.z);
 }
 
 describe('resolveSkeleton — T-поза', () => {
@@ -122,6 +126,66 @@ describe('resolveSkeleton — spine bend', () => {
                   Math.abs(neckBefore.y - neckAfter.y) +
                   Math.abs(neckBefore.z - neckAfter.z);
     expect(moved).toBeGreaterThan(0.01);
+  });
+});
+
+describe('resolveSkeleton - head pivot', () => {
+  it('rotates the head around the neck segment junction', () => {
+    const rig = createDefaultRig();
+    const neutral = resolveSkeleton(rig);
+    const pivot = neutral.virtualPositions.neck[0].clone();
+    const pivotRot = rig.rootRotation.clone();
+    const noseBefore = new Vector3(
+      neutral.pose[Body25Index.NOSE]!.x,
+      neutral.pose[Body25Index.NOSE]!.y,
+      neutral.pose[Body25Index.NOSE]!.z,
+    );
+
+    rig.headRotation.setFromEuler(new Euler(Math.PI / 6, 0, 0, 'YXZ'));
+    const worldHeadRotation = pivotRot
+      .clone()
+      .multiply(rig.headRotation)
+      .multiply(pivotRot.clone().invert());
+    const after = resolveSkeleton(rig);
+    const noseAfter = new Vector3(
+      after.pose[Body25Index.NOSE]!.x,
+      after.pose[Body25Index.NOSE]!.y,
+      after.pose[Body25Index.NOSE]!.z,
+    );
+
+    const expected = noseBefore
+      .clone()
+      .sub(pivot)
+      .applyQuaternion(worldHeadRotation)
+      .add(pivot);
+
+    expect(noseAfter.x).toBeCloseTo(expected.x, 5);
+    expect(noseAfter.y).toBeCloseTo(expected.y, 5);
+    expect(noseAfter.z).toBeCloseTo(expected.z, 5);
+  });
+
+  it('uses the root-rotated local head frame when the mannequin is upside down', () => {
+    const rig = createDefaultRig();
+    rig.rootRotation.setFromEuler(new Euler(0, 0, Math.PI));
+
+    const neutral = resolveSkeleton(rig);
+    const pivot = neutral.virtualPositions.neck[0].clone();
+    const pivotRot = rig.rootRotation.clone();
+    const noseBefore = toVector(neutral.pose[Body25Index.NOSE]!);
+    const rightEyeBefore = toVector(neutral.pose[Body25Index.RIGHT_EYE]!);
+
+    rig.headRotation.setFromEuler(new Euler(Math.PI / 6, 0, 0, 'YXZ'));
+    const worldHeadRotation = pivotRot
+      .clone()
+      .multiply(rig.headRotation)
+      .multiply(pivotRot.clone().invert());
+    const after = resolveSkeleton(rig);
+
+    const expectedNose = noseBefore.clone().sub(pivot).applyQuaternion(worldHeadRotation).add(pivot);
+    const expectedRightEye = rightEyeBefore.clone().sub(pivot).applyQuaternion(worldHeadRotation).add(pivot);
+
+    expect(toVector(after.pose[Body25Index.NOSE]!).distanceTo(expectedNose)).toBeCloseTo(0, 5);
+    expect(toVector(after.pose[Body25Index.RIGHT_EYE]!).distanceTo(expectedRightEye)).toBeCloseTo(0, 5);
   });
 });
 

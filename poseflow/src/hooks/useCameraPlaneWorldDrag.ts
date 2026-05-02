@@ -18,6 +18,7 @@ import { useThree } from '@react-three/fiber';
 
 export interface CameraPlaneWorldDragHandlers {
   handlePointerDown: (e: {
+    button?: number;
     clientX: number;
     clientY: number;
     stopPropagation: () => void;
@@ -44,7 +45,9 @@ export function useCameraPlaneWorldDrag(
   const activeRef = useRef(false);
 
   const handlePointerDown = useCallback(
-    (e: { clientX: number; clientY: number; stopPropagation: () => void }) => {
+    (e: { button?: number; clientX: number; clientY: number; stopPropagation: () => void }) => {
+      if (e.button !== undefined && e.button !== 0) return;
+
       e.stopPropagation();
       if (controls) (controls as unknown as { enabled: boolean }).enabled = false;
 

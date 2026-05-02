@@ -13,6 +13,8 @@ export type ElementId =
   | 'spine'    // Позвоночник (MID_HIP→NECK)
   | 'neck'     // Шея (NECK→NOSE)
   | 'head'     // Голова (NOSE + глаза + уши)
+  | 'shoulder_r' // Правое плечо (FK верхней руки)
+  | 'shoulder_l' // Левое плечо
   | 'arm_r'    // Правая рука (плечо + локоть + запястье)
   | 'arm_l'    // Левая рука
   | 'hand_r'   // Правая кисть (ориентация запястья)
@@ -27,6 +29,7 @@ export type ElementId =
  */
 export const ALL_ELEMENTS: ElementId[] = [
   'pelvis', 'spine', 'neck', 'head',
+  'shoulder_r', 'shoulder_l',
   'arm_r', 'arm_l', 'hand_r', 'hand_l',
   'leg_r', 'leg_l', 'foot_r', 'foot_l',
 ];
@@ -39,6 +42,8 @@ export const ELEMENT_LABELS: Record<ElementId, string> = {
   spine: 'Позвоночник',
   neck: 'Шея',
   head: 'Голова',
+  shoulder_r: 'Правое плечо',
+  shoulder_l: 'Левое плечо',
   arm_r: 'Правая рука',
   arm_l: 'Левая рука',
   hand_r: 'Правая кисть',
@@ -55,7 +60,7 @@ export const ELEMENT_LABELS: Record<ElementId, string> = {
  * Примечания по неоднозначным случаям:
  * - NECK → spine (часть позвоночника, а не отдельный элемент шеи)
  * - NOSE → neck (конец шейной цепочки, управляется вместе с шеей)
- * - RIGHT_SHOULDER, LEFT_SHOULDER → spine (плечи двигаются вместе с корпусом)
+ * - RIGHT_SHOULDER, LEFT_SHOULDER → shoulder_r/shoulder_l (Stage 4.2)
  * - RIGHT_WRIST / LEFT_WRIST → arm (при первом клике; hand при повторном — в Stage 5)
  * - RIGHT_ANKLE / LEFT_ANKLE → leg (аналогично для foot в Stage 7)
  */
@@ -67,8 +72,10 @@ export const JOINT_TO_ELEMENT: Map<Body25Index, ElementId> = new Map([
 
   // Позвоночник (управляется через spine VirtualChain)
   [Body25Index.NECK,           'spine'],
-  [Body25Index.RIGHT_SHOULDER, 'spine'],
-  [Body25Index.LEFT_SHOULDER,  'spine'],
+
+  // Плечи
+  [Body25Index.RIGHT_SHOULDER, 'shoulder_r'],
+  [Body25Index.LEFT_SHOULDER,  'shoulder_l'],
 
   // Шея
   [Body25Index.NOSE,           'neck'],

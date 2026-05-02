@@ -84,6 +84,8 @@ export function useTransformDrag({
 
   // Обработчик нажатия — начало drag
   const handlePointerDown = useCallback((e: any) => {
+    if (e.button !== undefined && e.button !== 0) return;
+
     e.stopPropagation();
 
     // Позиция сустава в мировых координатах

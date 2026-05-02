@@ -7,8 +7,9 @@
 
 import { useCallback, useMemo } from 'react';
 import { Matrix4, Quaternion, Vector3 } from 'three';
+import { useThree } from '@react-three/fiber';
 import { RigService } from '../../services/RigService';
-import { useGizmoDrag } from '../../hooks/useGizmoDrag';
+import { useAngularGizmoDrag } from '../../hooks/useAngularGizmoDrag';
 import { useCameraPlaneWorldDrag } from '../../hooks/useCameraPlaneWorldDrag';
 
 // ─── Константы визуала ────────────────────────────────────────────────────────
@@ -18,7 +19,6 @@ const ARC_TUBE       = 0.006;
 const ARC_HIT_TUBE   = 0.045;
 const CONE_R         = 0.016;
 const CONE_H         = 0.042;
-const TWIST_SENS     = 0.012;  // rad/px
 const COLOR_ARM      = '#00ccff';
 
 // ─── WristHandle ──────────────────────────────────────────────────────────────
@@ -93,12 +93,20 @@ function ElbowTwistArc({ shoulderPos, elbowPos, wristPos, side, rigService }: El
     const mat  = new Matrix4().makeBasis(arcX, arcY, arcZ);
     const quat = new Quaternion().setFromRotationMatrix(mat);
 
-    return { center, radius, quat };
+    return { axis, center, radius, quat };
   }, [shoulderPos, elbowPos, wristPos]);
 
-  const { handlePointerDown } = useGizmoDrag(
+  const { camera } = useThree();
+  const getViewSign = () => {
+    if (!arcParams) return 1;
+    const cameraFromCenter = camera.position.clone().sub(arcParams.center);
+    if (cameraFromCenter.lengthSq() < 1e-8) return 1;
+    return cameraFromCenter.normalize().dot(arcParams.axis) >= 0 ? 1 : -1;
+  };
+
+  const { groupRef, handlePointerDown } = useAngularGizmoDrag(
     () => rigService.beginDrag(),
-    (dx) => rigService.applyElbowTwist(side, dx * TWIST_SENS),
+    (delta) => rigService.applyElbowTwist(side, -delta * getViewSign()),
   );
 
   if (!arcParams) return null;
@@ -123,6 +131,7 @@ function ElbowTwistArc({ shoulderPos, elbowPos, wristPos, side, rigService }: El
 
   return (
     <group
+      ref={groupRef}
       position={center.toArray() as [number, number, number]}
       quaternion={[quat.x, quat.y, quat.z, quat.w]}
     >

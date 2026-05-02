@@ -36,3 +36,5 @@
 |---|------|------|
 | 0001 | [0001-fabrik-ik-for-body25-chains.md](0001-fabrik-ik-for-body25-chains.md) | IK для цепей рук/ног: FABRIK |
 | 0002 | [0002-png-export-viewport-projection.md](0002-png-export-viewport-projection.md) | PNG/JSON экспорт и согласование с камерой/viewport |
+| 0003 | [0003-foot-rotation-layer.md](0003-foot-rotation-layer.md) | Отдельный слой вращения стопы вокруг ANKLE |
+| 0004 | [0004-skeleton-local-coordinate-contract.md](0004-skeleton-local-coordinate-contract.md) | Поза в координатах манекена + root transform в workspace |

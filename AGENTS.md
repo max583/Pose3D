@@ -90,6 +90,7 @@ PNG: black background, colored bones/joints per OpenPose color spec.
 - **Pose source of truth**: `RigService` owns `SkeletonRig`; `PoseData` is derived through `resolveSkeleton()`
 - **Controller flow**: R3F controllers call `RigService.beginDrag()` once on pointer down, then mutate the rig on pointer move
 - **OrbitControls**: disabled during controller drag via `useGizmoDrag` / `useCameraPlaneWorldDrag`
+- **Gizmo arrows**: all arrow-shaped gizmo controls use the arm/elbow cyan color `#00ccff` for visual consistency
 - **PNG export**: `projectTo2D(joint, camera, w, h)` must use same aspect ratio as Canvas to avoid NDC distortion
 - **Export Frame**: stores dimensions in `pixelSizeRef`, converts to % on viewport resize; pointer events pass through backdrop
 - **Virtual chains**: spine and neck are resolved as segmented arcs for rendering; intermediate points are not exported as BODY_25 joints
@@ -103,6 +104,8 @@ Before every task, do a current-state probe: check `git status --short`, read th
 For every non-Lite feature task, first create or fill a short task brief using [`ai/docs/feature-task-template.md`](ai/docs/feature-task-template.md). Keep it small: current-state probe, goal, boundaries, touched files, acceptance criteria, tests, and manual check.
 
 For R3F/UI/drag/export viewport changes, run the smoke checklist in [`ai/docs/r3f-smoke-manual-checklist.md`](ai/docs/r3f-smoke-manual-checklist.md). Use the full regression checklist before closing larger controller or viewport changes.
+
+For controller/gizmo changes, think through the mechanic before editing code. First write down the intended pivot, rotation axis, motion plane, gizmo placement, affected joints/bones, side convention (right/left is from the mannequin's point of view), and expected mouse direction for the main camera views. If signs or inversions are involved, make a small view table before changing code. Do not keep flipping signs by trial and error; pause, calculate, then patch.
 
 Before merging a feature branch (scale checklist to task size):
 
@@ -141,8 +144,8 @@ Keep **non-trivial algorithms** out of components: anything that looks like reus
 
 ## Current status
 
-Rotation-tree архитектура (Stage 0), pelvis/spine (Stage 1), neck (Stage 2), head (Stage 3), and arm IK/twist (Stage 4.1): **DONE**. 174 tests. См. `STATUS.md`.
-**Next: Stage 4.2 — ShoulderController**. Перед началом зафиксировать параметры плеча: оси, лимиты и поведение кисти при вращении плеча.
+Rotation-tree архитектура (Stage 0), pelvis/spine (Stage 1), neck (Stage 2), head (Stage 3), arm IK/twist (Stage 4.1), ShoulderController (Stage 4.2), Hand Visual Foundation (Stage 5.0), LegController ankle IK (Stage 6.1), and Knee Twist Gizmo (Stage 6.2): **DONE**. См. `STATUS.md`.
+**Next: Stage 7 — FootController**. Полноценный `HandController` отложен до отдельного дизайна helper-точек/ориентации кисти.
 
 ## Unit tests (required)
 

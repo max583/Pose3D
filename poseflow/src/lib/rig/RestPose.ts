@@ -120,10 +120,10 @@ export function defaultTPose(): PoseData {
     [Body25Index.LEFT_EAR]:        { x: -0.10, y: 1.60, z: 0.00 },
     [Body25Index.LEFT_BIG_TOE]:    { x: -0.20, y: 0.00, z: 0.10 },
     [Body25Index.LEFT_SMALL_TOE]:  { x: -0.25, y: 0.00, z: 0.05 },
-    [Body25Index.LEFT_HEEL]:       { x: -0.15, y: 0.00, z: -0.10 },
+    [Body25Index.LEFT_HEEL]:       { x: -0.079, y: 0.00, z: -0.071 },
     [Body25Index.RIGHT_BIG_TOE]:   { x:  0.20, y: 0.00, z: 0.10 },
     [Body25Index.RIGHT_SMALL_TOE]: { x:  0.25, y: 0.00, z: 0.05 },
-    [Body25Index.RIGHT_HEEL]:      { x:  0.15, y: 0.00, z: -0.10 },
+    [Body25Index.RIGHT_HEEL]:      { x:  0.079, y: 0.00, z: -0.071 },
   };
 }
 

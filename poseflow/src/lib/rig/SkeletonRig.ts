@@ -65,6 +65,30 @@ export interface SkeletonRig {
 
   /** Кватернион, производный от headAngles (порядок YXZ). */
   headRotation: Quaternion;
+
+  /**
+   * Суммарные углы плечевого пояса (радианы).
+   * Углы применяются к сегментам NECK -> SHOULDER.
+   */
+  shoulderAngles: {
+    r: { raise: number; forward: number };
+    l: { raise: number; forward: number };
+  };
+
+  /**
+   * Суммарные углы стопы (радианы), pivot = ANKLE.
+   * pitch — носок вверх/вниз, yaw — разворот носка влево/вправо, roll — завал стопы внутрь/наружу.
+   */
+  footAngles: {
+    r: { pitch: number; yaw: number; roll: number };
+    l: { pitch: number; yaw: number; roll: number };
+  };
+
+  /** Кватернионы стопы, производные от footAngles. Применяются только к toe/heel детям ANKLE. */
+  footRotations: {
+    r: Quaternion;
+    l: Quaternion;
+  };
 }
 
 /**
@@ -108,6 +132,18 @@ export function createDefaultRig(): SkeletonRig {
     neckAngles:  { bendX: 0, bendZ: 0, twistY: 0 },
     headAngles:  { pitch: 0, yaw: 0, roll: 0 },
     headRotation: new Quaternion(),
+    shoulderAngles: {
+      r: { raise: 0, forward: 0 },
+      l: { raise: 0, forward: 0 },
+    },
+    footAngles: {
+      r: { pitch: 0, yaw: 0, roll: 0 },
+      l: { pitch: 0, yaw: 0, roll: 0 },
+    },
+    footRotations: {
+      r: new Quaternion(),
+      l: new Quaternion(),
+    },
   };
 }
 
@@ -139,6 +175,18 @@ export function cloneRig(rig: SkeletonRig): SkeletonRig {
     neckAngles:   { ...rig.neckAngles },
     headAngles:   { ...rig.headAngles },
     headRotation: rig.headRotation.clone(),
+    shoulderAngles: {
+      r: { ...rig.shoulderAngles.r },
+      l: { ...rig.shoulderAngles.l },
+    },
+    footAngles: {
+      r: { ...rig.footAngles.r },
+      l: { ...rig.footAngles.l },
+    },
+    footRotations: {
+      r: rig.footRotations.r.clone(),
+      l: rig.footRotations.l.clone(),
+    },
   };
 }
 

@@ -15,6 +15,9 @@ import './App.css';
 const AppContent: React.FC = () => {
   const { appInfo, healthStatus } = useIPC();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return window.localStorage.getItem('poseflow-sidebar-collapsed') === 'true';
+  });
   
   const poseService = usePoseService();
   const exportService = useExportService();
@@ -22,6 +25,10 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     uiLogger.info('App initialized');
   }, []);
+
+  React.useEffect(() => {
+    window.localStorage.setItem('poseflow-sidebar-collapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   const handleExportFrame = async (frameData: ExportFrameData, camera: THREE.Camera) => {
     exportLogger.info('Export frame requested', frameData);
@@ -59,9 +66,23 @@ const AppContent: React.FC = () => {
       </header>
 
       <div className="app-content">
-        <Sidebar
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+        {!sidebarCollapsed && (
+          <Sidebar
+            onOpenSettings={() => setSettingsOpen(true)}
+            onCollapse={() => setSidebarCollapsed(true)}
+          />
+        )}
+        {sidebarCollapsed && (
+          <button
+            type="button"
+            className="sidebar-restore"
+            onClick={() => setSidebarCollapsed(false)}
+            title="Показать панель инструментов"
+            aria-label="Показать панель инструментов"
+          >
+            →
+          </button>
+        )}
         <main className="app-main">
           <Canvas3D
             onExportFrame={handleExportFrame}

@@ -9,7 +9,7 @@ import { useCallback } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { RigService } from '../../services/RigService';
-import { useGizmoDrag } from '../../hooks/useGizmoDrag';
+import { useAngularGizmoDrag } from '../../hooks/useAngularGizmoDrag';
 
 // ─── Настройки визуала ────────────────────────────────────────────────────────
 
@@ -19,11 +19,9 @@ const CONE_R         = 0.038;  // радиус конуса
 const CONE_H         = 0.09;   // высота конуса
 const HIT_R          = 0.06;   // радиус невидимой hit-зоны стержня
 
-const RING_OUTER     = 0.30;   // радиус кольца вращения
+const RING_OUTER     = 0.60;   // радиус кольца вращения
 const RING_TUBE      = 0.006;  // радиус трубки кольца
 const RING_HIT_TUBE  = 0.05;   // радиус невидимой hit-зоны кольца
-
-const ROT_SENS       = 0.012;  // чувствительность вращения (rad/px)
 
 const AXIS_COLOR = {
   x: '#ff4444',
@@ -40,6 +38,7 @@ type Axis = 'x' | 'y' | 'z';
 interface TranslationArrowProps {
   axis: Axis;
   origin: THREE.Vector3;
+  rootRotation: THREE.Quaternion;
   rigService: RigService;
 }
 
@@ -47,12 +46,13 @@ interface TranslationArrowProps {
  * Стрелка трансляции для одной оси.
  * Drag: проецирует курсор через плоскость камеры на мировую ось.
  */
-function TranslationArrow({ axis, origin, rigService }: TranslationArrowProps) {
+function TranslationArrow({ axis, origin, rootRotation, rigService }: TranslationArrowProps) {
   const { camera, gl, controls } = useThree();
 
-  const axisDir = axis === 'x' ? new THREE.Vector3(1, 0, 0)
-                : axis === 'y' ? new THREE.Vector3(0, 1, 0)
-                               : new THREE.Vector3(0, 0, 1);
+  const localAxisDir = axis === 'x' ? new THREE.Vector3(1, 0, 0)
+                     : axis === 'y' ? new THREE.Vector3(0, 1, 0)
+                                    : new THREE.Vector3(0, 0, 1);
+  const axisDir = localAxisDir.clone().applyQuaternion(rootRotation).normalize();
 
   // Rotation чтобы стрелка смотрела вдоль нужной оси
   // By default CylinderGeometry/ConeGeometry направлены вдоль Y.
@@ -64,6 +64,8 @@ function TranslationArrow({ axis, origin, rigService }: TranslationArrowProps) {
   // ─── Drag по камерной плоскости с проекцией на ось ────────────────────────
 
   const handlePointerDown = useCallback((e: any) => {
+    if (e.button !== undefined && e.button !== 0) return;
+
     e.stopPropagation();
 
     const rect = gl.domElement.getBoundingClientRect();
@@ -149,6 +151,8 @@ function TranslationArrow({ axis, origin, rigService }: TranslationArrowProps) {
 
 interface RotationRingProps {
   axis: Axis;
+  origin: THREE.Vector3;
+  rootRotation: THREE.Quaternion;
   rigService: RigService;
 }
 
@@ -161,7 +165,7 @@ interface RotationRingProps {
  *   Y-кольцо: screenDx → yaw
  *   Z-кольцо: screenDx → roll
  */
-function RotationRing({ axis, rigService }: RotationRingProps) {
+function RotationRing({ axis, origin, rootRotation, rigService }: RotationRingProps) {
   // Кольцо лежит в плоскости перпендикулярной оси:
   // X-ось → кольцо в YZ → rotation [0, 0, π/2] (torusGeometry по умолчанию в XY)
   const rotation: [number, number, number] =
@@ -169,18 +173,26 @@ function RotationRing({ axis, rigService }: RotationRingProps) {
     axis === 'y' ? [Math.PI / 2, 0, 0]  :
                    [0, 0, 0];
 
-  const { handlePointerDown } = useGizmoDrag(
+  const { camera } = useThree();
+  const localAxisDir = axis === 'x' ? new THREE.Vector3(1, 0, 0)
+                     : axis === 'y' ? new THREE.Vector3(0, 1, 0)
+                                    : new THREE.Vector3(0, 0, 1);
+  const getViewSign = () => {
+    const axisWorld = localAxisDir.clone().applyQuaternion(rootRotation).normalize();
+    const cameraFromOrigin = camera.position.clone().sub(origin);
+    if (cameraFromOrigin.lengthSq() < 1e-8) return 1;
+    return cameraFromOrigin.normalize().dot(axisWorld) >= 0 ? 1 : -1;
+  };
+
+  const { groupRef, handlePointerDown } = useAngularGizmoDrag(
     () => rigService.beginDrag(),
-    (dx, dy) => {
-      const raw = axis === 'x' ? dy : dx;
-      rigService.applyPelvisRotate(axis, raw * ROT_SENS);
-    },
+    (delta) => rigService.applyPelvisRotateLocal(axis, -delta * getViewSign()),
   );
 
   const color = AXIS_COLOR[axis];
 
   return (
-    <group rotation={rotation}>
+    <group ref={groupRef} rotation={rotation}>
       {/* Визуальное кольцо */}
       <mesh>
         <torusGeometry args={[RING_OUTER, RING_TUBE, 8, 64]} />
@@ -201,6 +213,7 @@ function RotationRing({ axis, rigService }: RotationRingProps) {
 interface PelvisControllerProps {
   /** Мировая позиция MID_HIP (обновляется при изменении позы). */
   rootPos: { x: number; y: number; z: number };
+  rootRotation: { x: number; y: number; z: number; w: number };
   rigService: RigService;
 }
 
@@ -208,21 +221,27 @@ interface PelvisControllerProps {
  * Гизмо управления тазом.
  * Рендерить внутри R3F Canvas когда selectedElement === 'pelvis'.
  */
-export function PelvisController({ rootPos, rigService }: PelvisControllerProps) {
+export function PelvisController({ rootPos, rootRotation, rigService }: PelvisControllerProps) {
   const pos: [number, number, number] = [rootPos.x, rootPos.y, rootPos.z];
   const origin = new THREE.Vector3(rootPos.x, rootPos.y, rootPos.z);
+  const rotation = new THREE.Quaternion(
+    rootRotation.x,
+    rootRotation.y,
+    rootRotation.z,
+    rootRotation.w,
+  );
 
   return (
-    <group position={pos}>
+    <group position={pos} quaternion={[rotation.x, rotation.y, rotation.z, rotation.w]}>
       {/* Стрелки трансляции */}
-      <TranslationArrow axis="x" origin={origin} rigService={rigService} />
-      <TranslationArrow axis="y" origin={origin} rigService={rigService} />
-      <TranslationArrow axis="z" origin={origin} rigService={rigService} />
+      <TranslationArrow axis="x" origin={origin} rootRotation={rotation} rigService={rigService} />
+      <TranslationArrow axis="y" origin={origin} rootRotation={rotation} rigService={rigService} />
+      <TranslationArrow axis="z" origin={origin} rootRotation={rotation} rigService={rigService} />
 
       {/* Кольца вращения */}
-      <RotationRing axis="x" rigService={rigService} />
-      <RotationRing axis="y" rigService={rigService} />
-      <RotationRing axis="z" rigService={rigService} />
+      <RotationRing axis="x" origin={origin} rootRotation={rotation} rigService={rigService} />
+      <RotationRing axis="y" origin={origin} rootRotation={rotation} rigService={rigService} />
+      <RotationRing axis="z" origin={origin} rootRotation={rotation} rigService={rigService} />
     </group>
   );
 }

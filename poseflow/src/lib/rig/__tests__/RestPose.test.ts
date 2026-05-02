@@ -99,6 +99,34 @@ describe('createRestPoseFromTPose', () => {
       expect(len).toBeGreaterThan(0);
     }
   });
+
+  it('пятка лежит на оси лодыжка-середина пальцев в виде сверху', () => {
+    const pose = defaultTPose();
+
+    for (const side of ['RIGHT', 'LEFT'] as const) {
+      const ankleIndex = side === 'RIGHT' ? Body25Index.RIGHT_ANKLE : Body25Index.LEFT_ANKLE;
+      const bigToeIndex = side === 'RIGHT' ? Body25Index.RIGHT_BIG_TOE : Body25Index.LEFT_BIG_TOE;
+      const smallToeIndex = side === 'RIGHT' ? Body25Index.RIGHT_SMALL_TOE : Body25Index.LEFT_SMALL_TOE;
+      const heelIndex = side === 'RIGHT' ? Body25Index.RIGHT_HEEL : Body25Index.LEFT_HEEL;
+
+      const ankle = pose[ankleIndex]!;
+      const bigToe = pose[bigToeIndex]!;
+      const smallToe = pose[smallToeIndex]!;
+      const heel = pose[heelIndex]!;
+      const toeMid = {
+        x: (bigToe.x + smallToe.x) / 2,
+        z: (bigToe.z + smallToe.z) / 2,
+      };
+
+      const toeAxis = { x: toeMid.x - ankle.x, z: toeMid.z - ankle.z };
+      const heelAxis = { x: heel.x - ankle.x, z: heel.z - ankle.z };
+      const cross = toeAxis.x * heelAxis.z - toeAxis.z * heelAxis.x;
+      const dot = toeAxis.x * heelAxis.x + toeAxis.z * heelAxis.z;
+
+      expect(cross).toBeCloseTo(0, 3);
+      expect(dot).toBeLessThan(0);
+    }
+  });
 });
 
 describe('createRestPoseFromPose', () => {

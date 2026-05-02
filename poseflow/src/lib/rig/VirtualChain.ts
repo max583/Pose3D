@@ -71,6 +71,27 @@ export function setBend(
   };
 }
 
+export function setBendAtStart(
+  chain: VirtualChain,
+  bendX: number,
+  bendZ: number,
+  twistY: number,
+): VirtualChain {
+  const rotations = Array.from({ length: chain.segments }, (_, index) => {
+    const q = new Quaternion();
+    if (index === 0) {
+      q.setFromEuler(new Euler(bendX, twistY, bendZ, 'YXZ'));
+    }
+    return q;
+  });
+
+  return {
+    segments: chain.segments,
+    segmentLength: chain.segmentLength,
+    rotations,
+  };
+}
+
 /**
  * Получить позиции всех промежуточных суставов и конечной точки.
  *

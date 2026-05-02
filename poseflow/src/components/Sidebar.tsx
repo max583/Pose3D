@@ -7,10 +7,12 @@ import './Sidebar.css';
 
 interface SidebarProps {
   onOpenSettings: () => void;
+  onCollapse: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
+  onCollapse,
 }) => {
   const { settings } = useAppSettings();
   const poseService = usePoseService();
@@ -52,6 +54,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="sidebar">
+      <button
+        type="button"
+        className="sidebar-collapse"
+        onClick={onCollapse}
+        title="Скрыть панель инструментов"
+        aria-label="Скрыть панель инструментов"
+      >
+        ←
+      </button>
       <div className="sidebar-section">
         <h3>Инструменты</h3>
         <button

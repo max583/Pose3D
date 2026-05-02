@@ -19,6 +19,9 @@ import { SpineController } from './controllers/SpineController';
 import { NeckController } from './controllers/NeckController';
 import { HeadController } from './controllers/HeadController';
 import { ArmController } from './controllers/ArmController';
+import { ShoulderController } from './controllers/ShoulderController';
+import { LegController } from './controllers/LegController';
+import { FootController } from './controllers/FootController';
 import './Canvas3D.css';
 
 interface Canvas3DProps {
@@ -237,18 +240,69 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         {selectedElement === 'pelvis' && poseData[Body25Index.MID_HIP] && (
           <PelvisController
             rootPos={poseData[Body25Index.MID_HIP]!}
+            rootRotation={rigService.getRig().rootRotation}
             rigService={rigService}
           />
         )}
-        {selectedElement === 'neck' && poseData[Body25Index.NECK] && (
+        {selectedElement === 'neck' &&
+          poseData[Body25Index.NECK] &&
+          poseData[Body25Index.RIGHT_SHOULDER] &&
+          poseData[Body25Index.LEFT_SHOULDER] && (
           <NeckController
             neckPos={poseData[Body25Index.NECK]!}
+            upperSpineJoint={
+              spineSegmentPositions[Math.max(0, spineSegmentPositions.length - 2)]
+              ?? poseData[Body25Index.NECK]!
+            }
+            rightShoulderPos={poseData[Body25Index.RIGHT_SHOULDER]!}
+            leftShoulderPos={poseData[Body25Index.LEFT_SHOULDER]!}
             rigService={rigService}
           />
         )}
-        {selectedElement === 'head' && poseData[Body25Index.NOSE] && (
+        {selectedElement === 'head' &&
+          poseData[Body25Index.NOSE] &&
+          poseData[Body25Index.NECK] &&
+          poseData[Body25Index.RIGHT_SHOULDER] &&
+          poseData[Body25Index.LEFT_SHOULDER] && (
           <HeadController
             nosePos={poseData[Body25Index.NOSE]!}
+            neckPivot={neckSegmentPositions[0] ?? poseData[Body25Index.NECK]!}
+            rightShoulderPos={poseData[Body25Index.RIGHT_SHOULDER]!}
+            leftShoulderPos={poseData[Body25Index.LEFT_SHOULDER]!}
+            rightEyePos={poseData[Body25Index.RIGHT_EYE]}
+            leftEyePos={poseData[Body25Index.LEFT_EYE]}
+            rightEarPos={poseData[Body25Index.RIGHT_EAR]}
+            leftEarPos={poseData[Body25Index.LEFT_EAR]}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'shoulder_r' &&
+          poseData[Body25Index.RIGHT_SHOULDER] &&
+          poseData[Body25Index.LEFT_SHOULDER] &&
+          poseData[Body25Index.NECK] &&
+          poseData[Body25Index.MID_HIP] && (
+          <ShoulderController
+            side="r"
+            shoulderPos={poseData[Body25Index.RIGHT_SHOULDER]!}
+            neckPos={poseData[Body25Index.NECK]!}
+            midHipPos={poseData[Body25Index.MID_HIP]!}
+            rightShoulderPos={poseData[Body25Index.RIGHT_SHOULDER]!}
+            leftShoulderPos={poseData[Body25Index.LEFT_SHOULDER]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'shoulder_l' &&
+          poseData[Body25Index.LEFT_SHOULDER] &&
+          poseData[Body25Index.RIGHT_SHOULDER] &&
+          poseData[Body25Index.NECK] &&
+          poseData[Body25Index.MID_HIP] && (
+          <ShoulderController
+            side="l"
+            shoulderPos={poseData[Body25Index.LEFT_SHOULDER]!}
+            neckPos={poseData[Body25Index.NECK]!}
+            midHipPos={poseData[Body25Index.MID_HIP]!}
+            rightShoulderPos={poseData[Body25Index.RIGHT_SHOULDER]!}
+            leftShoulderPos={poseData[Body25Index.LEFT_SHOULDER]!}
             rigService={rigService}
           />
         )}
@@ -276,13 +330,73 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
             rigService={rigService}
           />
         )}
-        {selectedElement === 'spine' && poseData[Body25Index.MID_HIP] && poseData[Body25Index.NECK] && (
+        {selectedElement === 'leg_r' &&
+          poseData[Body25Index.RIGHT_HIP] &&
+          poseData[Body25Index.RIGHT_KNEE] &&
+          poseData[Body25Index.RIGHT_ANKLE] && (
+          <LegController
+            side="r"
+            hipPos={poseData[Body25Index.RIGHT_HIP]!}
+            kneePos={poseData[Body25Index.RIGHT_KNEE]!}
+            anklePos={poseData[Body25Index.RIGHT_ANKLE]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'leg_l' &&
+          poseData[Body25Index.LEFT_HIP] &&
+          poseData[Body25Index.LEFT_KNEE] &&
+          poseData[Body25Index.LEFT_ANKLE] && (
+          <LegController
+            side="l"
+            hipPos={poseData[Body25Index.LEFT_HIP]!}
+            kneePos={poseData[Body25Index.LEFT_KNEE]!}
+            anklePos={poseData[Body25Index.LEFT_ANKLE]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'foot_r' &&
+          poseData[Body25Index.RIGHT_ANKLE] &&
+          poseData[Body25Index.RIGHT_BIG_TOE] &&
+          poseData[Body25Index.RIGHT_SMALL_TOE] &&
+          poseData[Body25Index.RIGHT_HEEL] && (
+          <FootController
+            side="r"
+            anklePos={poseData[Body25Index.RIGHT_ANKLE]!}
+            bigToePos={poseData[Body25Index.RIGHT_BIG_TOE]!}
+            smallToePos={poseData[Body25Index.RIGHT_SMALL_TOE]!}
+            heelPos={poseData[Body25Index.RIGHT_HEEL]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'foot_l' &&
+          poseData[Body25Index.LEFT_ANKLE] &&
+          poseData[Body25Index.LEFT_BIG_TOE] &&
+          poseData[Body25Index.LEFT_SMALL_TOE] &&
+          poseData[Body25Index.LEFT_HEEL] && (
+          <FootController
+            side="l"
+            anklePos={poseData[Body25Index.LEFT_ANKLE]!}
+            bigToePos={poseData[Body25Index.LEFT_BIG_TOE]!}
+            smallToePos={poseData[Body25Index.LEFT_SMALL_TOE]!}
+            heelPos={poseData[Body25Index.LEFT_HEEL]!}
+            rigService={rigService}
+          />
+        )}
+        {selectedElement === 'spine' &&
+          poseData[Body25Index.MID_HIP] &&
+          poseData[Body25Index.NECK] &&
+          poseData[Body25Index.RIGHT_SHOULDER] &&
+          poseData[Body25Index.LEFT_SHOULDER] && (
           <SpineController
             spineMiddle={{
               x: (poseData[Body25Index.MID_HIP]!.x + poseData[Body25Index.NECK]!.x) / 2,
               y: (poseData[Body25Index.MID_HIP]!.y + poseData[Body25Index.NECK]!.y) / 2,
               z: (poseData[Body25Index.MID_HIP]!.z + poseData[Body25Index.NECK]!.z) / 2,
             }}
+            midHipPos={poseData[Body25Index.MID_HIP]!}
+            neckPos={poseData[Body25Index.NECK]!}
+            rightShoulderPos={poseData[Body25Index.RIGHT_SHOULDER]!}
+            leftShoulderPos={poseData[Body25Index.LEFT_SHOULDER]!}
             rigService={rigService}
           />
         )}

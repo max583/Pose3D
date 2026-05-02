@@ -9,7 +9,7 @@ import { useThree } from '@react-three/fiber';
 
 export interface GizmoDragHandlers {
   /** Назначить на onPointerDown меша-гизмо. */
-  handlePointerDown: (e: { clientX: number; clientY: number; stopPropagation: () => void }) => void;
+  handlePointerDown: (e: { button?: number; clientX: number; clientY: number; stopPropagation: () => void }) => void;
 }
 
 /**
@@ -35,7 +35,9 @@ export function useGizmoDrag(
   // moveHandler и upHandler создаются заново при каждом pointerDown,
   // чтобы capture-closure захватила актуальные onDrag/onDragEnd
   const handlePointerDown = useCallback(
-    (e: { clientX: number; clientY: number; stopPropagation: () => void }) => {
+    (e: { button?: number; clientX: number; clientY: number; stopPropagation: () => void }) => {
+      if (e.button !== undefined && e.button !== 0) return;
+
       e.stopPropagation();
 
       stateRef.current = { x: e.clientX, y: e.clientY, active: true };

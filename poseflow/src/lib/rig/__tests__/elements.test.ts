@@ -21,6 +21,14 @@ describe('JOINT_TO_ELEMENT', () => {
     expect(getElementForJoint(Body25Index.NECK)).toBe('spine');
   });
 
+  it('RIGHT_SHOULDER → shoulder_r', () => {
+    expect(getElementForJoint(Body25Index.RIGHT_SHOULDER)).toBe('shoulder_r');
+  });
+
+  it('LEFT_SHOULDER → shoulder_l', () => {
+    expect(getElementForJoint(Body25Index.LEFT_SHOULDER)).toBe('shoulder_l');
+  });
+
   it('RIGHT_ELBOW → arm_r', () => {
     expect(getElementForJoint(Body25Index.RIGHT_ELBOW)).toBe('arm_r');
   });
@@ -58,7 +66,7 @@ describe('ELEMENT_TO_JOINTS', () => {
     for (const el of ALL_ELEMENTS) {
       total += getJointsForElement(el).length;
     }
-    // 25 суставов = 3(pelvis)+3(spine)+1(neck)+4(head)+2(arm_r)+2(arm_l)+0(hand_r)+0(hand_l)+2(leg_r)+2(leg_l)+3(foot_r)+3(foot_l)
+    // 25 суставов = 3(pelvis)+1(spine)+1(neck)+4(head)+1(shoulder_r)+1(shoulder_l)+2(arm_r)+2(arm_l)+0(hand_r)+0(hand_l)+2(leg_r)+2(leg_l)+3(foot_r)+3(foot_l)
     expect(total).toBe(25);
   });
 });

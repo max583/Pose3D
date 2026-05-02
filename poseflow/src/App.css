@@ -59,3 +59,21 @@
   position: relative;
   background: var(--bg-primary);
 }
+
+.sidebar-restore {
+  width: 28px;
+  flex: 0 0 28px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: background 0.2s, color 0.2s;
+}
+
+.sidebar-restore:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}

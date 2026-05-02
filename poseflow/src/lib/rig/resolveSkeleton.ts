@@ -82,11 +82,20 @@ export function resolveSkeleton(rig: SkeletonRig): {
 
   // --- Голова: поворот жёсткого блока {NOSE, глаза, уши} вокруг NECK ---
   // noseOffset = вектор от NECK до NOSE после шейной цепочки
-  const noseOffset = nosePosFromChain.clone().sub(neckPos);
-  noseOffset.applyQuaternion(rig.headRotation);
-  const nosePos = neckPos.clone().add(noseOffset);
+  const headPivot = neckSegPositions[0] ?? neckPos;
+  const headPivotRot = neckRot.clone();
+  if (rig.neck.rotations[0]) {
+    headPivotRot.multiply(rig.neck.rotations[0]);
+  }
+  const headWorldRotation = headPivotRot
+    .clone()
+    .multiply(rig.headRotation)
+    .multiply(headPivotRot.clone().invert());
+  const noseOffset = nosePosFromChain.clone().sub(headPivot);
+  noseOffset.applyQuaternion(headWorldRotation);
+  const nosePos = headPivot.clone().add(noseOffset);
   // Накопленный поворот для NOSE = конец шейной цепочки × поворот головы
-  const headOri = noseRot.clone().multiply(rig.headRotation);
+  const headOri = headWorldRotation.clone().multiply(noseRot);
 
   // Обновляем последний сегмент шейной дуги, чтобы она заканчивалась в правильном NOSE
   neckSegPositions[neckSegPositions.length - 1] = nosePos.clone();
@@ -136,9 +145,10 @@ export function resolveSkeleton(rig: SkeletonRig): {
 
     // Локальный поворот этого сустава (если есть)
     const localRot = rig.localRotations.get(joint) ?? new Quaternion();
+    const footRot = getFootRotationForJoint(rig, parentIdx, joint);
 
     // Накопленный мировой поворот: parentRot * localRot
-    const accRot = parentRot.clone().multiply(localRot);
+    const accRot = parentRot.clone().multiply(footRot).multiply(localRot);
     accRotations.set(joint, accRot);
 
     // Мировая позиция: parentPos + accRot * localOffset
@@ -179,4 +189,34 @@ export function resolveSkeletonPose(rig: SkeletonRig): PoseData {
 
 function vec3ToJoint(v: Vector3): JointPosition {
   return { x: v.x, y: v.y, z: v.z };
+}
+
+function getFootRotationForJoint(
+  rig: SkeletonRig,
+  parent: Body25Index,
+  joint: Body25Index,
+): Quaternion {
+  if (
+    parent === Body25Index.RIGHT_ANKLE &&
+    (
+      joint === Body25Index.RIGHT_BIG_TOE ||
+      joint === Body25Index.RIGHT_SMALL_TOE ||
+      joint === Body25Index.RIGHT_HEEL
+    )
+  ) {
+    return rig.footRotations.r;
+  }
+
+  if (
+    parent === Body25Index.LEFT_ANKLE &&
+    (
+      joint === Body25Index.LEFT_BIG_TOE ||
+      joint === Body25Index.LEFT_SMALL_TOE ||
+      joint === Body25Index.LEFT_HEEL
+    )
+  ) {
+    return rig.footRotations.l;
+  }
+
+  return new Quaternion();
 }
