@@ -19,6 +19,7 @@ npm run smoke:browser:headed
 ```
 
 The Playwright config starts or reuses Vite at `http://127.0.0.1:5173`.
+It uses `npm run dev:web`, which sets `POSEFLOW_WEB_ONLY=1`; this disables Vite Electron plugins so browser tests do not start Electron or the Python backend on port `8000`.
 
 The smoke opens the viewport at `/?focus=1`. Focus mode hides app panels and keeps the canvas clean for automated gestures. F11 toggles the same mode in manual testing.
 
@@ -33,6 +34,14 @@ The smoke opens the viewport at `/?focus=1`. Focus mode hides app panels and kee
 - mouse wheel zoom changes the canvas;
 - right-button drag changes the canvas, covering camera orbit;
 - middle-button drag changes the canvas, covering camera pan.
+
+`e2e/poseflow-gizmo-regression.spec.ts` verifies:
+
+- normal-mode joint selection shows the expected overlay;
+- F11 focus mode keeps in-scene gizmos available;
+- FootController right-foot gizmo accepts left-button drag;
+- PelvisController root gizmo accepts left-button drag;
+- Ctrl+Z after each drag changes the canvas again, confirming undo is wired to the drag.
 
 Artifacts are written under Playwright `test-results/` and ignored by Git.
 
@@ -68,7 +77,7 @@ Use `button: 'middle'` for camera pan.
 
 ## Next Extension
 
-For full gizmo regression checks, add focused specs that:
+For broader gizmo regression checks, extend focused specs that:
 
 - use camera preset buttons or known camera state first;
 - select one joint/gizmo;

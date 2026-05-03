@@ -4,6 +4,7 @@ import { RigService } from '../../services/RigService';
 import { useAngularGizmoDrag } from '../../hooks/useAngularGizmoDrag';
 import { useGizmoDrag } from '../../hooks/useGizmoDrag';
 import { screenDragAlongWorldDirection } from '../../lib/rig/coordinateFrames';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 const RING_OUTER = 0.16;
 const RING_TUBE = 0.006;
@@ -35,10 +36,18 @@ interface HeadControllerProps {
   rigService: RigService;
 }
 
-function YawRing({ rigService }: { rigService: RigService }) {
+function YawRing({
+  rigService,
+  dragSensitivity,
+  hitZoneScale,
+}: {
+  rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
+}) {
   const { groupRef, handlePointerDown } = useAngularGizmoDrag(
     () => rigService.beginDrag(),
-    (delta) => rigService.applyHeadYaw(-delta),
+    (delta) => rigService.applyHeadYaw(-delta * dragSensitivity),
   );
 
   return (
@@ -48,7 +57,7 @@ function YawRing({ rigService }: { rigService: RigService }) {
         <meshBasicMaterial color="#aa44ff" depthTest={false} />
       </mesh>
       <mesh onPointerDown={handlePointerDown}>
-        <torusGeometry args={[RING_OUTER, HIT_TUBE, 8, 64]} />
+        <torusGeometry args={[RING_OUTER, HIT_TUBE * hitZoneScale, 8, 64]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -112,11 +121,15 @@ function PitchArcs({
   pivot,
   orientation,
   rigService,
+  dragSensitivity,
+  hitZoneScale,
 }: {
   radius: number;
   pivot: Vector3;
   orientation: Quaternion;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }) {
   const { camera, gl } = useThree();
   const getProjectedDrag = (dx: number, dy: number, direction: Vector3) => {
@@ -141,10 +154,10 @@ function PitchArcs({
         sweep={-ARC_ANGLE}
         onDrag={(dx, dy) => {
           const drag = getProjectedDrag(dx, dy, negativePitchDirection);
-          rigService.applyHeadPitch(-drag * PITCH_SENS);
+          rigService.applyHeadPitch(-drag * PITCH_SENS * dragSensitivity);
         }}
         rigService={rigService}
-        hitTube={PITCH_ARC_HIT_TUBE}
+        hitTube={PITCH_ARC_HIT_TUBE * hitZoneScale}
       />
       <BendArcArrow
         radius={radius}
@@ -152,10 +165,10 @@ function PitchArcs({
         sweep={ARC_ANGLE}
         onDrag={(dx, dy) => {
           const drag = getProjectedDrag(dx, dy, positivePitchDirection);
-          rigService.applyHeadPitch(drag * PITCH_SENS);
+          rigService.applyHeadPitch(drag * PITCH_SENS * dragSensitivity);
         }}
         rigService={rigService}
-        hitTube={PITCH_ARC_HIT_TUBE}
+        hitTube={PITCH_ARC_HIT_TUBE * hitZoneScale}
       />
     </group>
   );
@@ -166,11 +179,15 @@ function RollArcs({
   pivot,
   orientation,
   rigService,
+  dragSensitivity,
+  hitZoneScale,
 }: {
   radius: number;
   pivot: Vector3;
   orientation: Quaternion;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }) {
   const { camera, gl } = useThree();
   const getProjectedDrag = (dx: number, dy: number, direction: Vector3) => {
@@ -195,9 +212,10 @@ function RollArcs({
         sweep={-ARC_ANGLE}
         onDrag={(dx, dy) => {
           const drag = getProjectedDrag(dx, dy, negativeRollDirection);
-          rigService.applyHeadRoll(-drag * BEND_SENS);
+          rigService.applyHeadRoll(-drag * BEND_SENS * dragSensitivity);
         }}
         rigService={rigService}
+        hitTube={ARC_HIT_TUBE * hitZoneScale}
       />
       <BendArcArrow
         radius={radius}
@@ -205,9 +223,10 @@ function RollArcs({
         sweep={ARC_ANGLE}
         onDrag={(dx, dy) => {
           const drag = getProjectedDrag(dx, dy, positiveRollDirection);
-          rigService.applyHeadRoll(drag * BEND_SENS);
+          rigService.applyHeadRoll(drag * BEND_SENS * dragSensitivity);
         }}
         rigService={rigService}
+        hitTube={ARC_HIT_TUBE * hitZoneScale}
       />
     </group>
   );
@@ -224,6 +243,7 @@ function HeadBendArcs({
   leftEarPos,
   rigService,
 }: HeadControllerProps) {
+  const { settings } = useAppSettings();
   const pivot = toVector(neckPivot);
   const nose = toVector(nosePos);
   const basis = getHeadGizmoBasis(
@@ -257,12 +277,16 @@ function HeadBendArcs({
         pivot={pivot}
         orientation={basis.quaternion}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
       <RollArcs
         radius={radius}
         pivot={pivot}
         orientation={basis.quaternion}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
     </group>
   );
@@ -279,6 +303,7 @@ export function HeadController({
   leftEarPos,
   rigService,
 }: HeadControllerProps) {
+  const { settings } = useAppSettings();
   const basis = getHeadGizmoBasis(
     nosePos,
     neckPivot,
@@ -296,7 +321,11 @@ export function HeadController({
         position={[nosePos.x, nosePos.y, nosePos.z]}
         quaternion={[basis.quaternion.x, basis.quaternion.y, basis.quaternion.z, basis.quaternion.w]}
       >
-        <YawRing rigService={rigService} />
+        <YawRing
+          rigService={rigService}
+          dragSensitivity={settings.gizmoDragSensitivity}
+          hitZoneScale={settings.gizmoHitZoneScale}
+        />
       </group>
       <HeadBendArcs
         nosePos={nosePos}

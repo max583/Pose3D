@@ -9,16 +9,23 @@ const __dirname = path.dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
 let pythonProcess: ChildProcess | null = null;
+let isStoppingPython = false;
 
 // Запуск Python backend
 function startPythonBackend() {
+  if (pythonProcess) {
+    pythonLogger.warn('Python backend is already starting or running');
+    return;
+  }
+
   const pythonPath = process.platform === 'win32' ? 'python' : 'python3';
 
   pythonLogger.info('Starting Python backend...');
 
   pythonProcess = spawn(pythonPath, ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'], {
     cwd: path.join(__dirname, '..', 'backend'),
-    shell: true,
+    shell: false,
+    windowsHide: true,
   });
 
   pythonProcess.stdout?.on('data', (data) => {
@@ -31,17 +38,21 @@ function startPythonBackend() {
 
   pythonProcess.on('close', (code) => {
     pythonLogger.warn(`Python backend exited with code ${code}`);
+    pythonProcess = null;
+    isStoppingPython = false;
   });
 }
 
 // Остановка Python backend
 function stopPythonBackend() {
-  if (pythonProcess) {
-    pythonLogger.info('Stopping Python backend...');
-    pythonProcess.kill();
-    pythonProcess = null;
-    pythonLogger.info('Python backend stopped');
+  if (!pythonProcess || isStoppingPython) {
+    return;
   }
+
+  pythonLogger.info('Stopping Python backend...');
+  isStoppingPython = true;
+  pythonProcess.kill();
+  pythonLogger.info('Python backend stop signal sent');
 }
 
 function createWindow() {

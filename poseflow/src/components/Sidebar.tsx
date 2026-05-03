@@ -7,11 +7,13 @@ import './Sidebar.css';
 
 interface SidebarProps {
   onOpenSettings: () => void;
+  onShowExportFrame: () => void;
   onCollapse: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
+  onShowExportFrame,
   onCollapse,
 }) => {
   const { settings } = useAppSettings();
@@ -71,6 +73,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={onOpenSettings}
         >
           ⚙ Настройки
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-export-frame"
+          onClick={onShowExportFrame}
+        >
+          📐 Export Frame
         </button>
       </div>
 

@@ -4,6 +4,7 @@ import { Matrix4, Quaternion, Vector3 } from 'three';
 import { RigService } from '../../services/RigService';
 import { useAngularGizmoDrag } from '../../hooks/useAngularGizmoDrag';
 import { useCameraPlaneWorldDrag } from '../../hooks/useCameraPlaneWorldDrag';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 const ANKLE_SPHERE_R = 0.045;
 const ARC_TUBE = 0.006;
@@ -16,6 +17,8 @@ interface AnkleHandleProps {
   anklePos: { x: number; y: number; z: number };
   side: 'r' | 'l';
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
 interface KneeTwistArcProps {
@@ -24,9 +27,19 @@ interface KneeTwistArcProps {
   anklePos: { x: number; y: number; z: number };
   side: 'r' | 'l';
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
-function KneeTwistArc({ hipPos, kneePos, anklePos, side, rigService }: KneeTwistArcProps) {
+function KneeTwistArc({
+  hipPos,
+  kneePos,
+  anklePos,
+  side,
+  rigService,
+  dragSensitivity,
+  hitZoneScale,
+}: KneeTwistArcProps) {
   const { camera } = useThree();
   const arcParams = useMemo(() => {
     const hip = new Vector3(hipPos.x, hipPos.y, hipPos.z);
@@ -61,7 +74,7 @@ function KneeTwistArc({ hipPos, kneePos, anklePos, side, rigService }: KneeTwist
 
   const { groupRef, handlePointerDown } = useAngularGizmoDrag(
     () => rigService.beginDrag(),
-    (delta) => rigService.applyKneeTwist(side, -delta * getViewSign()),
+    (delta) => rigService.applyKneeTwist(side, -delta * getViewSign() * dragSensitivity),
   );
 
   if (!arcParams) return null;
@@ -103,14 +116,20 @@ function KneeTwistArc({ hipPos, kneePos, anklePos, side, rigService }: KneeTwist
       </mesh>
 
       <mesh onPointerDown={handlePointerDown}>
-        <torusGeometry args={[radius, ARC_HIT_TUBE, 8, 32]} />
+        <torusGeometry args={[radius, ARC_HIT_TUBE * hitZoneScale, 8, 32]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
   );
 }
 
-function AnkleHandle({ anklePos, side, rigService }: AnkleHandleProps) {
+function AnkleHandle({
+  anklePos,
+  side,
+  rigService,
+  dragSensitivity,
+  hitZoneScale,
+}: AnkleHandleProps) {
   const getCurrentPos = useCallback(
     () => new Vector3(anklePos.x, anklePos.y, anklePos.z),
     [anklePos.x, anklePos.y, anklePos.z],
@@ -120,16 +139,21 @@ function AnkleHandle({ anklePos, side, rigService }: AnkleHandleProps) {
     getCurrentPos,
     () => rigService.beginDrag(),
     (newPos) => rigService.applyLegIK(side, newPos.x, newPos.y, newPos.z),
+    undefined,
+    dragSensitivity,
   );
 
   return (
-    <mesh
-      position={[anklePos.x, anklePos.y, anklePos.z]}
-      onPointerDown={handlePointerDown}
-    >
-      <sphereGeometry args={[ANKLE_SPHERE_R, 12, 12]} />
-      <meshBasicMaterial color={COLOR_LEG} depthTest={false} />
-    </mesh>
+    <group position={[anklePos.x, anklePos.y, anklePos.z]}>
+      <mesh>
+        <sphereGeometry args={[ANKLE_SPHERE_R, 12, 12]} />
+        <meshBasicMaterial color={COLOR_LEG} depthTest={false} />
+      </mesh>
+      <mesh onPointerDown={handlePointerDown}>
+        <sphereGeometry args={[ANKLE_SPHERE_R * hitZoneScale, 12, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthTest={false} />
+      </mesh>
+    </group>
   );
 }
 
@@ -148,12 +172,15 @@ export function LegController({
   anklePos,
   rigService,
 }: LegControllerProps) {
+  const { settings } = useAppSettings();
   return (
     <>
       <AnkleHandle
         anklePos={anklePos}
         side={side}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
       <KneeTwistArc
         hipPos={hipPos}
@@ -161,6 +188,8 @@ export function LegController({
         anklePos={anklePos}
         side={side}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
     </>
   );

@@ -35,6 +35,10 @@ export interface AppSettings {
   confirmOnResetPose: boolean;
   /** Размер контроллеров (радиус сферы) */
   controllerSize: number;
+  /** Shared multiplier for gizmo mouse drag response. */
+  gizmoDragSensitivity: number;
+  /** Shared multiplier for invisible gizmo hit zones. */
+  gizmoHitZoneScale: number;
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -51,6 +55,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   defaultExportAspect: '1:1',
   confirmOnResetPose: false,
   controllerSize: 0.08,
+  gizmoDragSensitivity: 1,
+  gizmoHitZoneScale: 1,
 };
 
 const STORAGE_KEY = 'poseflow-app-settings-v1';
@@ -124,6 +130,20 @@ export function loadAppSettings(): AppSettings {
         }
         return clamp(rawSize, 0.04, 0.5);
       })(),
+      gizmoDragSensitivity: clamp(
+        Number.isFinite(parsed.gizmoDragSensitivity as number)
+          ? (parsed.gizmoDragSensitivity as number)
+          : DEFAULT_APP_SETTINGS.gizmoDragSensitivity,
+        0.25,
+        2,
+      ),
+      gizmoHitZoneScale: clamp(
+        Number.isFinite(parsed.gizmoHitZoneScale as number)
+          ? (parsed.gizmoHitZoneScale as number)
+          : DEFAULT_APP_SETTINGS.gizmoHitZoneScale,
+        0.5,
+        2,
+      ),
     };
     
     console.log('loadAppSettings: final controllerSize =', result.controllerSize);

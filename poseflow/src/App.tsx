@@ -21,6 +21,7 @@ const AppContent: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return window.localStorage.getItem('poseflow-sidebar-collapsed') === 'true';
   });
+  const [exportFrameRequestId, setExportFrameRequestId] = useState(0);
   
   const poseService = usePoseService();
   const exportService = useExportService();
@@ -85,6 +86,7 @@ const AppContent: React.FC = () => {
         {!focusMode && !sidebarCollapsed && (
           <Sidebar
             onOpenSettings={() => setSettingsOpen(true)}
+            onShowExportFrame={() => setExportFrameRequestId((id) => id + 1)}
             onCollapse={() => setSidebarCollapsed(true)}
           />
         )}
@@ -102,6 +104,7 @@ const AppContent: React.FC = () => {
         <main className="app-main">
           <Canvas3D
             focusMode={focusMode}
+            exportFrameRequestId={exportFrameRequestId}
             onExportFrame={handleExportFrame}
           />
         </main>

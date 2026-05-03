@@ -71,4 +71,16 @@ describe('appSettings', () => {
     expect(s.cameraAnimationMs).toBe(200);
     expect(s.orbitRotateSpeed).toBe(2);
   });
+
+  it('clamps unified gizmo sensitivity settings', () => {
+    store['poseflow-app-settings-v1'] = JSON.stringify({
+      gizmoDragSensitivity: 99,
+      gizmoHitZoneScale: 0.1,
+    });
+
+    const s = loadAppSettings();
+
+    expect(s.gizmoDragSensitivity).toBe(2);
+    expect(s.gizmoHitZoneScale).toBe(0.5);
+  });
 });

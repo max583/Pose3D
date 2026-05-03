@@ -4,6 +4,7 @@ import { Group, Matrix4, Quaternion, Vector2, Vector3 } from 'three';
 import { RigService } from '../../services/RigService';
 import { useGizmoDrag } from '../../hooks/useGizmoDrag';
 import { screenDragAlongWorldDirection } from '../../lib/rig/coordinateFrames';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 const COLOR_FOOT = '#00ccff';
 const ARC_R = 0.115;
@@ -38,6 +39,8 @@ interface FootRollRingProps {
   toeCenterWorld: Vector3;
   heelWorld: Vector3;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
 interface FootPitchArrowsProps {
@@ -46,6 +49,8 @@ interface FootPitchArrowsProps {
   positionWorld: Vector3;
   quaternion: Quaternion;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
 interface FootYawToeArrowsProps {
@@ -55,6 +60,8 @@ interface FootYawToeArrowsProps {
   toeCenterWorld: Vector3;
   quaternion: Quaternion;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
 function FootRollRing({
@@ -64,6 +71,8 @@ function FootRollRing({
   toeCenterWorld,
   heelWorld,
   rigService,
+  dragSensitivity,
+  hitZoneScale,
 }: FootRollRingProps) {
   const { camera, controls, gl } = useThree();
   const groupRef = useRef<Group>(null);
@@ -105,7 +114,7 @@ function FootRollRing({
         prevAngle = nextAngle;
 
         if (delta !== 0) {
-          rigService.applyFootRotation(side, 'roll', delta * getViewSign());
+          rigService.applyFootRotation(side, 'roll', delta * getViewSign() * dragSensitivity);
         }
       };
 
@@ -118,7 +127,7 @@ function FootRollRing({
       window.addEventListener('pointermove', moveHandler);
       window.addEventListener('pointerup', upHandler);
     },
-    [camera, controls, getViewSign, gl, rigService, side],
+    [camera, controls, dragSensitivity, getViewSign, gl, rigService, side],
   );
 
   return (
@@ -133,7 +142,7 @@ function FootRollRing({
       </mesh>
 
       <mesh onPointerDown={handlePointerDown}>
-        <torusGeometry args={[ARC_R, ARC_HIT_TUBE, 8, 56]} />
+        <torusGeometry args={[ARC_R, ARC_HIT_TUBE * hitZoneScale, 8, 56]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -147,6 +156,8 @@ function FootYawToeArrows({
   toeCenterWorld,
   quaternion,
   rigService,
+  dragSensitivity,
+  hitZoneScale,
 }: FootYawToeArrowsProps) {
   const { camera, gl } = useThree();
 
@@ -166,7 +177,7 @@ function FootYawToeArrows({
     (dx, dy) => rigService.applyFootRotation(
       side,
       'yaw',
-      getProjectedDrag(dx, dy) * ROT_SENS * (side === 'r' ? -1 : 1),
+      getProjectedDrag(dx, dy) * ROT_SENS * dragSensitivity * (side === 'r' ? -1 : 1),
     ),
   );
 
@@ -179,6 +190,7 @@ function FootYawToeArrows({
         position={bigToePosition}
         direction="inner"
         onPointerDown={handlePointerDown}
+        hitZoneScale={hitZoneScale}
       />
       <mesh position={bridgeCenter.toArray() as [number, number, number]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[TOE_BRIDGE_R, TOE_BRIDGE_R, bridgeLength, 8]} />
@@ -188,6 +200,7 @@ function FootYawToeArrows({
         position={smallToePosition}
         direction="outer"
         onPointerDown={handlePointerDown}
+        hitZoneScale={hitZoneScale}
       />
     </group>
   );
@@ -197,10 +210,12 @@ function YawToeArrow({
   position,
   direction,
   onPointerDown,
+  hitZoneScale,
 }: {
   position: Vector3;
   direction: 'inner' | 'outer';
   onPointerDown: (e: { button?: number; clientX: number; clientY: number; stopPropagation: () => void }) => void;
+  hitZoneScale: number;
 }) {
   const shaftLength = YAW_ARROW_LENGTH - CONE_H;
   const rotation: [number, number, number] = direction === 'outer'
@@ -223,7 +238,7 @@ function YawToeArrow({
         position={[0, YAW_ARROW_LENGTH / 2, 0]}
         onPointerDown={onPointerDown}
       >
-        <cylinderGeometry args={[YAW_HIT_R, YAW_HIT_R, YAW_ARROW_LENGTH, 8]} />
+        <cylinderGeometry args={[YAW_HIT_R * hitZoneScale, YAW_HIT_R * hitZoneScale, YAW_ARROW_LENGTH, 8]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -236,6 +251,8 @@ function FootPitchArrows({
   positionWorld,
   quaternion,
   rigService,
+  dragSensitivity,
+  hitZoneScale,
 }: FootPitchArrowsProps) {
   const { camera, gl } = useThree();
   const getProjectedDrag = (dx: number, dy: number) => {
@@ -253,14 +270,18 @@ function FootPitchArrows({
     () => rigService.beginDrag(),
     (dx, dy) => {
       const sideSign = side === 'l' ? -1 : 1;
-      rigService.applyFootRotation(side, 'pitch', getProjectedDrag(dx, dy) * ROT_SENS * sideSign);
+      rigService.applyFootRotation(
+        side,
+        'pitch',
+        getProjectedDrag(dx, dy) * ROT_SENS * dragSensitivity * sideSign,
+      );
     },
   );
 
   return (
     <group position={position.toArray() as [number, number, number]}>
-      <PitchArrow direction="up" onPointerDown={handlePointerDown} />
-      <PitchArrow direction="down" onPointerDown={handlePointerDown} />
+      <PitchArrow direction="up" onPointerDown={handlePointerDown} hitZoneScale={hitZoneScale} />
+      <PitchArrow direction="down" onPointerDown={handlePointerDown} hitZoneScale={hitZoneScale} />
     </group>
   );
 }
@@ -268,9 +289,11 @@ function FootPitchArrows({
 function PitchArrow({
   direction,
   onPointerDown,
+  hitZoneScale,
 }: {
   direction: 'up' | 'down';
   onPointerDown: (e: { button?: number; clientX: number; clientY: number; stopPropagation: () => void }) => void;
+  hitZoneScale: number;
 }) {
   const shaftLength = PITCH_ARROW_LENGTH - CONE_H;
   const rotation: [number, number, number] = direction === 'up'
@@ -293,7 +316,7 @@ function PitchArrow({
         position={[0, PITCH_ARROW_LENGTH / 2, 0]}
         onPointerDown={onPointerDown}
       >
-        <cylinderGeometry args={[PITCH_HIT_R, PITCH_HIT_R, PITCH_ARROW_LENGTH, 8]} />
+        <cylinderGeometry args={[PITCH_HIT_R * hitZoneScale, PITCH_HIT_R * hitZoneScale, PITCH_ARROW_LENGTH, 8]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -308,6 +331,7 @@ export function FootController({
   heelPos,
   rigService,
 }: FootControllerProps) {
+  const { settings } = useAppSettings();
   const basis = useMemo(() => {
     const ankle = toVec(anklePos);
     const toeCenterWorld = toVec(bigToePos).add(toVec(smallToePos)).multiplyScalar(0.5);
@@ -375,6 +399,8 @@ export function FootController({
         positionWorld={basis.toeCenterWorld}
         quaternion={basis.quat}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
       <FootYawToeArrows
         side={side}
@@ -383,6 +409,8 @@ export function FootController({
         toeCenterWorld={basis.toeCenterWorld}
         quaternion={basis.quat}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
       <FootRollRing
         side={side}
@@ -391,6 +419,8 @@ export function FootController({
         toeCenterWorld={basis.toeCenterWorld}
         heelWorld={basis.heelWorld}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
     </group>
   );

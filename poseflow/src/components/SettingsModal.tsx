@@ -272,6 +272,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                 </span>
               </div>
             </div>
+            <div className="settings-row">
+              <label htmlFor="set-gizmo-drag-sensitivity">Чувствительность гизмо</label>
+              <div className="settings-range-wrap">
+                <input
+                  id="set-gizmo-drag-sensitivity"
+                  type="range"
+                  min={25}
+                  max={200}
+                  step={5}
+                  value={Math.round(settings.gizmoDragSensitivity * 100)}
+                  onChange={(e) =>
+                    updateSettings({ gizmoDragSensitivity: Number(e.target.value) / 100 })
+                  }
+                />
+                <span className="settings-range-value">
+                  {settings.gizmoDragSensitivity.toFixed(2)}
+                </span>
+              </div>
+            </div>
+            <div className="settings-row">
+              <label htmlFor="set-gizmo-hit-zone">Хит-зона гизмо</label>
+              <div className="settings-range-wrap">
+                <input
+                  id="set-gizmo-hit-zone"
+                  type="range"
+                  min={50}
+                  max={200}
+                  step={5}
+                  value={Math.round(settings.gizmoHitZoneScale * 100)}
+                  onChange={(e) =>
+                    updateSettings({ gizmoHitZoneScale: Number(e.target.value) / 100 })
+                  }
+                />
+                <span className="settings-range-value">
+                  {settings.gizmoHitZoneScale.toFixed(2)}
+                </span>
+              </div>
+            </div>
           </section>
 
           <section className="settings-section">

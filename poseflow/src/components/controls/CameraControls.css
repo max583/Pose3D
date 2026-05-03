@@ -10,14 +10,55 @@
   z-index: 100;
 }
 
+.camera-controls-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .camera-controls-title {
+  flex: 1;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 8px;
   text-align: center;
+}
+
+.camera-controls-collapse,
+.camera-controls-restore {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.camera-controls-collapse:hover,
+.camera-controls-restore:hover {
+  background: #4d4d4d;
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.camera-controls-restore {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
 }
 
 /* Compass grid layout - вид сверху */

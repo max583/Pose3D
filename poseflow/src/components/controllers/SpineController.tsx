@@ -7,6 +7,7 @@ import { useAngularGizmoDrag } from '../../hooks/useAngularGizmoDrag';
 import { Matrix4, Quaternion, Vector2, Vector3 } from 'three';
 import { useThree } from '@react-three/fiber';
 import { screenDragAlongWorldDirection } from '../../lib/rig/coordinateFrames';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 const RING_OUTER = 0.38;
 const RING_TUBE = 0.006;
@@ -28,10 +29,14 @@ function TwistRing({
   midHipPos,
   neckPos,
   rigService,
+  dragSensitivity,
+  hitZoneScale,
 }: {
   midHipPos: Point3;
   neckPos: Point3;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }) {
   const { camera } = useThree();
   const midHip = toVector(midHipPos);
@@ -48,7 +53,7 @@ function TwistRing({
 
   const { groupRef, handlePointerDown } = useAngularGizmoDrag(
     () => rigService.beginDrag(),
-    (delta) => rigService.applySpineTwist(-delta * getViewSign()),
+    (delta) => rigService.applySpineTwist(-delta * getViewSign() * dragSensitivity),
   );
 
   return (
@@ -58,7 +63,7 @@ function TwistRing({
         <meshBasicMaterial color="#aa44ff" depthTest={false} />
       </mesh>
       <mesh onPointerDown={handlePointerDown}>
-        <torusGeometry args={[RING_OUTER, HIT_TUBE, 8, 64]} />
+        <torusGeometry args={[RING_OUTER, HIT_TUBE * hitZoneScale, 8, 64]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -71,9 +76,10 @@ interface BendArcArrowProps {
   sweep: number;
   onDrag: (dx: number, dy: number) => void;
   rigService: RigService;
+  hitTube: number;
 }
 
-function BendArcArrow({ radius, startAngle, sweep, onDrag, rigService }: BendArcArrowProps) {
+function BendArcArrow({ radius, startAngle, sweep, onDrag, rigService, hitTube }: BendArcArrowProps) {
   const { handlePointerDown } = useGizmoDrag(
     () => rigService.beginDrag(),
     onDrag,
@@ -102,7 +108,7 @@ function BendArcArrow({ radius, startAngle, sweep, onDrag, rigService }: BendArc
           <meshBasicMaterial color={ARROW_COLOR} depthTest={false} />
         </mesh>
         <mesh onPointerDown={handlePointerDown}>
-          <torusGeometry args={[radius, ARC_HIT_TUBE, 8, 32, Math.abs(sweep)]} />
+          <torusGeometry args={[radius, hitTube, 8, 32, Math.abs(sweep)]} />
           <meshBasicMaterial transparent opacity={0} depthTest={false} />
         </mesh>
       </group>
@@ -121,12 +127,16 @@ function ForwardBendArrows({
   orientationQuat,
   arcRadius,
   rigService,
+  dragSensitivity,
+  hitZoneScale,
 }: {
   neckPos: Point3;
   orientation: [number, number, number, number];
   orientationQuat: Quaternion;
   arcRadius: number;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }) {
   const { camera, gl } = useThree();
   const pos: [number, number, number] = [neckPos.x, neckPos.y, neckPos.z];
@@ -154,9 +164,10 @@ function ForwardBendArrows({
           sweep={-arcAngle}
           onDrag={(dx, dy) => {
             const drag = getProjectedDrag(dx, dy, negativeBendDirection);
-            rigService.applySpineBend(drag * BEND_SENS, 0);
+            rigService.applySpineBend(drag * BEND_SENS * dragSensitivity, 0);
           }}
           rigService={rigService}
+          hitTube={ARC_HIT_TUBE * hitZoneScale}
         />
         <BendArcArrow
           radius={arcRadius}
@@ -164,9 +175,10 @@ function ForwardBendArrows({
           sweep={arcAngle}
           onDrag={(dx, dy) => {
             const drag = getProjectedDrag(dx, dy, positiveBendDirection);
-            rigService.applySpineBend(-drag * BEND_SENS, 0);
+            rigService.applySpineBend(-drag * BEND_SENS * dragSensitivity, 0);
           }}
           rigService={rigService}
+          hitTube={ARC_HIT_TUBE * hitZoneScale}
         />
       </group>
     </group>
@@ -179,12 +191,16 @@ function LateralBendArrows({
   orientationQuat,
   arcRadius,
   rigService,
+  dragSensitivity,
+  hitZoneScale,
 }: {
   neckPos: Point3;
   orientation: [number, number, number, number];
   orientationQuat: Quaternion;
   arcRadius: number;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }) {
   const { camera, gl } = useThree();
   const pos: [number, number, number] = [neckPos.x, neckPos.y, neckPos.z];
@@ -211,9 +227,10 @@ function LateralBendArrows({
         sweep={-arcAngle}
         onDrag={(dx, dy) => {
           const drag = getProjectedDrag(dx, dy, negativeBendDirection);
-          rigService.applySpineBend(0, -drag * BEND_SENS);
+          rigService.applySpineBend(0, -drag * BEND_SENS * dragSensitivity);
         }}
         rigService={rigService}
+        hitTube={ARC_HIT_TUBE * hitZoneScale}
       />
       <BendArcArrow
         radius={arcRadius}
@@ -221,9 +238,10 @@ function LateralBendArrows({
         sweep={arcAngle}
         onDrag={(dx, dy) => {
           const drag = getProjectedDrag(dx, dy, positiveBendDirection);
-          rigService.applySpineBend(0, drag * BEND_SENS);
+          rigService.applySpineBend(0, drag * BEND_SENS * dragSensitivity);
         }}
         rigService={rigService}
+        hitTube={ARC_HIT_TUBE * hitZoneScale}
       />
     </group>
   );
@@ -246,6 +264,7 @@ export function SpineController({
   leftShoulderPos,
   rigService,
 }: SpineControllerProps) {
+  const { settings } = useAppSettings();
   const twistPos: [number, number, number] = [spineMiddle.x, spineMiddle.y, spineMiddle.z];
   const arcRadius = toVector(neckPos).distanceTo(toVector(midHipPos));
   const orientation = getTorsoOrientation(
@@ -268,6 +287,8 @@ export function SpineController({
           midHipPos={midHipPos}
           neckPos={neckPos}
           rigService={rigService}
+          dragSensitivity={settings.gizmoDragSensitivity}
+          hitZoneScale={settings.gizmoHitZoneScale}
         />
       </group>
       <ForwardBendArrows
@@ -276,6 +297,8 @@ export function SpineController({
         orientationQuat={orientation}
         arcRadius={arcRadius}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
       <LateralBendArrows
         neckPos={neckPos}
@@ -283,6 +306,8 @@ export function SpineController({
         orientationQuat={orientation}
         arcRadius={arcRadius}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
     </>
   );

@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { RigService } from '../../services/RigService';
 import { useAngularGizmoDrag } from '../../hooks/useAngularGizmoDrag';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 // ─── Настройки визуала ────────────────────────────────────────────────────────
 
@@ -40,13 +41,22 @@ interface TranslationArrowProps {
   origin: THREE.Vector3;
   rootRotation: THREE.Quaternion;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
 /**
  * Стрелка трансляции для одной оси.
  * Drag: проецирует курсор через плоскость камеры на мировую ось.
  */
-function TranslationArrow({ axis, origin, rootRotation, rigService }: TranslationArrowProps) {
+function TranslationArrow({
+  axis,
+  origin,
+  rootRotation,
+  rigService,
+  dragSensitivity,
+  hitZoneScale,
+}: TranslationArrowProps) {
   const { camera, gl, controls } = useThree();
 
   const localAxisDir = axis === 'x' ? new THREE.Vector3(1, 0, 0)
@@ -101,10 +111,11 @@ function TranslationArrow({ axis, origin, rootRotation, rigService }: Translatio
       if (proj === null) return;
       const delta = proj - prevProj;
       prevProj = proj;
+      const scaledDelta = delta * dragSensitivity;
       rigService.applyPelvisTranslate(
-        delta * axisDir.x,
-        delta * axisDir.y,
-        delta * axisDir.z,
+        scaledDelta * axisDir.x,
+        scaledDelta * axisDir.y,
+        scaledDelta * axisDir.z,
       );
     };
 
@@ -116,7 +127,7 @@ function TranslationArrow({ axis, origin, rootRotation, rigService }: Translatio
 
     window.addEventListener('pointermove', moveHandler);
     window.addEventListener('pointerup', upHandler);
-  }, [axis, origin, camera, gl, controls, rigService, axisDir]);
+  }, [axis, origin, camera, gl, controls, rigService, axisDir, dragSensitivity]);
 
   const color = AXIS_COLOR[axis];
   const shaftLength = ARROW_LENGTH - CONE_H;
@@ -140,7 +151,7 @@ function TranslationArrow({ axis, origin, rootRotation, rigService }: Translatio
         position={[0, ARROW_LENGTH / 2, 0]}
         onPointerDown={handlePointerDown}
       >
-        <cylinderGeometry args={[HIT_R, HIT_R, ARROW_LENGTH, 8]} />
+        <cylinderGeometry args={[HIT_R * hitZoneScale, HIT_R * hitZoneScale, ARROW_LENGTH, 8]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -154,6 +165,8 @@ interface RotationRingProps {
   origin: THREE.Vector3;
   rootRotation: THREE.Quaternion;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
 /**
@@ -165,7 +178,14 @@ interface RotationRingProps {
  *   Y-кольцо: screenDx → yaw
  *   Z-кольцо: screenDx → roll
  */
-function RotationRing({ axis, origin, rootRotation, rigService }: RotationRingProps) {
+function RotationRing({
+  axis,
+  origin,
+  rootRotation,
+  rigService,
+  dragSensitivity,
+  hitZoneScale,
+}: RotationRingProps) {
   // Кольцо лежит в плоскости перпендикулярной оси:
   // X-ось → кольцо в YZ → rotation [0, 0, π/2] (torusGeometry по умолчанию в XY)
   const rotation: [number, number, number] =
@@ -186,7 +206,7 @@ function RotationRing({ axis, origin, rootRotation, rigService }: RotationRingPr
 
   const { groupRef, handlePointerDown } = useAngularGizmoDrag(
     () => rigService.beginDrag(),
-    (delta) => rigService.applyPelvisRotateLocal(axis, -delta * getViewSign()),
+    (delta) => rigService.applyPelvisRotateLocal(axis, -delta * getViewSign() * dragSensitivity),
   );
 
   const color = AXIS_COLOR[axis];
@@ -201,7 +221,7 @@ function RotationRing({ axis, origin, rootRotation, rigService }: RotationRingPr
 
       {/* Невидимая hit-зона */}
       <mesh onPointerDown={handlePointerDown}>
-        <torusGeometry args={[RING_OUTER, RING_HIT_TUBE, 8, 64]} />
+        <torusGeometry args={[RING_OUTER, RING_HIT_TUBE * hitZoneScale, 8, 64]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -222,6 +242,7 @@ interface PelvisControllerProps {
  * Рендерить внутри R3F Canvas когда selectedElement === 'pelvis'.
  */
 export function PelvisController({ rootPos, rootRotation, rigService }: PelvisControllerProps) {
+  const { settings } = useAppSettings();
   const pos: [number, number, number] = [rootPos.x, rootPos.y, rootPos.z];
   const origin = new THREE.Vector3(rootPos.x, rootPos.y, rootPos.z);
   const rotation = new THREE.Quaternion(
@@ -234,14 +255,56 @@ export function PelvisController({ rootPos, rootRotation, rigService }: PelvisCo
   return (
     <group position={pos} quaternion={[rotation.x, rotation.y, rotation.z, rotation.w]}>
       {/* Стрелки трансляции */}
-      <TranslationArrow axis="x" origin={origin} rootRotation={rotation} rigService={rigService} />
-      <TranslationArrow axis="y" origin={origin} rootRotation={rotation} rigService={rigService} />
-      <TranslationArrow axis="z" origin={origin} rootRotation={rotation} rigService={rigService} />
+      <TranslationArrow
+        axis="x"
+        origin={origin}
+        rootRotation={rotation}
+        rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
+      />
+      <TranslationArrow
+        axis="y"
+        origin={origin}
+        rootRotation={rotation}
+        rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
+      />
+      <TranslationArrow
+        axis="z"
+        origin={origin}
+        rootRotation={rotation}
+        rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
+      />
 
       {/* Кольца вращения */}
-      <RotationRing axis="x" origin={origin} rootRotation={rotation} rigService={rigService} />
-      <RotationRing axis="y" origin={origin} rootRotation={rotation} rigService={rigService} />
-      <RotationRing axis="z" origin={origin} rootRotation={rotation} rigService={rigService} />
+      <RotationRing
+        axis="x"
+        origin={origin}
+        rootRotation={rotation}
+        rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
+      />
+      <RotationRing
+        axis="y"
+        origin={origin}
+        rootRotation={rotation}
+        rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
+      />
+      <RotationRing
+        axis="z"
+        origin={origin}
+        rootRotation={rotation}
+        rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
+      />
     </group>
   );
 }

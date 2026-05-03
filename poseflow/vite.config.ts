@@ -4,10 +4,12 @@ import electron from 'vite-plugin-electron';
 import renderer from 'vite-plugin-electron-renderer';
 import path from 'path';
 
+const webOnly = process.env.POSEFLOW_WEB_ONLY === '1';
+
 export default defineConfig({
   plugins: [
     react(),
-    electron([
+    !webOnly && electron([
       {
         // main.ts
         entry: 'electron/main.ts',
@@ -30,7 +32,7 @@ export default defineConfig({
         },
       },
     ]),
-    renderer(),
+    !webOnly && renderer(),
   ],
   resolve: {
     alias: {

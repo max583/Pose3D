@@ -6,6 +6,7 @@ import { useGizmoDrag } from '../../hooks/useGizmoDrag';
 import { useThree } from '@react-three/fiber';
 import { Matrix4, Quaternion, Vector2, Vector3 } from 'three';
 import { screenDragAlongWorldDirection } from '../../lib/rig/coordinateFrames';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 const ARROW_LENGTH = 0.11;
 const ARROW_R = 0.008;
@@ -24,9 +25,19 @@ interface ArrowProps {
   shoulderPos: Point3;
   orientation: Quaternion;
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
-function ShoulderArrow({ side, direction, shoulderPos, orientation, rigService }: ArrowProps) {
+function ShoulderArrow({
+  side,
+  direction,
+  shoulderPos,
+  orientation,
+  rigService,
+  dragSensitivity,
+  hitZoneScale,
+}: ArrowProps) {
   const { camera, gl } = useThree();
   const isRaise = direction === 'up' || direction === 'down';
   const sign = direction === 'down' || direction === 'back' ? -1 : 1;
@@ -43,9 +54,9 @@ function ShoulderArrow({ side, direction, shoulderPos, orientation, rigService }
         { width: rect.width, height: rect.height },
       );
       if (isRaise) {
-        rigService.applyShoulderRaise(side, drag * RAISE_SENS * sign);
+        rigService.applyShoulderRaise(side, drag * RAISE_SENS * sign * dragSensitivity);
       } else {
-        rigService.applyShoulderForward(side, drag * FORWARD_SENS * sign);
+        rigService.applyShoulderForward(side, drag * FORWARD_SENS * sign * dragSensitivity);
       }
     },
   );
@@ -76,7 +87,7 @@ function ShoulderArrow({ side, direction, shoulderPos, orientation, rigService }
       </mesh>
 
       <mesh position={[0, ARROW_LENGTH / 2, 0]} onPointerDown={handlePointerDown}>
-        <cylinderGeometry args={[HIT_R, HIT_R, ARROW_LENGTH, 8]} />
+        <cylinderGeometry args={[HIT_R * hitZoneScale, HIT_R * hitZoneScale, ARROW_LENGTH, 8]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -102,6 +113,7 @@ export function ShoulderController({
   leftShoulderPos,
   rigService,
 }: ShoulderControllerProps) {
+  const { settings } = useAppSettings();
   const pos: [number, number, number] = [shoulderPos.x, shoulderPos.y, shoulderPos.z];
   const orientation = getTorsoOrientation(neckPos, midHipPos, rightShoulderPos, leftShoulderPos);
 
@@ -113,6 +125,8 @@ export function ShoulderController({
         shoulderPos={shoulderPos}
         orientation={orientation}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
       <ShoulderArrow
         side={side}
@@ -120,6 +134,8 @@ export function ShoulderController({
         shoulderPos={shoulderPos}
         orientation={orientation}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
       <ShoulderArrow
         side={side}
@@ -127,6 +143,8 @@ export function ShoulderController({
         shoulderPos={shoulderPos}
         orientation={orientation}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
       <ShoulderArrow
         side={side}
@@ -134,6 +152,8 @@ export function ShoulderController({
         shoulderPos={shoulderPos}
         orientation={orientation}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
     </group>
   );

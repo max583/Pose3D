@@ -163,6 +163,10 @@
   font-weight: 500;
 }
 
+.btn-export-frame {
+  font-weight: 500;
+}
+
 .btn-row {
   display: flex;
   gap: 8px;

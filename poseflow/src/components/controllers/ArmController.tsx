@@ -11,6 +11,7 @@ import { useThree } from '@react-three/fiber';
 import { RigService } from '../../services/RigService';
 import { useAngularGizmoDrag } from '../../hooks/useAngularGizmoDrag';
 import { useCameraPlaneWorldDrag } from '../../hooks/useCameraPlaneWorldDrag';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 // ─── Константы визуала ────────────────────────────────────────────────────────
 
@@ -27,9 +28,17 @@ interface WristHandleProps {
   wristPos:   { x: number; y: number; z: number };
   side:       'r' | 'l';
   rigService: RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
-function WristHandle({ wristPos, side, rigService }: WristHandleProps) {
+function WristHandle({
+  wristPos,
+  side,
+  rigService,
+  dragSensitivity,
+  hitZoneScale,
+}: WristHandleProps) {
   // getCurrentPos вызывается ОДИН раз при drag-start → создать плоскость камеры
   const getCurrentPos = useCallback(
     () => new Vector3(wristPos.x, wristPos.y, wristPos.z),
@@ -40,16 +49,21 @@ function WristHandle({ wristPos, side, rigService }: WristHandleProps) {
     getCurrentPos,
     () => rigService.beginDrag(),
     (newPos) => rigService.applyArmIK(side, newPos.x, newPos.y, newPos.z),
+    undefined,
+    dragSensitivity,
   );
 
   return (
-    <mesh
-      position={[wristPos.x, wristPos.y, wristPos.z]}
-      onPointerDown={handlePointerDown}
-    >
-      <sphereGeometry args={[WRIST_SPHERE_R, 12, 12]} />
-      <meshBasicMaterial color={COLOR_ARM} depthTest={false} />
-    </mesh>
+    <group position={[wristPos.x, wristPos.y, wristPos.z]}>
+      <mesh>
+        <sphereGeometry args={[WRIST_SPHERE_R, 12, 12]} />
+        <meshBasicMaterial color={COLOR_ARM} depthTest={false} />
+      </mesh>
+      <mesh onPointerDown={handlePointerDown}>
+        <sphereGeometry args={[WRIST_SPHERE_R * hitZoneScale, 12, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthTest={false} />
+      </mesh>
+    </group>
   );
 }
 
@@ -61,9 +75,19 @@ interface ElbowTwistArcProps {
   wristPos:    { x: number; y: number; z: number };
   side:        'r' | 'l';
   rigService:  RigService;
+  dragSensitivity: number;
+  hitZoneScale: number;
 }
 
-function ElbowTwistArc({ shoulderPos, elbowPos, wristPos, side, rigService }: ElbowTwistArcProps) {
+function ElbowTwistArc({
+  shoulderPos,
+  elbowPos,
+  wristPos,
+  side,
+  rigService,
+  dragSensitivity,
+  hitZoneScale,
+}: ElbowTwistArcProps) {
   // Вычисляем параметры дуги из текущих позиций
   const arcParams = useMemo(() => {
     const sh = new Vector3(shoulderPos.x, shoulderPos.y, shoulderPos.z);
@@ -106,7 +130,7 @@ function ElbowTwistArc({ shoulderPos, elbowPos, wristPos, side, rigService }: El
 
   const { groupRef, handlePointerDown } = useAngularGizmoDrag(
     () => rigService.beginDrag(),
-    (delta) => rigService.applyElbowTwist(side, -delta * getViewSign()),
+    (delta) => rigService.applyElbowTwist(side, -delta * getViewSign() * dragSensitivity),
   );
 
   if (!arcParams) return null;
@@ -157,7 +181,7 @@ function ElbowTwistArc({ shoulderPos, elbowPos, wristPos, side, rigService }: El
 
       {/* Невидимая зона для захвата drag (полное кольцо) */}
       <mesh onPointerDown={handlePointerDown}>
-        <torusGeometry args={[radius, ARC_HIT_TUBE, 8, 32]} />
+        <torusGeometry args={[radius, ARC_HIT_TUBE * hitZoneScale, 8, 32]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} />
       </mesh>
     </group>
@@ -185,12 +209,15 @@ export function ArmController({
   wristPos,
   rigService,
 }: ArmControllerProps) {
+  const { settings } = useAppSettings();
   return (
     <>
       <WristHandle
         wristPos={wristPos}
         side={side}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
       <ElbowTwistArc
         shoulderPos={shoulderPos}
@@ -198,6 +225,8 @@ export function ArmController({
         wristPos={wristPos}
         side={side}
         rigService={rigService}
+        dragSensitivity={settings.gizmoDragSensitivity}
+        hitZoneScale={settings.gizmoHitZoneScale}
       />
     </>
   );

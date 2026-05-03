@@ -27,6 +27,7 @@ import './Canvas3D.css';
 interface Canvas3DProps {
   modelsCount?: number;
   focusMode?: boolean;
+  exportFrameRequestId?: number;
   onCameraChange?: (camera: THREE.Camera) => void;
   onExportFrame?: (frameData: ExportFrameData, camera: THREE.Camera) => void;
 }
@@ -93,7 +94,15 @@ const CanvasResizeSync: React.FC<{ focusMode: boolean }> = ({ focusMode }) => {
   return null;
 };
 
-export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, focusMode = false, onCameraChange, onExportFrame }) => {
+const CAMERA_CONTROLS_COLLAPSED_KEY = 'poseflow-camera-controls-collapsed';
+
+export const Canvas3D: React.FC<Canvas3DProps> = ({
+  modelsCount = 0,
+  focusMode = false,
+  exportFrameRequestId = 0,
+  onCameraChange,
+  onExportFrame,
+}) => {
   const { settings, effectiveTheme } = useAppSettings();
   const poseService = usePoseService();
   const selectionService = useSelectionService();
@@ -111,6 +120,9 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, focusMode =
   );
   const [isPointerInsideFrame, setIsPointerInsideFrame] = useState(false);
   const [showExportFrame, setShowExportFrame] = useState(false);
+  const [cameraControlsCollapsed, setCameraControlsCollapsed] = useState(() => {
+    return window.localStorage.getItem(CAMERA_CONTROLS_COLLAPSED_KEY) === 'true';
+  });
   const isMiniViewEnabled = useFeatureFlag('USE_MINI_VIEW');
   const currentCameraRef = useRef<THREE.Camera | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -121,6 +133,19 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, focusMode =
       setIsPointerInsideFrame(false);
     }
   }, [focusMode]);
+
+  useEffect(() => {
+    if (!focusMode && exportFrameRequestId > 0) {
+      setShowExportFrame(true);
+    }
+  }, [exportFrameRequestId, focusMode]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      CAMERA_CONTROLS_COLLAPSED_KEY,
+      String(cameraControlsCollapsed),
+    );
+  }, [cameraControlsCollapsed]);
 
   // Подписываемся на изменения позы
   useEffect(() => {
@@ -207,16 +232,6 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, focusMode =
       className={`canvas3d-container${focusMode ? ' canvas3d-focus-mode' : ''}`}
       ref={viewportRef}
     >
-      {/* Кнопка показа рамки экспорта */}
-      {!focusMode && !showExportFrame && (
-        <button
-          className="btn-show-export-frame"
-          onClick={() => setShowExportFrame(true)}
-        >
-          📐 Export Frame
-        </button>
-      )}
-
       {/* Рамка экспорта */}
       {!focusMode && showExportFrame && viewportRef.current && (
         <ExportFrame
@@ -472,7 +487,20 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, focusMode =
         <CanvasResizeSync focusMode={focusMode} />
       </Canvas>
 
-      {!focusMode && <CameraControls />}
+      {!focusMode && !cameraControlsCollapsed && (
+        <CameraControls onCollapse={() => setCameraControlsCollapsed(true)} />
+      )}
+      {!focusMode && cameraControlsCollapsed && (
+        <button
+          type="button"
+          className="camera-controls-restore"
+          onClick={() => setCameraControlsCollapsed(false)}
+          title="Показать панель камеры"
+          aria-label="Показать панель камеры"
+        >
+          ←
+        </button>
+      )}
 
       {/* Мини-вид (Step 8) */}
       {!focusMode && isMiniViewEnabled && (

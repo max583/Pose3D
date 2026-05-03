@@ -38,6 +38,7 @@ export function useCameraPlaneWorldDrag(
   onDragStart:   () => void,
   onDrag:        (newWorldPos: Vector3) => void,
   onDragEnd?:    () => void,
+  dragSensitivity = 1,
 ): CameraPlaneWorldDragHandlers {
   const { camera, gl, controls } = useThree();
 
@@ -63,17 +64,26 @@ export function useCameraPlaneWorldDrag(
       const raycaster = new Raycaster();
       const mouse    = new Vector2();
       const hitPoint = new Vector3();
+      const startHitPoint = startPos.clone();
+
+      const readPointerOnPlane = (clientX: number, clientY: number, target: Vector3): boolean => {
+        const rect = gl.domElement.getBoundingClientRect();
+        mouse.x = ((clientX - rect.left) / rect.width)  *  2 - 1;
+        mouse.y = ((clientY - rect.top)  / rect.height) * -2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        return raycaster.ray.intersectPlane(plane, target) !== null;
+      };
+
+      readPointerOnPlane(e.clientX, e.clientY, startHitPoint);
 
       const moveHandler = (ev: PointerEvent) => {
         if (!activeRef.current) return;
 
-        const rect = gl.domElement.getBoundingClientRect();
-        mouse.x = ((ev.clientX - rect.left) / rect.width)  *  2 - 1;
-        mouse.y = ((ev.clientY - rect.top)  / rect.height) * -2 + 1;
-
-        raycaster.setFromCamera(mouse, camera);
-        if (raycaster.ray.intersectPlane(plane, hitPoint)) {
-          onDrag(hitPoint.clone());
+        if (readPointerOnPlane(ev.clientX, ev.clientY, hitPoint)) {
+          const scaledPos = startPos
+            .clone()
+            .addScaledVector(hitPoint.clone().sub(startHitPoint), dragSensitivity);
+          onDrag(scaledPos);
         }
       };
 
@@ -88,7 +98,7 @@ export function useCameraPlaneWorldDrag(
       window.addEventListener('pointermove', moveHandler);
       window.addEventListener('pointerup',   upHandler);
     },
-    [camera, gl, controls, getCurrentPos, onDragStart, onDrag, onDragEnd],
+    [camera, gl, controls, getCurrentPos, onDragStart, onDrag, onDragEnd, dragSensitivity],
   );
 
   return { handlePointerDown };

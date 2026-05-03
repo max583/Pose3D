@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### Changed - Camera controls panel (2026-05-04)
+
+- The top-right camera controls panel can now be collapsed and restored; the collapsed state is saved in localStorage.
+- Moved the Export Frame launch button from the viewport overlay to the left tools sidebar.
+
+### Added - Unified gizmo sensitivity settings (2026-05-04)
+
+- Added shared Settings controls for gizmo drag sensitivity and invisible hit-zone scale.
+- Existing per-controller calibration remains the `1.00x` baseline; the new settings multiply that baseline across pelvis, spine, neck, head, shoulders, arms, legs, and feet.
+- Camera-plane IK handles for wrists and ankles now also respect the shared drag sensitivity while preserving the previous behavior at `1.00x`.
+
+### Added - Playwright gizmo regression (2026-05-04)
+
+- Added browser-level regression checks for actual left-button gizmo dragging.
+- Covered `FootController` right-foot gizmo and `PelvisController` root gizmo: select in normal mode, switch to F11 focus mode, drag, compare canvas screenshots, then verify undo changes the canvas again.
+- Playwright now runs with one worker for more stable visual/R3F gesture checks against the shared local dev server.
+
+### Fixed - Backend process lifecycle in test runs (2026-05-04)
+
+- Added `npm run dev:web` and made Playwright use it so browser smoke/regression tests start a web-only Vite server without Electron and without Python backend.
+- Electron now starts the Python backend without a Windows shell wrapper, so shutdown signals target the actual Python process instead of leaving an orphaned `uvicorn` process on port `8000`.
+
 ### Added - Focus/Test Mode (2026-05-03)
 
 - Added F11 focus mode: app header, sidebar, restore strip, status bar, camera controls, mini-view, viewport info overlay, and export frame UI hide while the 3D canvas and in-scene gizmos remain available.

@@ -39,31 +39,6 @@
   50% { opacity: 0.5; }
 }
 
-.btn-show-export-frame {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1000;
-  background: rgba(74, 158, 255, 0.2);
-  border: 1px solid #4a9eff;
-  color: #4a9eff;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-  backdrop-filter: blur(10px);
-  pointer-events: auto;
-}
-
-.btn-show-export-frame:hover {
-  background: rgba(74, 158, 255, 0.3);
-  border-color: #6ab4ff;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.2);
-}
-
 /* Mini-view styles */
 .mini-view {
   position: absolute;

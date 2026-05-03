@@ -22,7 +22,11 @@ export const CameraController: React.FC = () => {
  * Внешний компонент с кнопками управления камерой
  * Может быть вне Canvas
  */
-export const CameraControls: React.FC = () => {
+interface CameraControlsProps {
+  onCollapse: () => void;
+}
+
+export const CameraControls: React.FC<CameraControlsProps> = ({ onCollapse }) => {
   const handleFrontView = () => cameraService.switchTo('front');
   const handleBackView = () => cameraService.switchTo('back');
   const handleSideRight = () => cameraService.switchTo('side');
@@ -36,7 +40,18 @@ export const CameraControls: React.FC = () => {
 
   return (
     <div className="camera-controls">
-      <div className="camera-controls-title">Camera</div>
+      <div className="camera-controls-header">
+        <div className="camera-controls-title">Camera</div>
+        <button
+          type="button"
+          className="camera-controls-collapse"
+          onClick={onCollapse}
+          title="Скрыть панель камеры"
+          aria-label="Скрыть панель камеры"
+        >
+          →
+        </button>
+      </div>
       <div className="camera-grid">
         {/* Задний ряд (сверху) */}
         <button className="cam-btn cam-corner" onClick={handle3QBackLeft} title="3/4 Back Left">

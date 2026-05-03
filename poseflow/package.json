@@ -5,6 +5,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "npx vite",
+    "dev:web": "cross-env POSEFLOW_WEB_ONLY=1 npx vite",
     "build": "npm run typecheck && npx vite build",
     "preview": "npx vite preview",
     "electron:dev": "concurrently \"npx vite\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",

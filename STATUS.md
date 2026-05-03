@@ -240,3 +240,41 @@ Playwright smoke now covers focus-mode startup, F11 toggle, wheel zoom, right-bu
 2026-05-03 follow-up fix: Focus mode now forces the R3F canvas renderer and perspective camera aspect to resync after F11/fullscreen layout changes. The Playwright F11 smoke also changes viewport size during focus mode and verifies that the canvas and top-right camera controls return inside the visible viewport after the second F11.
 
 2026-05-03 Browser Use gizmo calibration: documented stable Front View / 3/4 selection points, zoom anchors, and known working left-drag recipes in `ai/docs/browser-use-poseflow-3d-calibration.md`. Future Browser Use gizmo checks should select in normal mode with overlay confirmation, switch to F11 focus mode for dragging, compare screenshots, then undo test drags with Ctrl+Z.
+
+# Session note 2026-05-04 / Playwright gizmo regression
+
+Added the first browser-level regression checks for real gizmo manipulation:
+
+- `FootController` right-foot gizmo: select in normal Front View, switch to F11 focus mode, left-drag a cyan handle, verify canvas changed, then Ctrl+Z and verify canvas changed again.
+- `PelvisController` root gizmo: same flow for the node-8/root control.
+- Playwright is now configured with `workers: 1` for visual/R3F gesture stability against the shared local dev server.
+
+Technical check: `npm run smoke:browser` passed with 5 Playwright tests. The web server still logs a non-blocking Python backend port warning when another backend is already bound to `127.0.0.1:8000`.
+
+2026-05-04 follow-up fix: Playwright now starts `npm run dev:web`, which sets `POSEFLOW_WEB_ONLY=1` and disables Vite Electron plugins during browser tests. Smoke/regression tests no longer start Electron or Python backend, and `netstat -ano | Select-String ":8000"` is empty after the run. Electron backend spawning was also changed from `shell: true` to direct `python -m uvicorn ...` with `windowsHide: true`, so app shutdown targets the actual Python process instead of a shell wrapper.
+
+# Session note 2026-05-04 / Unified gizmo sensitivity
+
+Added two shared controller settings in the Settings modal:
+
+- `gizmoDragSensitivity`: common multiplier for gizmo mouse response.
+- `gizmoHitZoneScale`: common multiplier for invisible gizmo hit zones.
+
+The current hand-tuned per-controller values remain the `1.00x` baseline. The multipliers are applied across root/pelvis, spine, neck, head, shoulders, arm IK/elbow twist, leg IK/knee twist, and foot pitch/yaw/roll controls. Direction signs, pivots, axes, and local-frame logic were not re-tuned in this task.
+
+Implementation note: `useCameraPlaneWorldDrag` now supports a drag sensitivity multiplier by scaling the camera-plane displacement from the drag start point. At `1.00x` it preserves the previous absolute drag behavior for wrist and ankle IK handles.
+
+# Session note 2026-05-04 / Arm limits planning
+
+Natural arm limits were researched and parked as the next candidate feature. The plan is documented in `PLAN.md` and `ai/tasks/arm-natural-limits-research.md`.
+
+Important implementation notes for the next session:
+
+- Do not treat the arm as a single clamp. Split shoulder girdle, shoulder joint, elbow flexion, elbow swivel, upper-arm axial twist, and forearm axial twist.
+- BODY_25 right arm is `2-3-4`; left arm is `5-6-7`, with user side names from the mannequin point of view.
+- Upper-arm bones `2-3` / `5-6` need axial twist limits around their own axes in the shoulder joint.
+- Forearm bones `3-4` / `6-7` also need axial twist limits around their own axes.
+- Use swing-twist decomposition so direction limits and axial-twist limits do not fight each other.
+- Use stop-at-limit behavior like the leg IK fix: keep the last valid pose instead of snapping to a corrected pose.
+
+Current working tree note: unified gizmo sensitivity, Playwright gizmo regression, and backend lifecycle changes are implemented and verified but still uncommitted. Latest checks from the previous implementation pass: `npm run smoke:browser` passed with 5 Playwright tests; `npm run verify` passed with 231 unit tests + Vite/Electron build.
