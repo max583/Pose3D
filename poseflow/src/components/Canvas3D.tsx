@@ -26,6 +26,7 @@ import './Canvas3D.css';
 
 interface Canvas3DProps {
   modelsCount?: number;
+  focusMode?: boolean;
   onCameraChange?: (camera: THREE.Camera) => void;
   onExportFrame?: (frameData: ExportFrameData, camera: THREE.Camera) => void;
 }
@@ -61,7 +62,38 @@ function AxesHelper({ size = 2 }: { size?: number }) {
   return <primitive object={axesHelper} ref={helperRef} />;
 }
 
-export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraChange, onExportFrame }) => {
+const CanvasResizeSync: React.FC<{ focusMode: boolean }> = ({ focusMode }) => {
+  const { camera, gl } = useThree();
+
+  useEffect(() => {
+    const syncSize = () => {
+      const parent = gl.domElement.parentElement;
+      if (!parent) return;
+
+      const { width, height } = parent.getBoundingClientRect();
+      if (width <= 0 || height <= 0) return;
+
+      gl.setSize(width, height, false);
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      }
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    const frameId = window.requestAnimationFrame(syncSize);
+    const timeoutIds = [80, 200, 500].map(delay => window.setTimeout(syncSize, delay));
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      timeoutIds.forEach(id => window.clearTimeout(id));
+    };
+  }, [camera, focusMode, gl]);
+
+  return null;
+};
+
+export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, focusMode = false, onCameraChange, onExportFrame }) => {
   const { settings, effectiveTheme } = useAppSettings();
   const poseService = usePoseService();
   const selectionService = useSelectionService();
@@ -82,6 +114,13 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
   const isMiniViewEnabled = useFeatureFlag('USE_MINI_VIEW');
   const currentCameraRef = useRef<THREE.Camera | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (focusMode) {
+      setShowExportFrame(false);
+      setIsPointerInsideFrame(false);
+    }
+  }, [focusMode]);
 
   // Подписываемся на изменения позы
   useEffect(() => {
@@ -165,11 +204,11 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
 
   return (
     <div
-      className="canvas3d-container"
+      className={`canvas3d-container${focusMode ? ' canvas3d-focus-mode' : ''}`}
       ref={viewportRef}
     >
       {/* Кнопка показа рамки экспорта */}
-      {!showExportFrame && (
+      {!focusMode && !showExportFrame && (
         <button
           className="btn-show-export-frame"
           onClick={() => setShowExportFrame(true)}
@@ -179,7 +218,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
       )}
 
       {/* Рамка экспорта */}
-      {showExportFrame && viewportRef.current && (
+      {!focusMode && showExportFrame && viewportRef.current && (
         <ExportFrame
           viewportRef={viewportRef as React.RefObject<HTMLDivElement>}
           defaultAspectRatio={settings.defaultExportAspect as AspectRatio}
@@ -430,12 +469,13 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
 
         <CameraController />
         <CameraRefSetter cameraRef={currentCameraRef} onCameraChange={onCameraChange} />
+        <CanvasResizeSync focusMode={focusMode} />
       </Canvas>
 
-      <CameraControls />
+      {!focusMode && <CameraControls />}
 
       {/* Мини-вид (Step 8) */}
-      {isMiniViewEnabled && (
+      {!focusMode && isMiniViewEnabled && (
         <div className="mini-view-container">
           <MiniView
             poseData={poseData}
@@ -446,7 +486,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ modelsCount = 0, onCameraCha
         </div>
       )}
 
-      {settings.showViewportOverlay && (
+      {!focusMode && settings.showViewportOverlay && (
         <div className="canvas3d-info">
           <span>3D Viewport - BODY_25</span>
           <span>25 joints</span>

@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+### Added - Focus/Test Mode (2026-05-03)
+
+- Added F11 focus mode: app header, sidebar, restore strip, status bar, camera controls, mini-view, viewport info overlay, and export frame UI hide while the 3D canvas and in-scene gizmos remain available.
+- Added `/?focus=1` for Playwright and Browser Use sessions that need a clean viewport for 3D gesture testing.
+- Extended Playwright smoke checks to cover focus-mode startup and F11 toggle.
+
+### Fixed - Focus/Test Mode resize sync (2026-05-03)
+
+- Forced the R3F canvas and camera aspect to resync after focus-mode changes so returning from F11/fullscreen does not leave the skeleton and camera controls positioned from the previous viewport size.
+
+### Added - Playwright 3D smoke tooling (2026-05-03)
+
+- Added Playwright browser smoke tooling for PoseFlow 3D viewport checks.
+- Added `npm run smoke:browser` and `npm run smoke:browser:headed`.
+- The smoke verifies canvas rendering, wheel zoom, right-button camera orbit, and middle-button camera pan using real Playwright mouse down/move/up events.
+
+### Docs - Browser Use 3D calibration (2026-05-03)
+
+- Added `ai/docs/browser-use-poseflow-3d-calibration.md` with calibrated Browser Use viewport coordinates, camera button positions, zoom recipe, and OrbitControls drag caveats for PoseFlow visual smoke checks.
+- Documented PoseFlow mouse mapping for Browser Use checks: left for selection/gizmos, middle for camera pan, right for camera orbit.
+
 ### Added - Joint anatomy markers (2026-05-02)
 
 - Elbow and knee joints now have small visual-only caps that make elbow protrusions and kneecap positions easier to read.

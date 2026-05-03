@@ -480,3 +480,4 @@ Good next candidates:
 - Full `HandController` design and implementation.
 - Unified gizmo mouse sensitivity setting.
 - Unified gizmo hit-zone sensitivity setting.
+- Technical debt: dependency security upgrade pass for `electron`, `vite`, `vitest`, `postcss`, `axios` / `follow-redirects`. Current `npm audit` reports 8 moderate and 1 high warning; this does not block local development, but should be handled before release/packaging. Do not run `npm audit fix --force` as a drive-by change because it requires major upgrades.

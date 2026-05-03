@@ -15,6 +15,9 @@ import './App.css';
 const AppContent: React.FC = () => {
   const { appInfo, healthStatus } = useIPC();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(() => {
+    return new URLSearchParams(window.location.search).get('focus') === '1';
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return window.localStorage.getItem('poseflow-sidebar-collapsed') === 'true';
   });
@@ -29,6 +32,17 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     window.localStorage.setItem('poseflow-sidebar-collapsed', String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'F11') {
+        setFocusMode(value => !value);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleExportFrame = async (frameData: ExportFrameData, camera: THREE.Camera) => {
     exportLogger.info('Export frame requested', frameData);
@@ -52,7 +66,8 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="app">
+    <div className={`app${focusMode ? ' app-focus-mode' : ''}`}>
+      {!focusMode && (
       <header className="app-header">
         <h1>PoseFlow Editor</h1>
         <div className="header-info">
@@ -64,15 +79,16 @@ const AppContent: React.FC = () => {
           )}
         </div>
       </header>
+      )}
 
       <div className="app-content">
-        {!sidebarCollapsed && (
+        {!focusMode && !sidebarCollapsed && (
           <Sidebar
             onOpenSettings={() => setSettingsOpen(true)}
             onCollapse={() => setSidebarCollapsed(true)}
           />
         )}
-        {sidebarCollapsed && (
+        {!focusMode && sidebarCollapsed && (
           <button
             type="button"
             className="sidebar-restore"
@@ -85,14 +101,15 @@ const AppContent: React.FC = () => {
         )}
         <main className="app-main">
           <Canvas3D
+            focusMode={focusMode}
             onExportFrame={handleExportFrame}
           />
         </main>
       </div>
 
-      <StatusBar />
+      {!focusMode && <StatusBar />}
 
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {!focusMode && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 };

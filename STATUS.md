@@ -200,3 +200,43 @@ Added visual-only caps for elbows and knees in `Skeleton3D`. The markers show el
 Technical checks: `jointMarkers` unit tests passed; `npm run typecheck` passed; `npm run lint:unused` passed; full `npm run verify` passed (229 unit tests + Vite/Electron build). Manual visual check is still needed for marker size and readability in the running viewport.
 
 2026-05-02 follow-up fix: marker direction now uses the closest point on the `parent -> child` limb axis instead of `midpoint(parent, child)`. This keeps markers on the joint when a straight limb has unequal adjacent bone lengths. Regression test added for that case; `jointMarkers` tests and `npm run typecheck` passed.
+
+# Session note 2026-05-03 / Browser Use 3D calibration
+
+Browser Use is operational after updating system Node.js to `v25.9.0`. Calibrated PoseFlow viewport gestures are documented in `ai/docs/browser-use-poseflow-3d-calibration.md`.
+
+Key notes: use repeated small wheel events (`18 x scrollY=-120` at `x=315,y=470`) for close knee/foot inspection; use camera preset buttons for view changes; Browser Use CUA drag is currently unreliable for OrbitControls rotation, so do not depend on drag for camera orbit smoke checks.
+
+Clarification: PoseFlow uses left mouse for selection/gizmos, middle mouse for camera pan, and right mouse for camera orbit. Browser Use `tab.cua.drag(...)` currently behaves as left-button drag and has no button option, so camera pan/orbit should be checked manually or via camera preset buttons rather than CUA drag.
+
+Retest: right-click-then-drag and middle-click-then-drag were both tried in Browser Use. Neither held the mouse button through the drag, so the calibration stands: Browser Use is reliable for screenshots, wheel zoom, and camera preset clicks, but not for camera pan/orbit gestures.
+
+# Session note 2026-05-03 / Playwright 3D smoke
+
+Added Playwright tooling for full browser-level PoseFlow 3D viewport control. New scripts in `poseflow/package.json`:
+
+- `npm run smoke:browser`
+- `npm run smoke:browser:headed`
+
+The smoke spec opens the local app, verifies the canvas is visible, performs wheel zoom, right-button drag for camera orbit, and middle-button drag for camera pan. It saves screenshots under Playwright `test-results/`.
+
+Important calibration: Playwright specs must compute gesture coordinates from `canvas.boundingBox()`. The first attempt used Browser Use absolute coordinates and hit the expanded sidebar in a fresh Playwright context.
+
+Technical checks: `npm run verify` passed (230 unit tests + Vite/Electron build); `npm run smoke:browser` passed. `npm install` reported existing npm audit warnings (8 moderate, 1 high); they were not changed in this tooling task.
+
+Follow-up planning: npm audit warnings were added to `PLAN.md` as technical debt. They do not block current local development, but should be addressed before release/packaging. Avoid `npm audit fix --force` as a drive-by change because the suggested fixes include major upgrades for Electron/Vite/Vitest.
+
+# Session note 2026-05-03 / Focus-Test Mode
+
+Added Focus/Test Mode for clean manual and automated 3D checks.
+
+- F11 toggles focus mode while preserving the browser/Electron native fullscreen/window behavior.
+- `/?focus=1` opens the app directly in focus mode for Playwright and Browser Use sessions.
+- Focus mode hides app header, sidebar, restore strip, status bar, camera controls, mini-view, viewport info overlay, and export frame UI.
+- The 3D canvas, skeleton, and in-scene gizmos remain available; OrbitControls mouse mapping is unchanged.
+
+Playwright smoke now covers focus-mode startup, F11 toggle, wheel zoom, right-button orbit, and middle-button pan.
+
+2026-05-03 follow-up fix: Focus mode now forces the R3F canvas renderer and perspective camera aspect to resync after F11/fullscreen layout changes. The Playwright F11 smoke also changes viewport size during focus mode and verifies that the canvas and top-right camera controls return inside the visible viewport after the second F11.
+
+2026-05-03 Browser Use gizmo calibration: documented stable Front View / 3/4 selection points, zoom anchors, and known working left-drag recipes in `ai/docs/browser-use-poseflow-3d-calibration.md`. Future Browser Use gizmo checks should select in normal mode with overlay confirmation, switch to F11 focus mode for dragging, compare screenshots, then undo test drags with Ctrl+Z.
