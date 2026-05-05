@@ -98,6 +98,28 @@ describe('RigService — Stage 4.2 shoulder FK', () => {
     expect(wrist.y).toBeCloseTo(1.15, 2);
     expect(wrist.z).toBeCloseTo(0.1, 2);
   });
+  it('after root rotation shoulder FK remains compatible with wrist IK limits', () => {
+    svc.beginDrag();
+    svc.applyPelvisRotateLocal('y', Math.PI / 2);
+
+    svc.beginDrag();
+    svc.applyShoulderForward('r', Math.PI / 8);
+
+    const before = svc.getPoseData()[Body25Index.RIGHT_WRIST]!;
+    const target = {
+      x: before.x,
+      y: before.y - 0.08,
+      z: before.z + 0.08,
+    };
+
+    svc.beginDrag();
+    svc.applyArmIK('r', target.x, target.y, target.z);
+
+    const after = svc.getPoseData()[Body25Index.RIGHT_WRIST]!;
+    expect(after.x).toBeCloseTo(target.x, 2);
+    expect(after.y).toBeCloseTo(target.y, 2);
+    expect(after.z).toBeCloseTo(target.z, 2);
+  });
 });
 
 function distance(

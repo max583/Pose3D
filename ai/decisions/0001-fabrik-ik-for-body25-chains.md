@@ -17,4 +17,4 @@
 ## Последствия
 
 - Смена алгоритма IK потребует нового ADR и регрессионных тестов в `fabrik.test.ts`.
-- Ограничения углов (joint limits) пока не встроены в FABRIK — планируется отдельно (`refactoring-plan-design-doll-controls`, фаза A2).
+- Ограничения углов (joint limits) не встроены в базовый FABRIK; исторический план см. `ai/docs/archive/refactoring-plan-design-doll-controls.md`.

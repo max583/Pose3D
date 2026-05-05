@@ -11,6 +11,14 @@ let mainWindow: BrowserWindow | null = null;
 let pythonProcess: ChildProcess | null = null;
 let isStoppingPython = false;
 
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EPIPE') {
+      throw error;
+    }
+  });
+}
+
 // Запуск Python backend
 function startPythonBackend() {
   if (pythonProcess) {

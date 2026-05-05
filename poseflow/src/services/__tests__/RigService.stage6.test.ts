@@ -110,6 +110,34 @@ describe('RigService — Stage 6.1 leg IK', () => {
     expect(distance(after[Body25Index.RIGHT_KNEE]!, kneeBefore)).toBeGreaterThan(0.01);
   });
 
+  it('applyKneeTwist stops when twist would move the hip outside limits', () => {
+    svc.beginDrag();
+    svc.applyLegIK('r', 0.5, 0.34, 0.02);
+
+    const before = svc.getPoseData();
+    const kneeBefore = before[Body25Index.RIGHT_KNEE]!;
+
+    svc.beginDrag();
+    svc.applyKneeTwist('r', 1);
+
+    const after = svc.getPoseData();
+    expect(distance(after[Body25Index.RIGHT_KNEE]!, kneeBefore)).toBeCloseTo(0, 5);
+  });
+
+  it('applyKneeTwist stops when twist would over-rotate the thigh around its axis', () => {
+    svc.beginDrag();
+    svc.applyLegIK('r', 0.2, 0.2, 0.25);
+
+    const before = svc.getPoseData();
+    const kneeBefore = before[Body25Index.RIGHT_KNEE]!;
+
+    svc.beginDrag();
+    svc.applyKneeTwist('r', Math.PI);
+
+    const after = svc.getPoseData();
+    expect(distance(after[Body25Index.RIGHT_KNEE]!, kneeBefore)).toBeCloseTo(0, 5);
+  });
+
   it('applyKneeTwist сохраняет длины бедро-колено и колено-лодыжка', () => {
     svc.beginDrag();
     svc.applyLegIK('l', -0.2, 0.2, 0.25);

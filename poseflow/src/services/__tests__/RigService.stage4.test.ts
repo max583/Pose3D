@@ -68,6 +68,27 @@ describe('RigService — Stage 4.1 arm IK', () => {
     expect(actualEW).toBeCloseTo(lenEW, 3);
   });
 
+  it('applyArmIK stops when the target would overfold the elbow', () => {
+    const poseBefore = svc.getPoseData();
+    const shBefore = poseBefore[Body25Index.RIGHT_SHOULDER]!;
+    const elBefore = poseBefore[Body25Index.RIGHT_ELBOW]!;
+    const wrBefore = poseBefore[Body25Index.RIGHT_WRIST]!;
+
+    svc.beginDrag();
+    svc.applyArmIK('r', shBefore.x + 0.02, shBefore.y, shBefore.z);
+
+    const poseAfter = svc.getPoseData();
+    const elAfter = poseAfter[Body25Index.RIGHT_ELBOW]!;
+    const wrAfter = poseAfter[Body25Index.RIGHT_WRIST]!;
+
+    expect(elAfter.x).toBeCloseTo(elBefore.x, 4);
+    expect(elAfter.y).toBeCloseTo(elBefore.y, 4);
+    expect(elAfter.z).toBeCloseTo(elBefore.z, 4);
+    expect(wrAfter.x).toBeCloseTo(wrBefore.x, 4);
+    expect(wrAfter.y).toBeCloseTo(wrBefore.y, 4);
+    expect(wrAfter.z).toBeCloseTo(wrBefore.z, 4);
+  });
+
   it('applyArmIK не двигает левую руку при манипуляции с правой', () => {
     const lwBefore = svc.getPoseData()[Body25Index.LEFT_WRIST]!;
 

@@ -18,17 +18,27 @@ import {
   ARM_JOINTS,
   applyArmChainToRig,
   getArmBoneLengths,
-  solveArmFABRIK,
+  getShoulderAccRot,
   twistElbow,
   toVec3,
 } from '../lib/rig/armIK';
 import {
+  isUpperArmDirectionWithinLimits,
+  measureUpperArmDirection,
+  solveArmIKWithinLimits,
+} from '../lib/rig/armLimits';
+import {
   LEG_JOINTS,
   applyLegChainToRig,
   getLegBoneLengths,
+  isLegIKCandidateWithinLimits,
   solveLegIKWithinLimits,
   twistKnee,
 } from '../lib/rig/legIK';
+import {
+  isUpperLegAxialTwistWithinLimits,
+  isKneePlaneTwistDeltaWithinLimits,
+} from '../lib/rig/legLimits';
 import { applyFootRotationDelta, FootAxis } from '../lib/rig/footFK';
 import { applyShoulderDelta, ShoulderAxis } from '../lib/rig/shoulderFK';
 import { UndoStack } from '../lib/UndoStack';
@@ -42,6 +52,7 @@ export class RigService {
   private undoStack: UndoStack<SkeletonRig>;
   private resolvedCache: { pose: PoseData; virtualPositions: VirtualChainPositions } | null = null;
   private listeners: RigListener[] = [];
+  private dragStartRig: SkeletonRig | null = null;
 
   constructor() {
     this.rig = createDefaultRig();
@@ -179,7 +190,9 @@ export class RigService {
    * Вызывать один раз в onPointerDown гизмо.
    */
   beginDrag(): void {
-    this.undoStack.push(cloneRig(this.rig));
+    const snapshot = cloneRig(this.rig);
+    this.undoStack.push(snapshot);
+    this.dragStartRig = cloneRig(this.rig);
   }
 
   /** Переместить таз на дельту (мировые координаты). */
@@ -300,7 +313,17 @@ export class RigService {
     const target      = new Vector3(tx, ty, tz);
 
     const boneLengths = getArmBoneLengths(this.rig, side);
-    const newChain    = solveArmFABRIK(shoulderPos, elbowPos, wristPos, target, boneLengths);
+    const shoulderFrame = getShoulderAccRot(this.rig, side);
+    const newChain = solveArmIKWithinLimits(
+      shoulderPos,
+      elbowPos,
+      wristPos,
+      target,
+      boneLengths,
+      side,
+      shoulderFrame,
+    );
+    if (!newChain) return;
 
     applyArmChainToRig(this.rig, side, shoulderPos, newChain[1], newChain[2]);
     this.resolvedCache = null;
@@ -323,6 +346,14 @@ export class RigService {
     const wristPos    = toVec3(pose[joints.wrist]!);
 
     const newElbow = twistElbow(shoulderPos, elbowPos, wristPos, delta);
+    const shoulderFrame = getShoulderAccRot(this.rig, side);
+    const upperArmDirection = measureUpperArmDirection(
+      shoulderPos,
+      newElbow,
+      side,
+      shoulderFrame,
+    );
+    if (!isUpperArmDirectionWithinLimits(upperArmDirection)) return;
 
     // Запястье не двигается, но его localRot меняется (родитель-локоть переместился)
     applyArmChainToRig(this.rig, side, shoulderPos, newElbow, wristPos);
@@ -359,7 +390,6 @@ export class RigService {
       side,
     );
     if (!newChain) return;
-
     applyLegChainToRig(this.rig, side, hipPos, newChain[1], newChain[2]);
     this.resolvedCache = null;
     this.notifyListeners();
@@ -377,6 +407,35 @@ export class RigService {
     const kneePos = toVec3(pose[joints.knee]!);
     const anklePos = toVec3(pose[joints.ankle]!);
     const newKnee = twistKnee(hipPos, kneePos, anklePos, delta);
+    const bodyForward = new Vector3(0, 0, 1).applyQuaternion(this.rig.rootRotation);
+    const bodyUp = new Vector3(0, 1, 0).applyQuaternion(this.rig.rootRotation);
+    if (!isLegIKCandidateWithinLimits(
+      hipPos,
+      newKnee,
+      anklePos,
+      bodyForward,
+      bodyUp,
+      side,
+    )) {
+      return;
+    }
+    const candidateRig = cloneRig(this.rig);
+    applyLegChainToRig(candidateRig, side, hipPos, newKnee, anklePos);
+    const dragStartPose = this.dragStartRig
+      ? resolveSkeleton(this.dragStartRig).pose
+      : pose;
+    const startKneePos = toVec3(dragStartPose[joints.knee]!);
+    if (
+      !isUpperLegAxialTwistWithinLimits(candidateRig, side) ||
+      !isKneePlaneTwistDeltaWithinLimits(
+        hipPos,
+        startKneePos,
+        newKnee,
+        anklePos,
+      )
+    ) {
+      return;
+    }
 
     applyLegChainToRig(this.rig, side, hipPos, newKnee, anklePos);
     this.resolvedCache = null;

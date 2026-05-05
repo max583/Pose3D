@@ -11,6 +11,7 @@ const HIP_BACK_LIMIT = 20 * Math.PI / 180;
 const HIP_OUTWARD_LIMIT = 50 * Math.PI / 180;
 const HIP_INWARD_LIMIT = 30 * Math.PI / 180;
 const LIMIT_TOLERANCE = 1 * Math.PI / 180;
+const TARGET_TOLERANCE = 0.025;
 const EPS = 1e-6;
 
 export const LEG_JOINTS = {
@@ -163,7 +164,41 @@ export function solveLegIKWithinLimits(
     boneLengths,
   );
 
-  if (hipLimited[1].distanceToSquared(kneeLimited[1]) > EPS) {
+  if (
+    hipLimited[1].distanceToSquared(kneeLimited[1]) > EPS ||
+    !isLegIKCandidateWithinLimits(
+      kneeLimited[0],
+      kneeLimited[1],
+      kneeLimited[2],
+      bodyForward,
+      bodyUp,
+      side,
+    )
+  ) {
+    const relimited = solveLegFABRIK(
+      hipPos,
+      kneePos,
+      anklePos,
+      target,
+      boneLengths,
+      bodyForward,
+      bodyUp,
+      side,
+    );
+    if (
+      relimited[2].distanceTo(target) <= TARGET_TOLERANCE &&
+      isLegIKCandidateWithinLimits(
+        relimited[0],
+        relimited[1],
+        relimited[2],
+        bodyForward,
+        bodyUp,
+        side,
+      )
+    ) {
+      return relimited;
+    }
+
     return null;
   }
 
@@ -341,15 +376,8 @@ export function isLegIKCandidateWithinLimits(
   if (hipAngles.lateral > HIP_OUTWARD_LIMIT + LIMIT_TOLERANCE) return false;
 
   const kneeFlexion = getSignedKneeFlexion(hipPos, kneePos, anklePos, bodyForward);
-  if (Math.abs(kneeFlexion) > KNEE_FORWARD_LIMIT + LIMIT_TOLERANCE) return false;
-
-  const hipToAnkleDepth = anklePos.clone().sub(hipPos).dot(bodyForward);
-  if (
-    hipToAnkleDepth < -EPS &&
-    Math.abs(kneeFlexion) > KNEE_BACK_LIMIT + LIMIT_TOLERANCE
-  ) {
-    return false;
-  }
+  if (kneeFlexion > KNEE_BACK_LIMIT + LIMIT_TOLERANCE) return false;
+  if (kneeFlexion < -KNEE_FORWARD_LIMIT - LIMIT_TOLERANCE) return false;
 
   return true;
 }

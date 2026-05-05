@@ -9,6 +9,7 @@ import {
   getSignedHipAngles,
   getSignedKneeFlexion,
   getLegBoneLengths,
+  isLegIKCandidateWithinLimits,
   solveLegFABRIK,
   solveLegIKWithinLimits,
   twistKnee,
@@ -166,6 +167,49 @@ describe('legIK', () => {
     );
 
     expect(chain).toBeNull();
+  });
+
+  it('isLegIKCandidateWithinLimits rejects backward knee bend even when ankle is not behind the hip', () => {
+    const hip = new Vector3(0, 0.85, 0);
+    const knee = new Vector3(0.05, 0.45, 0.16);
+    const ankle = new Vector3(0.1, 0.1, 0.12);
+    const bodyForward = new Vector3(0, 0, 1);
+    const bodyUp = new Vector3(0, 1, 0);
+
+    expect(getSignedKneeFlexion(hip, knee, ankle, bodyForward)).toBeGreaterThan(0);
+    expect(isLegIKCandidateWithinLimits(
+      hip,
+      knee,
+      ankle,
+      bodyForward,
+      bodyUp,
+      'r',
+    )).toBe(false);
+  });
+
+  it('solveLegIKWithinLimits relimits hip rotation instead of rejecting a reachable ankle target', () => {
+    const hip = new Vector3(0, 0.85, 0);
+    const knee = new Vector3(0.18, 0.38, -0.08);
+    const ankle = new Vector3(0.26, 0.08, 0);
+    const target = new Vector3(0.62, 0.34, -0.02);
+    const bodyForward = new Vector3(0, 0, 1);
+    const bodyUp = new Vector3(0, 1, 0);
+
+    const chain = solveLegIKWithinLimits(
+      hip,
+      knee,
+      ankle,
+      target,
+      [0.43, 0.37],
+      bodyForward,
+      bodyUp,
+      'r',
+    );
+
+    expect(chain).not.toBeNull();
+    expect(chain![2].distanceTo(target)).toBeLessThan(0.025);
+    const angles = getSignedHipAngles(chain![0], chain![1], bodyForward, bodyUp, 'r');
+    expect(angles.lateral).toBeLessThanOrEqual(50 * Math.PI / 180 + 1e-4);
   });
 
   it('constrainKneeBendPreserveTwist сохраняет радиальную сторону текущего колена', () => {

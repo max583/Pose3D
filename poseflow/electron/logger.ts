@@ -35,12 +35,29 @@ const formatMessage = (level: string, module: string, message: string, data?: an
   return data ? `${base}\n${JSON.stringify(data, null, 2)}` : base;
 };
 
+const safeConsole = (
+  method: 'log' | 'warn' | 'error' | 'debug',
+  ...args: unknown[]
+): void => {
+  try {
+    console[method](...args);
+  } catch (error: any) {
+    if (error?.code !== 'EPIPE') {
+      try {
+        process.stderr.write(`Logger console ${method} failed: ${String(error)}\n`);
+      } catch {
+        // stderr can be closed too; file logging below remains the reliable path.
+      }
+    }
+  }
+};
+
 // Запись в файл
 const writeToFile = (filePath: string, message: string): void => {
   try {
     fs.appendFileSync(filePath, message + '\n', 'utf-8');
   } catch (error) {
-    console.error('Failed to write to log file:', error);
+    safeConsole('error', 'Failed to write to log file:', error);
   }
 };
 
@@ -52,26 +69,26 @@ export const createLogger = (module: string) => {
   return {
     info: (message: string, data?: any) => {
       const formatted = formatMessage('INFO', module, message, data);
-      console.log(formatted);
+      safeConsole('log', formatted);
       writeToFile(logFilePath, formatted);
     },
 
     warn: (message: string, data?: any) => {
       const formatted = formatMessage('WARN', module, message, data);
-      console.warn(formatted);
+      safeConsole('warn', formatted);
       writeToFile(logFilePath, formatted);
     },
 
     error: (message: string, error?: any) => {
       const formatted = formatMessage('ERROR', module, message, error);
-      console.error(formatted);
+      safeConsole('error', formatted);
       writeToFile(errorFilePath, formatted);
     },
 
     debug: (message: string, data?: any) => {
       if (process.env.NODE_ENV === 'development') {
         const formatted = formatMessage('DEBUG', module, message, data);
-        console.debug(formatted);
+        safeConsole('debug', formatted);
         writeToFile(logFilePath, formatted);
       }
     },

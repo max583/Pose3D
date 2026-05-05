@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### Fixed - Leg hip-limit interaction (2026-05-05)
+
+- Knee twist now stops before it moves the thigh outside the configured hip direction limits.
+- Knee twist is also limited by the thigh-axis knee-plane twist, preventing full rotations around the hip-ankle axis during one gizmo drag.
+- Leg IK candidates now reject backward knee flexion directly, even when the ankle itself is still in front of the hip.
+- Ankle IK can re-limit the hip/knee plane for a reachable target instead of rejecting movement only because the previous knee twist plane conflicts with hip limits.
+
+### Added - Natural arm limits (2026-05-05)
+
+- Added `armLimits.ts` with elbow flexion measurement, upper-arm direction checks, swing-twist decomposition, and axial twist checks for upper arm and forearm bones.
+- Wrist IK now uses stop-at-limit behavior for arm limits: impossible targets are rejected and the last valid pose is kept instead of snapping.
+- Elbow twist now rejects candidate elbow positions that push the upper arm outside the configured direction limits.
+- Arm limit checks are evaluated in mannequin/shoulder-local frames, so they remain stable after root rotation.
+
+### Fixed - Electron logger EPIPE crash (2026-05-05)
+
+- Electron main-process logging now tolerates closed stdout/stderr pipes and keeps writing file logs instead of crashing with an `EPIPE` JavaScript error dialog.
+
 ### Changed - Camera controls panel (2026-05-04)
 
 - The top-right camera controls panel can now be collapsed and restored; the collapsed state is saved in localStorage.
@@ -241,7 +259,7 @@
 
 ### Documentation
 
-- `ai/docs/design-doll-controls-poseflow-spec.md`, `ai/docs/refactoring-plan-design-doll-controls.md`, `ai/docs/engineering-practices-improvement-plan.md`, `ai/docs/backlog-matrix.md`.
+- `ai/docs/design-doll-controls-poseflow-spec.md`, `ai/docs/archive/refactoring-plan-design-doll-controls.md`, `ai/docs/archive/engineering-practices-improvement-plan.md`, `ai/docs/archive/backlog-matrix.md`.
 
 ### Known limitations
 
