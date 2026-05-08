@@ -360,6 +360,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                 onChange={(v) => updateSettings({ confirmOnResetPose: v })}
               />
             </div>
+            <div className="settings-row">
+              <label htmlFor="set-debug-tools">Показывать отладку</label>
+              <Toggle
+                id="set-debug-tools"
+                checked={settings.showDebugTools}
+                onChange={(v) => updateSettings({ showDebugTools: v })}
+              />
+            </div>
           </section>
         </div>
 

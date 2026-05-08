@@ -24,7 +24,7 @@ const getTimestamp = (): string => new Date().toISOString();
 // Получение сохраненных логов
 const getStoredLogs = (): LogEntry[] => {
   try {
-    const stored = localStorage.getItem(LOG_STORAGE_KEY);
+    const stored = getStorage()?.getItem(LOG_STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
@@ -42,7 +42,7 @@ const saveToStorage = (entry: LogEntry): void => {
       logs.splice(0, logs.length - MAX_LOG_ENTRIES);
     }
     
-    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
+    getStorage()?.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
   } catch (error) {
     console.error('Failed to save logs to localStorage:', error);
   }
@@ -130,7 +130,7 @@ export const logUtils = {
 
   // Очистить логи
   clearLogs: (): void => {
-    localStorage.removeItem(LOG_STORAGE_KEY);
+    getStorage()?.removeItem(LOG_STORAGE_KEY);
     console.info('Logs cleared');
   },
 
@@ -153,6 +153,11 @@ export const logUtils = {
   // Получить количество логов
   getLogCount: (): number => getStoredLogs().length,
 };
+
+function getStorage(): Storage | null {
+  if (typeof globalThis === 'undefined') return null;
+  return globalThis.localStorage ?? null;
+}
 
 // Глобальные логгеры для основных модулей
 export const uiLogger = createLogger('UI');

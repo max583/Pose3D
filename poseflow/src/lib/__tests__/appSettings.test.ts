@@ -83,4 +83,14 @@ describe('appSettings', () => {
     expect(s.gizmoDragSensitivity).toBe(2);
     expect(s.gizmoHitZoneScale).toBe(0.5);
   });
+
+  it('loads debug tools visibility from persisted settings', () => {
+    store['poseflow-app-settings-v1'] = JSON.stringify({
+      showDebugTools: true,
+    });
+
+    const s = loadAppSettings();
+
+    expect(s.showDebugTools).toBe(true);
+  });
 });

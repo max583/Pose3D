@@ -30,6 +30,7 @@ import {
 import {
   LEG_JOINTS,
   applyLegChainToRig,
+  getLegIKCandidateDiagnostics,
   getLegBoneLengths,
   isLegIKCandidateWithinLimits,
   solveLegIKWithinLimits,
@@ -39,13 +40,18 @@ import {
   isUpperLegAxialTwistWithinLimits,
   isKneePlaneTwistDeltaWithinLimits,
 } from '../lib/rig/legLimits';
+import { isTibiaAxialTwistWithinLimits } from '../lib/rig/legAnatomy';
 import { applyFootRotationDelta, FootAxis } from '../lib/rig/footFK';
 import { applyShoulderDelta, ShoulderAxis } from '../lib/rig/shoulderFK';
 import { UndoStack } from '../lib/UndoStack';
 import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
 import { Body25Index } from '../lib/body25/body25-types';
+import { createLogger } from '../lib/logger';
+import { isLegIKTraceEnabled } from '../lib/debugFlags';
 
 type RigListener = (pose: PoseData) => void;
+
+const legIKTraceLogger = createLogger('LegIKTrace');
 
 export class RigService {
   private rig: SkeletonRig;
@@ -379,6 +385,15 @@ export class RigService {
     const boneLengths = getLegBoneLengths(this.rig, side);
     const bodyForward = new Vector3(0, 0, 1).applyQuaternion(this.rig.rootRotation);
     const bodyUp = new Vector3(0, 1, 0).applyQuaternion(this.rig.rootRotation);
+    const trace = isLegIKTraceEnabled();
+    if (trace) {
+      legIKTraceLogger.info('applyLegIK input', {
+        side,
+        target: serializeVector(target),
+        before: serializeLegPoints(hipPos, kneePos, anklePos),
+        targetDistance: round(anklePos.distanceTo(target)),
+      });
+    }
     const newChain = solveLegIKWithinLimits(
       hipPos,
       kneePos,
@@ -389,10 +404,60 @@ export class RigService {
       bodyUp,
       side,
     );
-    if (!newChain) return;
+    if (!newChain) {
+      if (trace) {
+        legIKTraceLogger.info('applyLegIK rejected', {
+          side,
+          reason: 'solver-null',
+          target: serializeVector(target),
+          beforeDiagnostics: getLegIKCandidateDiagnostics(
+            hipPos,
+            kneePos,
+            anklePos,
+            bodyForward,
+            bodyUp,
+            side,
+          ),
+        });
+      }
+      return;
+    }
+    const candidateRig = cloneRig(this.rig);
+    applyLegChainToRig(candidateRig, side, hipPos, newChain[1], newChain[2]);
+    const candidateDiagnostics = getLegIKCandidateDiagnostics(
+      newChain[0],
+      newChain[1],
+      newChain[2],
+      bodyForward,
+      bodyUp,
+      side,
+    );
+    if (!isTibiaAxialTwistWithinLimits(candidateRig, side)) {
+      if (trace) {
+        legIKTraceLogger.info('applyLegIK rejected', {
+          side,
+          reason: 'tibia-axial-twist',
+          target: serializeVector(target),
+          candidate: serializeLegPoints(newChain[0], newChain[1], newChain[2]),
+          candidateDiagnostics,
+          targetDistance: round(newChain[2].distanceTo(target)),
+        });
+      }
+      return;
+    }
+
     applyLegChainToRig(this.rig, side, hipPos, newChain[1], newChain[2]);
     this.resolvedCache = null;
     this.notifyListeners();
+    if (trace) {
+      legIKTraceLogger.info('applyLegIK applied', {
+        side,
+        target: serializeVector(target),
+        result: serializeLegPoints(newChain[0], newChain[1], newChain[2]),
+        candidateDiagnostics,
+        targetDistance: round(newChain[2].distanceTo(target)),
+      });
+    }
   }
 
   /**
@@ -409,6 +474,15 @@ export class RigService {
     const newKnee = twistKnee(hipPos, kneePos, anklePos, delta);
     const bodyForward = new Vector3(0, 0, 1).applyQuaternion(this.rig.rootRotation);
     const bodyUp = new Vector3(0, 1, 0).applyQuaternion(this.rig.rootRotation);
+    const trace = isLegIKTraceEnabled();
+    if (trace) {
+      legIKTraceLogger.info('applyKneeTwist input', {
+        side,
+        deltaDeg: round(delta * 180 / Math.PI),
+        before: serializeLegPoints(hipPos, kneePos, anklePos),
+        proposedKnee: serializeVector(newKnee),
+      });
+    }
     if (!isLegIKCandidateWithinLimits(
       hipPos,
       newKnee,
@@ -417,6 +491,21 @@ export class RigService {
       bodyUp,
       side,
     )) {
+      if (trace) {
+        legIKTraceLogger.info('applyKneeTwist rejected', {
+          side,
+          reason: 'candidate-limits',
+          candidate: serializeLegPoints(hipPos, newKnee, anklePos),
+          candidateDiagnostics: getLegIKCandidateDiagnostics(
+            hipPos,
+            newKnee,
+            anklePos,
+            bodyForward,
+            bodyUp,
+            side,
+          ),
+        });
+      }
       return;
     }
     const candidateRig = cloneRig(this.rig);
@@ -427,6 +516,7 @@ export class RigService {
     const startKneePos = toVec3(dragStartPose[joints.knee]!);
     if (
       !isUpperLegAxialTwistWithinLimits(candidateRig, side) ||
+      !isTibiaAxialTwistWithinLimits(candidateRig, side) ||
       !isKneePlaneTwistDeltaWithinLimits(
         hipPos,
         startKneePos,
@@ -434,12 +524,41 @@ export class RigService {
         anklePos,
       )
     ) {
+      if (trace) {
+        legIKTraceLogger.info('applyKneeTwist rejected', {
+          side,
+          reason: 'axial-or-plane-twist',
+          candidate: serializeLegPoints(hipPos, newKnee, anklePos),
+          candidateDiagnostics: getLegIKCandidateDiagnostics(
+            hipPos,
+            newKnee,
+            anklePos,
+            bodyForward,
+            bodyUp,
+            side,
+          ),
+        });
+      }
       return;
     }
 
     applyLegChainToRig(this.rig, side, hipPos, newKnee, anklePos);
     this.resolvedCache = null;
     this.notifyListeners();
+    if (trace) {
+      legIKTraceLogger.info('applyKneeTwist applied', {
+        side,
+        result: serializeLegPoints(hipPos, newKnee, anklePos),
+        candidateDiagnostics: getLegIKCandidateDiagnostics(
+          hipPos,
+          newKnee,
+          anklePos,
+          bodyForward,
+          bodyUp,
+          side,
+        ),
+      });
+    }
   }
 
   // ─── Foot FK (Stage 7) ───────────────────────────────────────────────────
@@ -572,4 +691,32 @@ export class RigService {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function serializeVector(v: Vector3): { x: number; y: number; z: number } {
+  return {
+    x: round(v.x),
+    y: round(v.y),
+    z: round(v.z),
+  };
+}
+
+function serializeLegPoints(
+  hip: Vector3,
+  knee: Vector3,
+  ankle: Vector3,
+): {
+  hip: { x: number; y: number; z: number };
+  knee: { x: number; y: number; z: number };
+  ankle: { x: number; y: number; z: number };
+} {
+  return {
+    hip: serializeVector(hip),
+    knee: serializeVector(knee),
+    ankle: serializeVector(ankle),
+  };
+}
+
+function round(value: number): number {
+  return Math.round(value * 10000) / 10000;
 }

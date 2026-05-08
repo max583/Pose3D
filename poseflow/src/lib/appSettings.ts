@@ -39,6 +39,8 @@ export interface AppSettings {
   gizmoDragSensitivity: number;
   /** Shared multiplier for invisible gizmo hit zones. */
   gizmoHitZoneScale: number;
+  /** Show developer/debug tools in the left sidebar. */
+  showDebugTools: boolean;
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -57,6 +59,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   controllerSize: 0.08,
   gizmoDragSensitivity: 1,
   gizmoHitZoneScale: 1,
+  showDebugTools: false,
 };
 
 const STORAGE_KEY = 'poseflow-app-settings-v1';

@@ -106,6 +106,21 @@
   background: #e68900;
 }
 
+.btn-debug-active {
+  background: var(--warning);
+  color: white;
+  border: 1px solid var(--warning);
+}
+
+.btn-debug-active:hover {
+  background: #e68900;
+  border-color: #e68900;
+}
+
+.sidebar-debug-section {
+  background: rgba(255, 152, 0, 0.06);
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding: 12px 16px;

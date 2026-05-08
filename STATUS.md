@@ -38,7 +38,7 @@ Completed on 2026-05-06:
 
 ### Leg Model Refactor
 
-Next implementation task after documentation cleanup.
+Active, not finished.
 
 Manual validation found the current leg model is not anatomically explicit enough:
 
@@ -55,13 +55,99 @@ Accepted direction:
 
 Task brief: `ai/tasks/leg-limits-refinement-analysis.md`.
 
+Current checkpoint, 2026-05-06:
+
+- A first experimental slice is in the working tree:
+  - added `legAnatomy.ts` with explicit knee anterior/flexion/tibia twist helpers;
+  - changed `legIK.ts`, `legLimits.ts`, and `RigService.ts`;
+  - added/updated focused tests.
+- Automated checks for the current experimental slice passed:
+  - `npm run typecheck`;
+  - focused leg regression passed with 49 tests.
+- Manual check is still unsuccessful:
+  - side escape is improved: the leg no longer flies upward through the side;
+  - deep front hip flexion still does not reach the needed "knees to belly" range in the viewport;
+  - user supplied `limits.png`; it is useful, but its angles are table-style residual joint angles and must be translated carefully before using as code constants.
+- Important: do not treat the current leg refactor as complete. Tomorrow continue with a hip-first solver:
+  - solve thigh/hip direction first in the mannequin pelvis frame;
+  - clamp hip flexion/extension and lateral abduction/adduction there;
+  - solve knee flexion after the thigh direction is fixed;
+  - then choose the reachable ankle position.
+- Do not start tomorrow by flipping signs or moving the current high-front threshold again.
+
+Hip-only solver slice, 2026-05-06:
+
+- Added `legHip.ts` as a pure helper module for pelvis-frame hip/femur direction.
+- Added `legHip.test.ts` with H1-H12 hip-only scenarios from `ai/tasks/leg-hierarchical-solver-design.md`.
+- Connected the hip layer to `legIK.ts` for femur direction measurement and clamping.
+- Updated hip-related `legIK` tests to match the new first-pass hip model:
+  - flexion max 150 degrees;
+  - extension max 25 degrees;
+  - happy-baby high-flexion abduction is allowed;
+  - extreme high-side escape remains blocked.
+- Runtime now uses the hip layer, but the full leg model is still unfinished: knee and ankle/reach layers still need hierarchical refactor.
+- Added temporary `LegIKTrace` diagnostics for development:
+  - Settings has "Показывать отладку" to show/hide the left-sidebar Debug section;
+  - Debug section has "Leg IK Trace", "Export Logs", and "Clear Logs";
+  - console fallback: `localStorage.setItem('poseflow-debug-leg-ik', 'true')`;
+  - disable fallback: `localStorage.removeItem('poseflow-debug-leg-ik')`.
+- Fixed Debug toggle persistence to use `globalThis.localStorage`; the first toggle now logs whether
+  the flag was actually persisted.
+- User-supplied `poseflow/logs/console.log` confirms the current jerk case reaches `solver-null`
+  while hip flexion is clamped at 150 degrees in a high-front pose.
+- Added the first hip-first fallback slice for that logged high-front case:
+  - stable-thigh attempt;
+  - reachable ankle along `hip -> target`;
+  - knee point chosen from a hip-limited preferred thigh direction;
+  - nearest-valid scan from the target outward when the requested ankle is inside the reachable
+    two-bone distance.
+- Added explicit `trueKneeFlexion` for knee limits:
+  - limits use unsigned thigh-to-tibia hinge angle;
+  - signed knee flexion remains in diagnostics only;
+  - removed the temporary target-high-front exception from hip-first reach acceptance.
+- 2026-05-08 debug-log pass:
+  - user supplied `debug-logs/*` traces for ankle drag and knee twist jerk cases;
+  - the worst ankle-drag case was a branch-continuity failure: ankle movement was tiny, but the
+    knee jumped about 0.7 scene units to the other IK branch;
+  - small ankle-drag steps now preserve the current high-front knee branch, while larger posing
+    moves may still choose the high-front branch automatically;
+  - follow-up log showed excessive sticking during bottom-to-top ankle drag; root cause was the
+    high-front hip adduction limit being too narrow at 20 degrees;
+  - high-front adduction is now relaxed to 30 degrees, and limit handling now returns boundary
+    poses instead of hard `null` for outside targets that can be clamped smoothly;
+  - this is a targeted bridge fix, not the final hierarchical solver.
+- Technical checks passed:
+  - `npm run typecheck`;
+  - focused settings + leg regression passed with 69 tests;
+  - after Debug toggle persistence fix, focused debug/settings/leg regression passed with 43 tests.
+  - after Export Logs button, `npm run typecheck` and focused debug/settings tests passed.
+  - after first hip-first fallback slice, focused leg regression passed with 65 tests.
+  - after `trueKneeFlexion` knee-layer slice, `npm run lint:unused` passed and focused leg regression passed with 66 tests.
+  - after 2026-05-08 branch-continuity / high-front adduction fixes, `npm run typecheck`,
+    `npm run lint:unused`, and focused leg regression passed with 68 tests.
+
 ## Latest Technical Checks
 
-Before documentation cleanup:
+Latest checks:
 
-- `npm run typecheck` passed.
-- `npm test` passed with 263 tests.
-- Focused leg tests passed with 33 tests.
+- 2026-05-08 after ankle-drag branch-continuity / high-front adduction fixes:
+  - `npm run typecheck` passed.
+  - `npm run lint:unused` passed.
+  - Focused leg regression passed with 68 tests.
+- 2026-05-06 after hip layer integration:
+  - `npm run typecheck` passed.
+  - `npm run lint:unused` passed after `trueKneeFlexion` cleanup.
+  - Focused leg regression passed with 66 tests after `trueKneeFlexion` knee-layer slice.
+  - Focused leg regression passed with 65 tests after first hip-first fallback slice.
+  - Focused debug/settings/leg regression passed with 43 tests after Debug toggle persistence fix.
+  - Focused settings + leg regression passed with 69 tests after Debug UI.
+- 2026-05-06 during current leg-refactor slice:
+  - `npm run typecheck` passed.
+  - Focused leg regression passed with 49 tests.
+- Before documentation cleanup:
+  - `npm run typecheck` passed.
+  - `npm test` passed with 263 tests.
+  - Focused leg tests passed with 33 tests.
 
 ## Working Tree Note
 
@@ -71,6 +157,7 @@ As of this status compaction, several verified changes are still uncommitted:
 - Electron EPIPE hardening.
 - Focused leg-limit fixes that led to the leg-model refactor decision.
 - Documentation cleanup and archiving.
+- Current unfinished leg-model refactor slice.
 
 Do not assume uncommitted changes are disposable. Treat them as current work.
 

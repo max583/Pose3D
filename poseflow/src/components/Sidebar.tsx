@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getAllPosePresets } from '../lib/presets/body25-presets';
-import { uiLogger } from '../lib/logger';
+import { logUtils, uiLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { usePoseService } from '../context/ServiceContext';
+import { isLegIKTraceEnabled, setLegIKTraceEnabled } from '../lib/debugFlags';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -21,6 +22,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [legIKTraceEnabled, setLegIKTraceEnabledState] = useState(false);
   const presets = getAllPosePresets();
 
   // Обновляем состояние кнопок при изменении позы
@@ -32,6 +34,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     update();
     return poseService.subscribe(update);
   }, [poseService]);
+
+  useEffect(() => {
+    setLegIKTraceEnabledState(isLegIKTraceEnabled());
+  }, []);
 
   const handleResetPose = () => {
     if (
@@ -52,6 +58,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (preset) {
       poseService.setPoseData(preset.poseData);
     }
+  };
+
+  const handleToggleLegIKTrace = () => {
+    const next = !legIKTraceEnabled;
+    setLegIKTraceEnabled(next);
+    setLegIKTraceEnabledState(next);
+    uiLogger.info(`Leg IK trace ${next ? 'enabled' : 'disabled'}`, {
+      persisted: isLegIKTraceEnabled(),
+    });
   };
 
   return (
@@ -130,6 +145,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ⇄ Mirror L↔R
         </button>
       </div>
+
+      {settings.showDebugTools && (
+        <div className="sidebar-section sidebar-debug-section">
+          <h3>Debug</h3>
+          <button
+            type="button"
+            className={`btn ${legIKTraceEnabled ? 'btn-debug-active' : 'btn-secondary'}`}
+            onClick={handleToggleLegIKTrace}
+            title="LegIKTrace writes leg IK diagnostics to console and PoseFlow logs"
+          >
+            Leg IK Trace: {legIKTraceEnabled ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              logUtils.exportLogs();
+              uiLogger.info('PoseFlow logs exported');
+            }}
+          >
+            Export Logs
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              logUtils.clearLogs();
+              uiLogger.info('PoseFlow logs cleared');
+            }}
+          >
+            Clear Logs
+          </button>
+        </div>
+      )}
 
       <div className="sidebar-section sidebar-footer">
         <div className="sidebar-info">

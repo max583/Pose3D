@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from 'three';
 import { Body25Index } from '../body25/body25-types';
 import { SkeletonRig } from './SkeletonRig';
 import { isAxialTwistWithinLimits, measureLocalAxialTwist } from './armLimits';
+import { isKneeSwivelWithinLimits } from './legAnatomy';
 
 export const LEG_LIMITS = {
   upperLegAxialTwist: {
@@ -104,9 +105,8 @@ export function isKneePlaneTwistDeltaWithinLimits(
   candidateKnee: Vector3,
   ankle: Vector3,
 ): boolean {
-  return isAxialTwistWithinLimits(
+  return isKneeSwivelWithinLimits(
     measureKneePlaneTwistDelta(hip, startKnee, candidateKnee, ankle),
-    LEG_LIMITS.upperLegAxialTwist,
   );
 }
 

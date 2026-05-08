@@ -131,3 +131,144 @@ Accepted refactor plan:
 5. Limit tibia axial twist tightly, likely ±10..15° for the first pass.
 6. Rework knee twist gizmo as limited knee swivel, not free rotation around `HIP -> ANKLE`.
 7. Add regression tests for ankle forward/up, ankle back/up, tibia axial twist, both sides, and root rotation.
+
+## 2026-05-06 Experimental Refactor Checkpoint
+
+Implemented in the current working tree:
+
+- Added `legAnatomy.ts`:
+  - `kneeAnterior` / patella-side helpers;
+  - true `kneeFlexion`;
+  - `tibiaAxialTwist`;
+  - `kneeSwivel` limit.
+- Updated `legIK.ts` to use anatomy helpers and high-front hip handling.
+- Updated `legLimits.ts` and `RigService.ts` to limit tibia axial twist and knee swivel.
+- Added/updated focused tests:
+  - `legAnatomy.test.ts`;
+  - `legIK.test.ts`;
+  - `legLimits.test.ts`;
+  - `RigService.stage6.test.ts`.
+
+Technical checks passed:
+
+- `npm run typecheck`.
+- Focused leg regression: 49 tests passed.
+
+Manual result:
+
+- Not accepted yet.
+- The sideways escape that created an obviously broken leg is improved.
+- Deep front hip flexion is still insufficient in the viewport: user still cannot get a strong "knees to belly" pose.
+- The current high-front heuristic is probably still the wrong abstraction.
+
+User supplied `limits.png`:
+
+- The table gives clinical movement ranges in residual angle notation.
+- Do not paste these values directly into current signed-angle constants.
+- Before using the table, translate each movement into PoseFlow conventions:
+  - hip flexion/extension as thigh direction relative to pelvis frame;
+  - hip abduction/adduction as lateral direction relative to pelvis frame;
+  - knee flexion as lower leg folding relative to the thigh;
+  - ankle pitch/yaw/roll separately from leg IK.
+
+Recommended next step:
+
+Primary direction: switch to a hip-first solver. This is now the accepted path for the next session.
+
+1. Stop iterating on the current target-angle heuristic.
+2. Design the new scheme from scratch and proceed hierarchically:
+   - hip joint first: describe its ball-joint shape, movement features, pelvis-frame axes, and limits;
+   - verify hip movement independently, without using ankle behavior as the proof;
+   - knee joint second: describe hinge-like flexion, patella/anterior direction, and tightly limited tibia axial twist;
+   - verify knee behavior after the hip model is stable;
+   - ankle/reach third: only then solve the reachable ankle position.
+3. Build a cleaner hip-first solver:
+   - convert target into mannequin/pelvis leg frame;
+   - choose desired thigh direction within hip flexion/abduction limits;
+   - clamp lateral range as a function of front flexion;
+   - solve knee flexion and ankle reach after the thigh direction is fixed.
+4. Add a second leg-positioning control path through the knee node:
+   - keep the current ankle-driven control because it is generally natural;
+   - add knee-node control as an additional, more direct posing option;
+   - design it as part of the hierarchical solver, not as a separate sign-tuned shortcut.
+5. Use user-supplied live-model reference photos as orientation aids for a test pose set:
+   - store images under `ai/reference-poses/images/`;
+   - derive manual checks and possible service regressions from the images;
+   - do not treat a single photo as an exact 3D target.
+6. Keep current tests, but add a viewport-like service regression for "knees to belly" before editing behavior again.
+7. Preserve the side-escape improvement.
+
+Do not start the next session by flipping signs or moving the high-front threshold again. Start by designing the hip-first solver contract:
+
+- inputs: hip/knee/ankle world points, target world point, body forward/up, side, bone lengths;
+- frame: mannequin pelvis/leg frame;
+- output: valid hip/knee/ankle chain, or no-op when the target moves away from all allowed motion;
+- acceptance: "knees to belly" works, sideways escape stays blocked, backward knee remains blocked.
+
+Architecture draft: `ai/tasks/leg-hierarchical-solver-design.md`.
+
+Scenario-design update, 2026-05-06:
+
+- Added hip-only scenario set H1-H12 to `ai/tasks/leg-hierarchical-solver-design.md`.
+- The first helper/test slice should target hip behavior only:
+  - no ankle target;
+  - no knee flexion solving;
+  - verify pelvis-frame measurement, clamping, right/left mirroring, and root rotation.
+- Reference-driven checks currently emphasized:
+  - `happy_baby_*` for deep front flexion plus abduction;
+  - `arabesque*` / `attitude*` for hip extension;
+  - side-escape block as a negative regression from the failed viewport case.
+
+Implementation update, 2026-05-06:
+
+- Added isolated `legHip.ts` and `legHip.test.ts`.
+- H1-H12 are covered as pure hip-only tests; no ankle point is used.
+- Connected `legHip.ts` to `legIK.ts` for hip/femur direction measurement and clamping.
+- Updated hip-related `legIK` tests to match the new first-pass hip model.
+- Technical checks passed:
+  - `npm run typecheck`;
+  - focused leg regression passed with 63 tests.
+- Still open: knee and ankle/reach layers are not fully refactored yet; manual viewport validation is still needed after the next behavior slice.
+
+Debug update, 2026-05-06:
+
+- Added temporary `LegIKTrace` logging for ankle IK and knee twist.
+- Added a left-sidebar Debug section, hidden by default.
+- Enable the section in Settings with "Показывать отладку".
+- Toggle `LegIKTrace` from the Debug section, or use `localStorage.setItem('poseflow-debug-leg-ik', 'true')`.
+- Disable with the Debug section toggle, or `localStorage.removeItem('poseflow-debug-leg-ik')`.
+- The Debug section can export the current PoseFlow log buffer with "Export Logs".
+- Follow-up fix: the Debug toggle now persists through `globalThis.localStorage`, so Electron/Vite
+  contexts do not silently keep only the yellow React button state without enabling `RigService` trace.
+- Trace records include operation, side, target/result points, target distance, hip/knee diagnostics, and rejection reason when available.
+- The first captured jerk log shows repeated `solver-null` rejections while hip flexion is already
+  clamped at 150 degrees and the pose is in the high-front branch.
+- First hip-first fallback slice:
+  - added a regression from the captured `LegIKTrace` coordinates;
+  - when the old post-limit path would return `solver-null`, the fallback tries stable thigh first;
+  - then it builds a reachable ankle along `hip -> target`;
+  - the knee is chosen from a hip-limited preferred thigh direction instead of forcing the old
+    high-front `up` radial;
+  - reachable distance is chosen by scanning from the target outward until a valid two-bone knee
+    configuration is found.
+- Knee-layer follow-up:
+  - added `measureTrueKneeFlexion` as the unsigned thigh-to-tibia hinge angle;
+  - knee limits now use true hinge flexion, not the signed `bodyForward`-based value;
+  - signed knee flexion remains available in diagnostics as `signedFlexionDeg`;
+  - removed the temporary target-high-front exception from hip-first reach acceptance.
+- Technical checks after trace:
+  - `npm run typecheck`;
+  - focused settings + leg regression passed with 69 tests.
+- Technical checks after Debug toggle persistence fix:
+  - `npm run typecheck`;
+  - focused debug/settings/leg regression passed with 43 tests.
+- Technical checks after Export Logs button:
+  - `npm run typecheck`;
+  - focused debug/settings tests passed with 8 tests.
+- Technical checks after first hip-first fallback slice:
+  - `npm run typecheck`;
+  - focused leg regression passed with 65 tests.
+- Technical checks after `trueKneeFlexion` knee-layer slice:
+  - `npm run typecheck`;
+  - `npm run lint:unused`;
+  - focused leg regression passed with 66 tests.

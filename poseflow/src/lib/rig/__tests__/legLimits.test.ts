@@ -83,14 +83,14 @@ describe('leg axial twist limits', () => {
     const hip = new Vector3(0, 0, 0);
     const ankle = new Vector3(0, -1, 0);
     const startKnee = new Vector3(0, -0.5, 0.2);
-    const candidateKnee = new Vector3(0.2, -0.5, 0);
+    const candidateKnee = new Vector3(0.1, -0.5, 0.1732050808);
 
     expect(measureKneePlaneTwistDelta(
       hip,
       startKnee,
       candidateKnee,
       ankle,
-    )).toBeCloseTo(-Math.PI / 2, 5);
+    )).toBeCloseTo(-Math.PI / 6, 5);
     expect(isKneePlaneTwistDeltaWithinLimits(
       hip,
       startKnee,

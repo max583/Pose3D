@@ -110,18 +110,22 @@ describe('RigService — Stage 6.1 leg IK', () => {
     expect(distance(after[Body25Index.RIGHT_KNEE]!, kneeBefore)).toBeGreaterThan(0.01);
   });
 
-  it('applyKneeTwist stops when twist would move the hip outside limits', () => {
+  it('applyKneeTwist allows high-front adduction within the relaxed hip limits', () => {
     svc.beginDrag();
     svc.applyLegIK('r', 0.5, 0.34, 0.02);
 
     const before = svc.getPoseData();
+    const hipBefore = before[Body25Index.RIGHT_HIP]!;
     const kneeBefore = before[Body25Index.RIGHT_KNEE]!;
+    const ankleBefore = before[Body25Index.RIGHT_ANKLE]!;
 
     svc.beginDrag();
     svc.applyKneeTwist('r', 1);
 
     const after = svc.getPoseData();
-    expect(distance(after[Body25Index.RIGHT_KNEE]!, kneeBefore)).toBeCloseTo(0, 5);
+    expect(distance(after[Body25Index.RIGHT_HIP]!, hipBefore)).toBeCloseTo(0, 5);
+    expect(distance(after[Body25Index.RIGHT_ANKLE]!, ankleBefore)).toBeCloseTo(0, 5);
+    expect(distance(after[Body25Index.RIGHT_KNEE]!, kneeBefore)).toBeGreaterThan(0.01);
   });
 
   it('applyKneeTwist stops when twist would over-rotate the thigh around its axis', () => {
@@ -168,15 +172,19 @@ describe('RigService — Stage 6.1 leg IK', () => {
 
   it('applyLegIK останавливает движение, если цель нарушает лимит бедра', () => {
     const before = svc.getPoseData();
+    const hipBefore = before[Body25Index.RIGHT_HIP]!;
     const kneeBefore = before[Body25Index.RIGHT_KNEE]!;
     const ankleBefore = before[Body25Index.RIGHT_ANKLE]!;
+    const target = { x: 0.15, y: 0.35, z: -1.2 };
 
     svc.beginDrag();
-    svc.applyLegIK('r', 0.15, 0.35, -1.2);
+    svc.applyLegIK('r', target.x, target.y, target.z);
 
     const after = svc.getPoseData();
-    expect(distance(after[Body25Index.RIGHT_KNEE]!, kneeBefore)).toBeCloseTo(0, 5);
-    expect(distance(after[Body25Index.RIGHT_ANKLE]!, ankleBefore)).toBeCloseTo(0, 5);
+    expect(distance(after[Body25Index.RIGHT_HIP]!, hipBefore)).toBeCloseTo(0, 5);
+    expect(distance(after[Body25Index.RIGHT_KNEE]!, kneeBefore)).toBeGreaterThan(0.01);
+    expect(distance(after[Body25Index.RIGHT_ANKLE]!, ankleBefore)).toBeGreaterThan(0.01);
+    expect(distance(after[Body25Index.RIGHT_ANKLE]!, target)).toBeLessThan(distance(ankleBefore, target));
   });
 
   it('applyLegIK снова двигает лодыжку после возврата цели в допустимую область', () => {
@@ -192,6 +200,15 @@ describe('RigService — Stage 6.1 leg IK', () => {
     expect(after[Body25Index.RIGHT_ANKLE]!.x).toBeCloseTo(0.24, 2);
     expect(after[Body25Index.RIGHT_ANKLE]!.y).toBeCloseTo(0.15, 2);
     expect(after[Body25Index.RIGHT_ANKLE]!.z).toBeCloseTo(0.08, 2);
+  });
+
+  it('applyLegIK поднимает колено выше бедра для глубокого переднего сгибания', () => {
+    svc.beginDrag();
+    svc.applyLegIK('r', 0.15, 1.2, 0.4);
+
+    const pose = svc.getPoseData();
+    expect(pose[Body25Index.RIGHT_KNEE]!.y)
+      .toBeGreaterThan(pose[Body25Index.RIGHT_HIP]!.y);
   });
 
   it('applyLegIK сохраняет выставленную twist-плоскость колена после knee gizmo', () => {

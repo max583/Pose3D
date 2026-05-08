@@ -3,15 +3,45 @@ import { Body25Index } from '../body25/body25-types';
 import { solveFABRIK } from '../solvers/FABRIKSolver';
 import { SkeletonRig } from './SkeletonRig';
 import { toVec3, worldPosToLocalRot } from './armIK';
+import {
+  isKneeAnteriorValid,
+  isKneeFlexionWithinLimits,
+  LEG_ANATOMY_LIMITS,
+  measureKneeFlexion,
+  measureTrueKneeFlexion,
+} from './legAnatomy';
+import {
+  buildPelvisLegFrame,
+  DEFAULT_HIP_LIMITS,
+  getHipLateralLimits as getPelvisHipLateralLimits,
+  limitHipPose,
+  measureHipPose,
+  solveHipDirection,
+} from './legHip';
 
-const KNEE_FORWARD_LIMIT = 85 * Math.PI / 180;
-const KNEE_BACK_LIMIT = 0;
-const HIP_FORWARD_LIMIT = 120 * Math.PI / 180;
-const HIP_BACK_LIMIT = 20 * Math.PI / 180;
-const HIP_OUTWARD_LIMIT = 50 * Math.PI / 180;
-const HIP_INWARD_LIMIT = 30 * Math.PI / 180;
+export interface LegIKCandidateDiagnostics {
+  valid: boolean;
+  reasons: string[];
+  hip: {
+    flexionDeg: number;
+    abductionDeg: number;
+    clamped: boolean;
+    clampReasons: string[];
+  };
+  knee: {
+    flexionDeg: number;
+    signedFlexionDeg: number;
+    anteriorValid: boolean;
+    highFrontPose: boolean;
+  };
+}
+
+const KNEE_FORWARD_LIMIT = LEG_ANATOMY_LIMITS.kneeFlexion.max;
+const HIP_HIGH_FRONT_FLEXION_START = 90 * Math.PI / 180;
 const LIMIT_TOLERANCE = 1 * Math.PI / 180;
 const TARGET_TOLERANCE = 0.025;
+const LIMIT_SURFACE_TOLERANCE = 1e-4;
+const BRANCH_PRESERVE_TARGET_DISTANCE = 0.06;
 const EPS = 1e-6;
 
 export const LEG_JOINTS = {
@@ -82,6 +112,15 @@ export function solveLegFABRIK(
   bodyUp: Vector3 = new Vector3(0, 1, 0),
   side: 'r' | 'l' = 'r',
 ): Vector3[] {
+  const preserveCurrentBranch = shouldPreserveCurrentKneeBranch(
+    hipPos,
+    kneePos,
+    anklePos,
+    target,
+    bodyForward,
+    bodyUp,
+    side,
+  );
   const result = solveFABRIK({
     chain: [hipPos.clone(), kneePos.clone(), anklePos.clone()],
     target,
@@ -92,7 +131,10 @@ export function solveLegFABRIK(
     kneePos,
     result.chain[2],
     bodyForward,
+    bodyUp,
+    side,
     boneLengths,
+    preserveCurrentBranch,
   );
   const hipLimited = constrainHipDirection(
     kneeLimited[0],
@@ -104,30 +146,24 @@ export function solveLegFABRIK(
     boneLengths,
   );
   if (hipLimited[1].distanceToSquared(kneeLimited[1]) < EPS) {
-    return kneeLimited;
+    return constrainKneeFlexionWithFixedThigh(
+      kneeLimited[0],
+      kneeLimited[1],
+      kneeLimited[2],
+      bodyForward,
+      bodyUp,
+      side,
+      boneLengths,
+    );
   }
 
-  const hipRelimited = constrainKneeBend(
+  return constrainKneeFlexionWithFixedThigh(
     hipLimited[0],
     hipLimited[1],
-    hipLimited[2],
-    bodyForward,
-    boneLengths,
-  );
-  const finalHipLimited = constrainHipDirection(
-    hipRelimited[0],
-    hipRelimited[1],
-    hipRelimited[2],
+    target,
     bodyForward,
     bodyUp,
     side,
-    boneLengths,
-  );
-  return constrainKneeFlexionWithFixedThigh(
-    finalHipLimited[0],
-    finalHipLimited[1],
-    target,
-    bodyForward,
     boneLengths,
   );
 }
@@ -142,6 +178,15 @@ export function solveLegIKWithinLimits(
   bodyUp: Vector3 = new Vector3(0, 1, 0),
   side: 'r' | 'l' = 'r',
 ): Vector3[] | null {
+  const preserveCurrentBranch = shouldPreserveCurrentKneeBranch(
+    hipPos,
+    kneePos,
+    anklePos,
+    target,
+    bodyForward,
+    bodyUp,
+    side,
+  );
   const result = solveFABRIK({
     chain: [hipPos.clone(), kneePos.clone(), anklePos.clone()],
     target,
@@ -152,7 +197,10 @@ export function solveLegIKWithinLimits(
     kneePos,
     result.chain[2],
     bodyForward,
+    bodyUp,
+    side,
     boneLengths,
+    preserveCurrentBranch,
   );
   const hipLimited = constrainHipDirection(
     kneeLimited[0],
@@ -175,6 +223,20 @@ export function solveLegIKWithinLimits(
       side,
     )
   ) {
+    const hipLimitedValid = isLegIKCandidateWithinLimits(
+      hipLimited[0],
+      hipLimited[1],
+      hipLimited[2],
+      bodyForward,
+      bodyUp,
+      side,
+    );
+    const hipLimitedImprovesTarget = hipLimited[2].distanceTo(target)
+      < anklePos.distanceTo(target) - LIMIT_SURFACE_TOLERANCE;
+    if (hipLimitedValid && hipLimitedImprovesTarget) {
+      return hipLimited;
+    }
+
     const relimited = solveLegFABRIK(
       hipPos,
       kneePos,
@@ -185,18 +247,46 @@ export function solveLegIKWithinLimits(
       bodyUp,
       side,
     );
+    const validRelimited = isLegIKCandidateWithinLimits(
+      relimited[0],
+      relimited[1],
+      relimited[2],
+      bodyForward,
+      bodyUp,
+      side,
+    );
+    const improvesTargetDistance = relimited[2].distanceTo(target)
+      < anklePos.distanceTo(target) - LIMIT_SURFACE_TOLERANCE;
+    const targetHighFront = isHighFrontTarget(hipPos, target, bodyForward, bodyUp, side);
     if (
-      relimited[2].distanceTo(target) <= TARGET_TOLERANCE &&
-      isLegIKCandidateWithinLimits(
-        relimited[0],
-        relimited[1],
-        relimited[2],
-        bodyForward,
-        bodyUp,
-        side,
+      validRelimited &&
+      (
+        relimited[2].distanceTo(target) <= TARGET_TOLERANCE ||
+        (targetHighFront && improvesTargetDistance)
       )
     ) {
       return relimited;
+    }
+
+    const hipFirst = solveLegIKHipFirst(
+      hipPos,
+      kneePos,
+      anklePos,
+      target,
+      boneLengths,
+      bodyForward,
+      bodyUp,
+      side,
+    );
+    if (hipFirst) {
+      const improvesHipFirstTargetDistance = hipFirst[2].distanceTo(target)
+        < anklePos.distanceTo(target) - LIMIT_SURFACE_TOLERANCE;
+      if (
+        hipFirst[2].distanceTo(target) <= TARGET_TOLERANCE ||
+        (targetHighFront && improvesHipFirstTargetDistance)
+      ) {
+        return hipFirst;
+      }
     }
 
     return null;
@@ -207,7 +297,6 @@ export function solveLegIKWithinLimits(
 
 export function constrainKneeBend(
   hipPos: Vector3,
-  candidateKneePos: Vector3,
   candidateAnklePos: Vector3,
   bodyForward: Vector3,
   boneLengths: [number, number],
@@ -215,7 +304,6 @@ export function constrainKneeBend(
   const [hipToKnee, kneeToAnkle] = boneLengths;
   const maxReach = hipToKnee + kneeToAnkle;
   const forwardMinDistance = distanceForFlexion(hipToKnee, kneeToAnkle, KNEE_FORWARD_LIMIT);
-  const backMinDistance = distanceForFlexion(hipToKnee, kneeToAnkle, KNEE_BACK_LIMIT);
 
   const targetVec = candidateAnklePos.clone().sub(hipPos);
   const rawDistance = targetVec.length();
@@ -227,15 +315,14 @@ export function constrainKneeBend(
   }
 
   const axis = targetVec.normalize();
-  const candidateSign = getTargetBendSign(hipPos, candidateKneePos, candidateAnklePos, bodyForward);
-  const minDistance = candidateSign < 0 ? backMinDistance : forwardMinDistance;
+  const minDistance = forwardMinDistance;
   const distance = Math.min(maxReach, Math.max(minDistance, rawDistance));
   const ankle = hipPos.clone().addScaledVector(axis, distance);
   const knee = buildKneeOnAxis(
     hipPos,
     ankle,
     bodyForward,
-    candidateSign,
+    1,
     hipToKnee,
     kneeToAnkle,
   );
@@ -248,7 +335,10 @@ export function constrainKneeBendPreserveTwist(
   preferredKneePos: Vector3,
   candidateAnklePos: Vector3,
   bodyForward: Vector3,
+  bodyUp: Vector3,
+  side: 'r' | 'l',
   boneLengths: [number, number],
+  preserveCurrentBranch: boolean = true,
 ): Vector3[] {
   const [hipToKnee, kneeToAnkle] = boneLengths;
   const maxReach = hipToKnee + kneeToAnkle;
@@ -264,8 +354,11 @@ export function constrainKneeBendPreserveTwist(
       ankle,
       preferredKneePos,
       bodyForward,
+      bodyUp,
+      side,
       hipToKnee,
       kneeToAnkle,
+      preserveCurrentBranch,
     );
     return [hipPos.clone(), knee, ankle];
   }
@@ -278,8 +371,11 @@ export function constrainKneeBendPreserveTwist(
     ankle,
     preferredKneePos,
     bodyForward,
+    bodyUp,
+    side,
     hipToKnee,
     kneeToAnkle,
+    preserveCurrentBranch,
   );
 
   return [hipPos.clone(), knee, ankle];
@@ -291,13 +387,10 @@ export function getSignedKneeFlexion(
   anklePos: Vector3,
   bodyForward: Vector3,
 ): number {
-  const upper = hipPos.clone().sub(kneePos);
-  const lower = anklePos.clone().sub(kneePos);
-  if (upper.lengthSq() < EPS || lower.lengthSq() < EPS) return 0;
-
-  const angle = upper.angleTo(lower);
-  const flexion = Math.PI - angle;
-  return flexion * getKneeBendSign(hipPos, kneePos, anklePos, bodyForward);
+  return measureKneeFlexion(
+    { hip: hipPos, knee: kneePos, ankle: anklePos },
+    bodyForward,
+  );
 }
 
 export function constrainHipDirection(
@@ -310,35 +403,24 @@ export function constrainHipDirection(
   boneLengths: [number, number],
 ): Vector3[] {
   const [hipToKnee, kneeToAnkle] = boneLengths;
-  const axes = getBodyAxes(bodyForward, bodyUp);
+  const frame = buildPelvisLegFrame(bodyForward, bodyUp, side);
   const dir = candidateKneePos.clone().sub(hipPos);
   if (dir.lengthSq() < EPS) {
-    const knee = hipPos.clone().addScaledVector(axes.down, hipToKnee);
-    const ankle = knee.clone().addScaledVector(axes.down, kneeToAnkle);
+    const knee = hipPos.clone().addScaledVector(frame.down, hipToKnee);
+    const ankle = knee.clone().addScaledVector(frame.down, kneeToAnkle);
     return [hipPos.clone(), knee, ankle];
   }
 
-  dir.normalize();
-  const angles = getHipDirectionAnglesFromDir(dir, axes, side);
-  const limitedForward = clamp(angles.forward, -HIP_BACK_LIMIT, HIP_FORWARD_LIMIT);
-  const limitedLateral = clamp(
-    angles.lateral,
-    -HIP_INWARD_LIMIT,
-    HIP_OUTWARD_LIMIT,
-  );
+  const solved = solveHipDirection(hipPos, candidateKneePos, hipToKnee, frame);
 
-  if (
-    Math.abs(limitedForward - angles.forward) < EPS &&
-    Math.abs(limitedLateral - angles.lateral) < EPS
-  ) {
+  if (!solved.limited.clamped) {
     return [hipPos.clone(), candidateKneePos.clone(), candidateAnklePos.clone()];
   }
 
-  const limitedDir = directionFromHipAngles(limitedForward, limitedLateral, axes, side);
-  const knee = hipPos.clone().addScaledVector(limitedDir, hipToKnee);
+  const knee = solved.knee;
   const ankleDir = candidateAnklePos.clone().sub(knee);
   if (ankleDir.lengthSq() < EPS) {
-    ankleDir.copy(limitedDir);
+    ankleDir.copy(solved.limited.pose.direction);
   }
   ankleDir.normalize();
   const ankle = knee.clone().addScaledVector(ankleDir, kneeToAnkle);
@@ -353,12 +435,13 @@ export function getSignedHipAngles(
   bodyUp: Vector3,
   side: 'r' | 'l',
 ): { forward: number; lateral: number } {
-  const axes = getBodyAxes(bodyForward, bodyUp);
+  const frame = buildPelvisLegFrame(bodyForward, bodyUp, side);
   const dir = kneePos.clone().sub(hipPos);
   if (dir.lengthSq() < EPS) {
     return { forward: 0, lateral: 0 };
   }
-  return getHipDirectionAnglesFromDir(dir.normalize(), axes, side);
+  const pose = measureHipPose(dir, frame);
+  return { forward: pose.flexion, lateral: pose.abduction };
 }
 
 export function isLegIKCandidateWithinLimits(
@@ -369,17 +452,74 @@ export function isLegIKCandidateWithinLimits(
   bodyUp: Vector3,
   side: 'r' | 'l',
 ): boolean {
+  return getLegIKCandidateDiagnostics(
+    hipPos,
+    kneePos,
+    anklePos,
+    bodyForward,
+    bodyUp,
+    side,
+  ).valid;
+}
+
+export function getLegIKCandidateDiagnostics(
+  hipPos: Vector3,
+  kneePos: Vector3,
+  anklePos: Vector3,
+  bodyForward: Vector3,
+  bodyUp: Vector3,
+  side: 'r' | 'l',
+): LegIKCandidateDiagnostics {
   const hipAngles = getSignedHipAngles(hipPos, kneePos, bodyForward, bodyUp, side);
-  if (hipAngles.forward < -HIP_BACK_LIMIT - LIMIT_TOLERANCE) return false;
-  if (hipAngles.forward > HIP_FORWARD_LIMIT + LIMIT_TOLERANCE) return false;
-  if (hipAngles.lateral < -HIP_INWARD_LIMIT - LIMIT_TOLERANCE) return false;
-  if (hipAngles.lateral > HIP_OUTWARD_LIMIT + LIMIT_TOLERANCE) return false;
+  const frame = buildPelvisLegFrame(bodyForward, bodyUp, side);
+  const hipPose = measureHipPose(kneePos.clone().sub(hipPos), frame);
+  const limitedHip = limitHipPose(hipPose, frame);
+  const reasons: string[] = [];
+  if (
+    limitedHip.clamped &&
+    (
+      Math.abs(limitedHip.pose.flexion - hipPose.flexion) > LIMIT_TOLERANCE ||
+      Math.abs(limitedHip.pose.abduction - hipPose.abduction) > LIMIT_TOLERANCE
+    )
+  ) {
+    reasons.push(`hip:${limitedHip.reasons.join(',')}`);
+  }
 
-  const kneeFlexion = getSignedKneeFlexion(hipPos, kneePos, anklePos, bodyForward);
-  if (kneeFlexion > KNEE_BACK_LIMIT + LIMIT_TOLERANCE) return false;
-  if (kneeFlexion < -KNEE_FORWARD_LIMIT - LIMIT_TOLERANCE) return false;
+  const legPoints = { hip: hipPos, knee: kneePos, ankle: anklePos };
+  const kneeAboveHip = kneePos.clone().sub(hipPos).dot(bodyUp.clone().normalize()) > 0;
+  const highFrontPose = kneeAboveHip
+    && hipAngles.forward > HIP_HIGH_FRONT_FLEXION_START - LIMIT_TOLERANCE
+    && Math.abs(hipAngles.lateral) <= getPelvisHipLateralLimits(hipAngles.forward).abductionMax + LIMIT_TOLERANCE;
+  const anteriorValid = isKneeAnteriorValid(legPoints, bodyForward);
+  if (!highFrontPose && !anteriorValid) {
+    reasons.push('knee:patella-back');
+  }
 
-  return true;
+  const signedKneeFlexion = measureKneeFlexion(legPoints, bodyForward);
+  const trueKneeFlexion = measureTrueKneeFlexion(legPoints);
+  if (!isKneeFlexionWithinLimits(trueKneeFlexion, {
+    min: LEG_ANATOMY_LIMITS.kneeFlexion.min - LIMIT_TOLERANCE,
+    max: LEG_ANATOMY_LIMITS.kneeFlexion.max + LIMIT_TOLERANCE,
+  })) {
+    reasons.push('knee:flexion-limit');
+  }
+
+  return {
+    valid: reasons.length === 0,
+    reasons,
+    hip: {
+      flexionDeg: radiansToDegrees(hipAngles.forward),
+      abductionDeg: radiansToDegrees(hipAngles.lateral),
+      clamped: limitedHip.clamped,
+      clampReasons: limitedHip.reasons,
+    },
+    knee: {
+      flexionDeg: radiansToDegrees(trueKneeFlexion),
+      signedFlexionDeg: radiansToDegrees(signedKneeFlexion),
+      anteriorValid,
+      highFrontPose,
+    },
+  };
 }
 
 export function twistKnee(
@@ -436,8 +576,12 @@ function buildKneeOnAxisWithPreferredRadial(
   anklePos: Vector3,
   preferredKneePos: Vector3,
   bodyForward: Vector3,
+  bodyUp: Vector3,
+  side: 'r' | 'l',
   hipToKnee: number,
   kneeToAnkle: number,
+  preservePreferredInHighFront: boolean = false,
+  enforceAnteriorWhenPreserving: boolean = false,
 ): Vector3 {
   const hipToAnkle = anklePos.clone().sub(hipPos);
   const distance = Math.max(EPS, hipToAnkle.length());
@@ -450,7 +594,26 @@ function buildKneeOnAxisWithPreferredRadial(
   const radius = Math.sqrt(Math.max(0, hipToKnee ** 2 - along ** 2));
   const center = hipPos.clone().addScaledVector(axis, along);
 
-  let radial = preferredKneePos.clone().sub(hipPos);
+  const axes = getBodyAxes(bodyForward, bodyUp);
+  const hipToAnkleDir = hipToAnkle.clone().normalize();
+  const frame = buildPelvisLegFrame(bodyForward, bodyUp, side);
+  const targetAngles = measureHipPose(hipToAnkleDir, frame);
+  const targetLateralLimit = getPelvisHipLateralLimits(targetAngles.flexion);
+  const preferHighFrontBranch = targetAngles.flexion > DEFAULT_HIP_LIMITS.highFlexionStart
+    && Math.abs(targetAngles.abduction) <= targetLateralLimit.abductionMax + LIMIT_TOLERANCE;
+  const preferredThighDir = preferredKneePos.clone().sub(hipPos);
+  const preferredAngles = preferredThighDir.lengthSq() >= EPS
+    ? measureHipPose(preferredThighDir.normalize(), frame)
+    : null;
+  const preserveCurrentHighFrontBranch = Boolean(
+    preservePreferredInHighFront &&
+    preferredAngles &&
+    preferredAngles.flexion > Math.PI / 2,
+  );
+
+  let radial = preferHighFrontBranch && !preserveCurrentHighFrontBranch
+    ? axes.up.clone()
+    : preferredKneePos.clone().sub(hipPos);
   radial.addScaledVector(axis, -radial.dot(axis));
   if (radial.lengthSq() < EPS) {
     radial = bodyForward.clone().addScaledVector(axis, -bodyForward.dot(axis));
@@ -460,44 +623,19 @@ function buildKneeOnAxisWithPreferredRadial(
   }
   radial.normalize();
 
+  const anterior = bodyForward.clone().addScaledVector(axis, -bodyForward.dot(axis));
+  const shouldEnforceAnterior = enforceAnteriorWhenPreserving
+    ? (!preferHighFrontBranch || preservePreferredInHighFront)
+    : (!preserveCurrentHighFrontBranch && !preferHighFrontBranch);
+  if (
+    shouldEnforceAnterior &&
+    anterior.lengthSq() >= EPS &&
+    radial.dot(anterior.normalize()) < 0
+  ) {
+    radial.negate();
+  }
+
   return center.addScaledVector(radial, radius);
-}
-
-function getKneeBendSign(
-  hipPos: Vector3,
-  kneePos: Vector3,
-  anklePos: Vector3,
-  bodyForward: Vector3,
-): 1 | -1 {
-  const axis = anklePos.clone().sub(hipPos);
-  if (axis.lengthSq() < EPS) return 1;
-  axis.normalize();
-
-  const centerOffset = kneePos.clone().sub(hipPos);
-  const radial = centerOffset.addScaledVector(axis, -centerOffset.dot(axis));
-  if (radial.lengthSq() < EPS) return 1;
-
-  const forward = bodyForward.clone().addScaledVector(axis, -bodyForward.dot(axis));
-  if (forward.lengthSq() < EPS) return 1;
-
-  return radial.dot(forward) < 0 ? -1 : 1;
-}
-
-function getTargetBendSign(
-  hipPos: Vector3,
-  candidateKneePos: Vector3,
-  candidateAnklePos: Vector3,
-  bodyForward: Vector3,
-): 1 | -1 {
-  const hipToAnkle = candidateAnklePos.clone().sub(hipPos);
-  const projectedForward = bodyForward.clone();
-  if (projectedForward.lengthSq() < EPS) return 1;
-  projectedForward.normalize();
-
-  const targetDepth = hipToAnkle.dot(projectedForward);
-  if (Math.abs(targetDepth) > EPS) return targetDepth < 0 ? -1 : 1;
-
-  return getKneeBendSign(hipPos, candidateKneePos, candidateAnklePos, bodyForward);
 }
 
 function constrainKneeFlexionWithFixedThigh(
@@ -505,6 +643,8 @@ function constrainKneeFlexionWithFixedThigh(
   kneePos: Vector3,
   desiredAnklePos: Vector3,
   bodyForward: Vector3,
+  bodyUp: Vector3,
+  side: 'r' | 'l',
   boneLengths: [number, number],
 ): Vector3[] {
   const [, kneeToAnkle] = boneLengths;
@@ -515,11 +655,11 @@ function constrainKneeFlexionWithFixedThigh(
 
   upperFromKnee.normalize();
   const straight = upperFromKnee.clone().negate();
-  let radial = bodyForward.clone().addScaledVector(straight, -bodyForward.dot(straight));
-  if (radial.lengthSq() < EPS) {
-    radial = getPerpendicularAxis(straight);
+  let anterior = bodyForward.clone().addScaledVector(straight, -bodyForward.dot(straight));
+  if (anterior.lengthSq() < EPS) {
+    anterior = getPerpendicularAxis(straight);
   }
-  radial.normalize();
+  anterior.normalize();
 
   const candidateLower = desiredAnklePos.clone().sub(kneePos);
   if (candidateLower.lengthSq() < EPS) {
@@ -528,18 +668,229 @@ function constrainKneeFlexionWithFixedThigh(
   }
   candidateLower.normalize();
 
-  const rawFlexion = Math.atan2(candidateLower.dot(radial), candidateLower.dot(straight));
-  const targetDepth = desiredAnklePos.clone().sub(hipPos).dot(bodyForward);
-  const signedFlexion = Math.abs(targetDepth) > EPS
-    ? Math.abs(rawFlexion) * (targetDepth < 0 ? -1 : 1)
-    : rawFlexion;
-  const flexion = clamp(signedFlexion, -KNEE_BACK_LIMIT, KNEE_FORWARD_LIMIT);
+  const rawFlexion = Math.atan2(-candidateLower.dot(anterior), candidateLower.dot(straight));
+  const hipAngles = getSignedHipAngles(hipPos, kneePos, bodyForward, bodyUp, side);
+  const targetAboveHip = desiredAnklePos.clone().sub(hipPos).dot(bodyUp.clone().normalize()) > 0;
+  const highFrontPose = targetAboveHip
+    && hipAngles.forward > HIP_HIGH_FRONT_FLEXION_START - LIMIT_TOLERANCE
+    && Math.abs(hipAngles.lateral) <= getPelvisHipLateralLimits(hipAngles.forward).abductionMax + LIMIT_TOLERANCE;
+  const flexion = clamp(
+    rawFlexion,
+    highFrontPose ? -LEG_ANATOMY_LIMITS.kneeFlexion.max : LEG_ANATOMY_LIMITS.kneeFlexion.min,
+    LEG_ANATOMY_LIMITS.kneeFlexion.max,
+  );
   const lowerDir = straight.multiplyScalar(Math.cos(flexion))
-    .addScaledVector(radial, Math.sin(flexion))
+    .addScaledVector(anterior, -Math.sin(flexion))
     .normalize();
   const ankle = kneePos.clone().addScaledVector(lowerDir, kneeToAnkle);
 
   return [hipPos.clone(), kneePos.clone(), ankle];
+}
+
+function solveLegIKHipFirst(
+  hipPos: Vector3,
+  kneePos: Vector3,
+  anklePos: Vector3,
+  target: Vector3,
+  boneLengths: [number, number],
+  bodyForward: Vector3,
+  bodyUp: Vector3,
+  side: 'r' | 'l',
+): Vector3[] | null {
+  const [hipToKnee] = boneLengths;
+  const currentThighChain = constrainKneeFlexionWithFixedThigh(
+    hipPos,
+    kneePos,
+    target,
+    bodyForward,
+    bodyUp,
+    side,
+    boneLengths,
+  );
+  if (
+    currentThighChain[2].distanceTo(target) < anklePos.distanceTo(target) - LIMIT_SURFACE_TOLERANCE &&
+    isLegIKCandidateWithinLimits(
+      currentThighChain[0],
+      currentThighChain[1],
+      currentThighChain[2],
+      bodyForward,
+      bodyUp,
+      side,
+    )
+  ) {
+    return currentThighChain;
+  }
+
+  const reachableChain = solveReachableAnkleWithLimitedHip(
+    hipPos,
+    kneePos,
+    target,
+    bodyForward,
+    bodyUp,
+    side,
+    boneLengths,
+  );
+  if (
+    reachableChain[2].distanceTo(target) < anklePos.distanceTo(target) - LIMIT_SURFACE_TOLERANCE &&
+    isHipFirstReachCandidateAcceptable(
+      reachableChain,
+      bodyForward,
+      bodyUp,
+      side,
+    )
+  ) {
+    return reachableChain;
+  }
+
+  const requestedDirection = target.clone().sub(hipPos);
+  if (requestedDirection.lengthSq() < EPS) {
+    requestedDirection.copy(kneePos).sub(hipPos);
+  }
+  if (requestedDirection.lengthSq() < EPS) return null;
+
+  requestedDirection.normalize();
+  const frame = buildPelvisLegFrame(bodyForward, bodyUp, side);
+  const { knee } = solveHipDirection(
+    hipPos,
+    hipPos.clone().addScaledVector(requestedDirection, hipToKnee),
+    hipToKnee,
+    frame,
+    DEFAULT_HIP_LIMITS,
+  );
+  const chain = constrainKneeFlexionWithFixedThigh(
+    hipPos,
+    knee,
+    target,
+    bodyForward,
+    bodyUp,
+    side,
+    boneLengths,
+  );
+
+  if (!isLegIKCandidateWithinLimits(
+    chain[0],
+    chain[1],
+    chain[2],
+    bodyForward,
+    bodyUp,
+    side,
+  )) {
+    return null;
+  }
+
+  return chain;
+}
+
+export function solveReachableAnkleWithLimitedHip(
+  hipPos: Vector3,
+  preferredKneePos: Vector3,
+  target: Vector3,
+  bodyForward: Vector3,
+  bodyUp: Vector3,
+  side: 'r' | 'l',
+  boneLengths: [number, number],
+): Vector3[] {
+  const [hipToKnee, kneeToAnkle] = boneLengths;
+  const maxReach = hipToKnee + kneeToAnkle;
+  const minReach = distanceForFlexion(hipToKnee, kneeToAnkle, KNEE_FORWARD_LIMIT);
+  const targetVec = target.clone().sub(hipPos);
+  if (targetVec.lengthSq() < EPS) {
+    targetVec.copy(preferredKneePos).sub(hipPos);
+  }
+  if (targetVec.lengthSq() < EPS) {
+    targetVec.copy(bodyUp).negate();
+  }
+
+  const axis = targetVec.normalize();
+  const frame = buildPelvisLegFrame(bodyForward, bodyUp, side);
+  const { knee: hipLimitedPreferredKnee } = solveHipDirection(
+    hipPos,
+    preferredKneePos,
+    hipToKnee,
+    frame,
+    DEFAULT_HIP_LIMITS,
+  );
+
+  const minDistance = clamp(target.distanceTo(hipPos), minReach, maxReach);
+  const nearest = buildReachableChainAtDistance(
+    hipPos,
+    hipLimitedPreferredKnee,
+    axis,
+    minDistance,
+    bodyForward,
+    bodyUp,
+    side,
+    hipToKnee,
+    kneeToAnkle,
+  );
+  if (isHipFirstReachCandidateAcceptable(nearest, bodyForward, bodyUp, side)) {
+    return nearest;
+  }
+
+  const steps = 32;
+  for (let i = 1; i <= steps; i += 1) {
+    const distance = minDistance + (maxReach - minDistance) * (i / steps);
+    const candidate = buildReachableChainAtDistance(
+      hipPos,
+      hipLimitedPreferredKnee,
+      axis,
+      distance,
+      bodyForward,
+      bodyUp,
+      side,
+      hipToKnee,
+      kneeToAnkle,
+    );
+    if (isHipFirstReachCandidateAcceptable(candidate, bodyForward, bodyUp, side)) {
+      return candidate;
+    }
+  }
+
+  return nearest;
+}
+
+function buildReachableChainAtDistance(
+  hipPos: Vector3,
+  preferredKneePos: Vector3,
+  axis: Vector3,
+  distance: number,
+  bodyForward: Vector3,
+  bodyUp: Vector3,
+  side: 'r' | 'l',
+  hipToKnee: number,
+  kneeToAnkle: number,
+): Vector3[] {
+  const ankle = hipPos.clone().addScaledVector(axis, distance);
+  const knee = buildKneeOnAxisWithPreferredRadial(
+    hipPos,
+    ankle,
+    preferredKneePos,
+    bodyForward,
+    bodyUp,
+    side,
+    hipToKnee,
+    kneeToAnkle,
+    true,
+    true,
+  );
+
+  return [hipPos.clone(), knee, ankle];
+}
+
+function isHipFirstReachCandidateAcceptable(
+  chain: Vector3[],
+  bodyForward: Vector3,
+  bodyUp: Vector3,
+  side: 'r' | 'l',
+): boolean {
+  return isLegIKCandidateWithinLimits(
+    chain[0],
+    chain[1],
+    chain[2],
+    bodyForward,
+    bodyUp,
+    side,
+  );
 }
 
 function getBodyAxes(bodyForward: Vector3, bodyUp: Vector3) {
@@ -556,33 +907,46 @@ function getBodyAxes(bodyForward: Vector3, bodyUp: Vector3) {
   return { forward, up, right, down };
 }
 
-function getHipDirectionAnglesFromDir(
-  dir: Vector3,
-  axes: ReturnType<typeof getBodyAxes>,
+function isHighFrontTarget(
+  hipPos: Vector3,
+  target: Vector3,
+  bodyForward: Vector3,
+  bodyUp: Vector3,
   side: 'r' | 'l',
-): { forward: number; lateral: number } {
-  const down = Math.max(EPS, dir.dot(axes.down));
-  const forward = Math.atan2(dir.dot(axes.forward), down);
-  const sideSign = side === 'r' ? 1 : -1;
-  const lateral = Math.atan2(dir.dot(axes.right) * sideSign, down);
-  return { forward, lateral };
+): boolean {
+  const targetDir = target.clone().sub(hipPos);
+  if (targetDir.lengthSq() < EPS) return false;
+  const frame = buildPelvisLegFrame(bodyForward, bodyUp, side);
+  const angles = measureHipPose(targetDir, frame);
+  const lateralLimits = getPelvisHipLateralLimits(angles.flexion);
+  return angles.flexion > DEFAULT_HIP_LIMITS.highFlexionStart
+    && Math.abs(angles.abduction) <= lateralLimits.abductionMax + LIMIT_TOLERANCE;
 }
 
-function directionFromHipAngles(
-  forwardAngle: number,
-  lateralAngle: number,
-  axes: ReturnType<typeof getBodyAxes>,
+function shouldPreserveCurrentKneeBranch(
+  hipPos: Vector3,
+  kneePos: Vector3,
+  anklePos: Vector3,
+  target: Vector3,
+  bodyForward: Vector3,
+  bodyUp: Vector3,
   side: 'r' | 'l',
-): Vector3 {
-  const sideSign = side === 'r' ? 1 : -1;
-  return axes.down.clone()
-    .addScaledVector(axes.forward, Math.tan(forwardAngle))
-    .addScaledVector(axes.right, Math.tan(lateralAngle) * sideSign)
-    .normalize();
+): boolean {
+  if (anklePos.distanceTo(target) <= BRANCH_PRESERVE_TARGET_DISTANCE) return true;
+
+  const thighDir = kneePos.clone().sub(hipPos);
+  if (thighDir.lengthSq() < EPS) return false;
+  const frame = buildPelvisLegFrame(bodyForward, bodyUp, side);
+  const currentPose = measureHipPose(thighDir, frame);
+  return currentPose.flexion > HIP_HIGH_FRONT_FLEXION_START;
 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function radiansToDegrees(value: number): number {
+  return value * 180 / Math.PI;
 }
 
 function distanceForFlexion(hipToKnee: number, kneeToAnkle: number, flexion: number): number {

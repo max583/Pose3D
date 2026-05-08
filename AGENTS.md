@@ -15,6 +15,8 @@ Primary language: Russian for UI, docs, commit messages, and user communication.
 - Source module reference: `ai/docs/source-modules.md`
 - Unit-test policy: `ai/docs/unit-testing.md`
 - Feature task template: `ai/docs/feature-task-template.md`
+- Controller/gizmo debug protocol: `ai/docs/controller-debug-protocol.md`
+- Collaboration roles: `ai/docs/collaboration-roles.md`
 - R3F/manual smoke checklist: `ai/docs/r3f-smoke-manual-checklist.md`
 - Browser/Playwright calibration: `ai/docs/browser-use-poseflow-3d-calibration.md`, `ai/docs/playwright-poseflow-3d-smoke.md`
 - ADR index: `ai/decisions/index.md`
@@ -84,6 +86,7 @@ For non-Lite feature tasks:
 
 For controller/gizmo changes:
 
+- follow `ai/docs/controller-debug-protocol.md` for complex mechanics;
 - write down pivot, rotation axis, motion plane, gizmo placement, affected joints/bones, mannequin side convention, and expected mouse direction before editing;
 - right/left means the mannequin's side, not the camera-view side;
 - avoid sign flipping by trial and error.
@@ -113,3 +116,5 @@ Optional traceability trailer: `PLAN: ...` or task/ADR link.
 ## Model And Iteration Policy
 
 Default to small completed steps. Avoid large rewrites in one session. Use higher-cost models only for complex architecture, large refactors, or broad code analysis.
+
+For complex work, use the universal role flow from `ai/docs/collaboration-roles.md`: Architect -> Researcher -> Scenario Designer -> Engineer -> Tester -> Documenter.

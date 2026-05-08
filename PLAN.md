@@ -6,7 +6,7 @@ This file contains only unfinished or currently active work. Completed plans and
 
 ### P1 - Anatomical Leg Model Refactor
 
-Status: next implementation task after documentation cleanup.
+Status: active, current implementation slice is not manually accepted.
 
 Problem:
 
@@ -16,15 +16,43 @@ Problem:
 
 Plan:
 
-1. Add pure leg-frame helpers: local pelvis/leg axes, `kneeAnterior`, true `kneeFlexion`, and `tibiaAxialTwist`.
-2. Rework ankle IK to choose or preserve the knee plane only while the patella stays anterior.
-3. Raise knee flexion toward a natural first-pass range, likely 130 degrees.
-4. Keep hyperextension near 0 degrees initially.
-5. Limit tibia axial twist tightly, likely +/-10..15 degrees.
-6. Rework knee twist gizmo as limited knee swivel rather than free `HIP -> ANKLE` rotation.
-7. Add regression tests for ankle forward/up, ankle back/up, tibia axial twist, both sides, and root rotation.
+Completed in current experimental slice:
 
-Reference: `ai/tasks/leg-limits-refinement-analysis.md`.
+1. Added pure leg anatomy helpers: `kneeAnterior`, true `kneeFlexion`, and `tibiaAxialTwist`.
+2. Added focused regression tests for the helper layer, root rotation, knee swivel, and high-front targets.
+3. Limited knee swivel and tibia axial twist in service validation.
+4. Narrowed lateral side escape for high front hip positions.
+5. Added `legHip.ts` / `legHip.test.ts` hip-only solver slice. H1-H12 pass.
+6. Connected `legHip.ts` to `legIK.ts` for hip direction measurement/clamping. Focused leg regression passes with 63 tests.
+
+Next focus: replace the current heuristic with a hip-first leg solver.
+
+This is the preferred path. Do not keep tuning the current target-based high-front heuristic unless it is only to remove temporary code during the rewrite.
+
+Architecture rule: design the new leg solver from scratch and validate it hierarchically.
+Do not use the ankle target as the first proof that the hip model works.
+
+Still open:
+
+1. Rework ankle IK for deep front hip flexion. Current manual check still cannot reach the "knees to belly" / baby pose range.
+2. Implement the hip-first solver:
+   - first model the hip joint in the mannequin/pelvis frame, including its ball-joint shape, movement features, and limits;
+   - validate hip movement and limits without depending on knee or ankle behavior;
+   - use hip-only scenario tests H1-H12 from `ai/tasks/leg-hierarchical-solver-design.md` (implemented);
+   - hip layer is now connected to leg IK for femur direction;
+   - next, model the knee joint, including hinge-like flexion, patella/anterior direction, and very limited tibia axial twist;
+   - validate knee behavior after the hip model is stable;
+   - only then model ankle/reach behavior and choose ankle position within reachable bounds.
+3. Add an additional leg-position control path through the knee node. Keep the current ankle-driven control because it is generally natural, but do not make it the only way to position the leg.
+4. Build a reference-pose set from user-supplied live-model photos. Images live in `ai/reference-poses/images/` and are used as orientation aids, not exact mandatory targets.
+5. Translate `limits.png` into PoseFlow angle conventions before using values as constants. The table uses residual clinical joint angles, not the same signed angles used by `legIK.ts`.
+6. Preserve the improved side-escape behavior: no sideways route should create a broken leg pose.
+7. Re-run focused leg tests and manual viewport checks after the next solver change.
+
+References:
+
+- `ai/tasks/leg-limits-refinement-analysis.md`
+- `ai/tasks/leg-hierarchical-solver-design.md`
 
 ## Backlog
 
