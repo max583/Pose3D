@@ -80,11 +80,12 @@ describe('legIK', () => {
     const ankle = new Vector3(0, 0.05, 0);
     const target = new Vector3(0, 0.7, 0.35);
     const bodyForward = new Vector3(0, 0, 1);
+    const bodyUp = new Vector3(0, 1, 0);
 
-    const chain = solveLegFABRIK(hip, knee, ankle, target, [0.43, 0.37], bodyForward);
-    const flexion = getSignedKneeFlexion(chain[0], chain[1], chain[2], bodyForward);
+    const chain = solveLegFABRIK(hip, knee, ankle, target, [0.43, 0.37], bodyForward, bodyUp, 'r');
+    const diagnostics = getLegIKCandidateDiagnostics(chain[0], chain[1], chain[2], bodyForward, bodyUp, 'r');
 
-    expect(flexion).toBeGreaterThanOrEqual(-1e-4);
+    expect(diagnostics.reasons).toEqual([]);
     expect(chain[1].z).toBeGreaterThanOrEqual(0);
   });
 
@@ -568,6 +569,54 @@ describe('legIK', () => {
     expect(chain![1].distanceTo(knee)).toBeLessThan(0.15);
     expect(chain![1].y).toBeGreaterThan(hip.y);
     expect(chain![2].distanceTo(target)).toBeLessThan(ankle.distanceTo(target));
+  });
+
+  it('DK1: solveLegFABRIK при 140° бедре держит колено выше бедра при цели на уровне бедра', () => {
+    const hip = new Vector3(0, 0.85, 0);
+    const bodyForward = new Vector3(0, 0, 1);
+    const bodyUp = new Vector3(0, 1, 0);
+    const hipFlexion = 140 * Math.PI / 180;
+    const thighDir = new Vector3(0, -Math.cos(hipFlexion), Math.sin(hipFlexion));
+    const knee = hip.clone().addScaledVector(thighDir, 0.43);
+    const ankle = knee.clone().add(new Vector3(0, -0.37, 0));
+    const target = new Vector3(0, 0.85, 0.4);
+
+    const chain = solveLegFABRIK(hip, knee, ankle, target, [0.43, 0.37], bodyForward, bodyUp, 'r');
+
+    expect(chain[1].y).toBeGreaterThan(hip.y);
+    expect(chain[2].distanceTo(target)).toBeLessThan(0.1);
+  });
+
+  it('DK2: solveLegFABRIK при 140° бедре сближает лодыжку с целью ниже уровня бедра', () => {
+    const hip = new Vector3(0, 0.85, 0);
+    const bodyForward = new Vector3(0, 0, 1);
+    const bodyUp = new Vector3(0, 1, 0);
+    const hipFlexion = 140 * Math.PI / 180;
+    const thighDir = new Vector3(0, -Math.cos(hipFlexion), Math.sin(hipFlexion));
+    const knee = hip.clone().addScaledVector(thighDir, 0.43);
+    const ankle = knee.clone().add(new Vector3(0, -0.37, 0));
+    const target = new Vector3(0, 0.75, 0.3);
+
+    const chain = solveLegFABRIK(hip, knee, ankle, target, [0.43, 0.37], bodyForward, bodyUp, 'r');
+
+    expect(chain[1].y).toBeGreaterThan(hip.y);
+    expect(chain[2].distanceTo(target)).toBeLessThan(ankle.distanceTo(target));
+  });
+
+  it('DK3: solveLegIKWithinLimits находит позу с высоким бедром при цели на уровне бедра из стойки', () => {
+    const hip = new Vector3(0, 0.85, 0);
+    const knee = new Vector3(0, 0.42, 0);
+    const ankle = new Vector3(0, 0.05, 0);
+    const target = new Vector3(0, 0.85, 0.4);
+    const bodyForward = new Vector3(0, 0, 1);
+    const bodyUp = new Vector3(0, 1, 0);
+
+    const chain = solveLegIKWithinLimits(hip, knee, ankle, target, [0.43, 0.37], bodyForward, bodyUp, 'r');
+
+    expect(chain).not.toBeNull();
+    expect(chain![2].distanceTo(target)).toBeLessThan(ankle.distanceTo(target));
+    const angles = getSignedHipAngles(chain![0], chain![1], bodyForward, bodyUp, 'r');
+    expect(angles.forward).toBeGreaterThan(80 * Math.PI / 180);
   });
 
   it('solveLegIKWithinLimits keeps knee anatomy relative to rotated mannequin axes', () => {

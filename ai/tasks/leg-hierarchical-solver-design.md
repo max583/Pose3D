@@ -395,6 +395,71 @@ Follow-up sticking fix, 2026-05-08:
   - `npm run lint:unused`;
   - focused leg regression: 68 tests.
 
+## Second-Opinion Diagnosis — 2026-05-08
+
+Independent architecture and math review. Source: `ai/tasks/leg-second-opinion-analysis-brief.md`.
+
+### D1 — `buildKneeOnAxisWithPreferredRadial` uses `hipToAnkleDir` for high-front detection (confirmed)
+
+File: `legIK.ts` function `buildKneeOnAxisWithPreferredRadial`, variable `targetAngles`.
+
+`hipToAnkleDir` is the averaged direction of the whole chain, not the femur direction.
+For "knees to belly" the ankle is roughly at hip height → `hipToAnkleDir.flexion ≈ 90–110°`, below
+the 120° high-front threshold → `preferHighFrontBranch = false` → the knee radial falls back to the
+current (standing/downward) thigh direction instead of going upward-forward.
+
+Fix: replace `measureHipPose(hipToAnkleDir)` with `solveHipDirection(hipPos, hip + hipToAnkleDir * hipToKnee, ...)`,
+which gives the hip-limited thigh direction for the ankle target. Use that pose's flexion for
+`preferHighFrontBranch`.
+
+### D2 — `constrainKneeFlexionWithFixedThigh` requires `targetAboveHip` for extended knee range (confirmed)
+
+File: `legIK.ts` function `constrainKneeFlexionWithFixedThigh`, variable `targetAboveHip`.
+
+```typescript
+const targetAboveHip = desiredAnklePos.clone().sub(hipPos).dot(bodyUp) > 0;
+const highFrontPose = targetAboveHip && hipAngles.forward > ...
+```
+
+For "knees to belly" with ankle at or below hip level, `targetAboveHip = false` → `highFrontPose = false`
+→ signed knee flexion range is `[0, 130°]` instead of `[-130°, +130°]` → tibia cannot fold backward.
+
+`hipAngles.forward` is already computed from the thigh direction (correct source). `targetAboveHip`
+is the wrong guard and should be removed entirely from the `highFrontPose` condition.
+
+### D3 — `solveLegIKHipFirst` is the third fallback, not the primary path (confirmed)
+
+Both D1 and D2 affect `solveLegIKHipFirst` as well: its third branch also calls
+`constrainKneeFlexionWithFixedThigh` with the ankle target as `desiredAnklePos`.
+Fixing D2 first makes the hip-first fallback more reliable before it is promoted to the primary path.
+
+### D4 — Duplicate frame functions (minor)
+
+`legAnatomy.ts::buildLegFrame` and `legHip.ts::buildPelvisLegFrame` are mathematically identical.
+`legIK.ts` uses only `buildPelvisLegFrame`. No active bug, but a maintenance hazard.
+
+### D5 — `isKneeAnteriorValid` threshold too weak (minor)
+
+Threshold `>= -EPS` allows the knee to face almost exactly sideways. Not causing visible failures yet.
+
+## Session 1 Plan — 2026-05-08
+
+Goal: fix D1 and D2. Both are surgical changes with no architectural rewrite.
+
+Steps:
+
+1. Fix D2 in `constrainKneeFlexionWithFixedThigh`: remove `targetAboveHip` from `highFrontPose` condition.
+2. Fix D1 in `buildKneeOnAxisWithPreferredRadial`: replace `targetAngles` (from `hipToAnkleDir`) with
+   the pose from `solveHipDirection(hipPos, hipPos + hipToAnkleDir * hipToKnee, hipToKnee, frame)`.
+3. Add regression tests DK1–DK3:
+   - DK1: hip flexion 140°, ankle at hip level → extended signed knee flexion range is active.
+   - DK2: hip flexion 140°, ankle below hip → tibia folds backward correctly.
+   - DK3: ankle drag upward through hip level → no knee branch jump.
+4. Run `npm run typecheck`, `npm run lint:unused`, focused leg regression.
+5. Manual viewport check: knees-to-belly for both legs.
+
+Not in this session: promoting `solveLegIKHipFirst` to primary path (D3).
+
 ## Open Questions
 
 - Should `flexion.max = 150 deg` be enough for the reference set, or should the first implementation allow `160 deg`?

@@ -595,12 +595,16 @@ function buildKneeOnAxisWithPreferredRadial(
   const center = hipPos.clone().addScaledVector(axis, along);
 
   const axes = getBodyAxes(bodyForward, bodyUp);
-  const hipToAnkleDir = hipToAnkle.clone().normalize();
   const frame = buildPelvisLegFrame(bodyForward, bodyUp, side);
-  const targetAngles = measureHipPose(hipToAnkleDir, frame);
-  const targetLateralLimit = getPelvisHipLateralLimits(targetAngles.flexion);
-  const preferHighFrontBranch = targetAngles.flexion > DEFAULT_HIP_LIMITS.highFlexionStart
-    && Math.abs(targetAngles.abduction) <= targetLateralLimit.abductionMax + LIMIT_TOLERANCE;
+  const { limited: solvedHipForTarget } = solveHipDirection(
+    hipPos,
+    hipPos.clone().addScaledVector(axis, hipToKnee),
+    hipToKnee,
+    frame,
+  );
+  const targetLateralLimit = getPelvisHipLateralLimits(solvedHipForTarget.pose.flexion);
+  const preferHighFrontBranch = solvedHipForTarget.pose.flexion > DEFAULT_HIP_LIMITS.highFlexionStart
+    && Math.abs(solvedHipForTarget.pose.abduction) <= targetLateralLimit.abductionMax + LIMIT_TOLERANCE;
   const preferredThighDir = preferredKneePos.clone().sub(hipPos);
   const preferredAngles = preferredThighDir.lengthSq() >= EPS
     ? measureHipPose(preferredThighDir.normalize(), frame)
@@ -670,9 +674,7 @@ function constrainKneeFlexionWithFixedThigh(
 
   const rawFlexion = Math.atan2(-candidateLower.dot(anterior), candidateLower.dot(straight));
   const hipAngles = getSignedHipAngles(hipPos, kneePos, bodyForward, bodyUp, side);
-  const targetAboveHip = desiredAnklePos.clone().sub(hipPos).dot(bodyUp.clone().normalize()) > 0;
-  const highFrontPose = targetAboveHip
-    && hipAngles.forward > HIP_HIGH_FRONT_FLEXION_START - LIMIT_TOLERANCE
+  const highFrontPose = hipAngles.forward > HIP_HIGH_FRONT_FLEXION_START - LIMIT_TOLERANCE
     && Math.abs(hipAngles.lateral) <= getPelvisHipLateralLimits(hipAngles.forward).abductionMax + LIMIT_TOLERANCE;
   const flexion = clamp(
     rawFlexion,

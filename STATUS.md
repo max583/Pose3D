@@ -126,10 +126,32 @@ Hip-only solver slice, 2026-05-06:
   - after 2026-05-08 branch-continuity / high-front adduction fixes, `npm run typecheck`,
     `npm run lint:unused`, and focused leg regression passed with 68 tests.
 
+- 2026-05-08 Session 1 second-opinion diagnosis and D1/D2 fixes:
+  - Independent diagnosis of the leg IK model identified five defects (D1–D5) documented in
+    `ai/tasks/leg-hierarchical-solver-design.md`.
+  - Session 1 addressed D1 and D2 (the two interacting bugs blocking "knees to belly" high-front
+    poses):
+    - D2: removed the `targetAboveHip` gate from `constrainKneeFlexionWithFixedThigh`; extended
+      shin-fold range now activates whenever the thigh is in high-front (≥ 90°), not only when the
+      ankle target is above the hip.
+    - D1: replaced the raw hip-to-ankle direction estimate in `buildKneeOnAxisWithPreferredRadial`
+      with the anatomically limited hip direction from `solveHipDirection`; `preferHighFrontBranch`
+      now uses the same hip measurement as the rest of the solver.
+  - Added regression tests DK1, DK2, DK3.
+  - Updated `не допускает переднее гиперразгибание колена` assertion to use diagnostics validity
+    instead of raw signed flexion (old assertion checked an artifact of the prior incorrect clamp).
+  - `npm run typecheck` passed.
+  - `npm run lint:unused` passed.
+  - Full rig regression passed with 152 tests (30 legIK, 13 legHip, 9 legAnatomy, 7 legLimits).
+
 ## Latest Technical Checks
 
 Latest checks:
 
+- 2026-05-08 after Session 1 D1/D2 fixes:
+  - `npm run typecheck` passed.
+  - `npm run lint:unused` passed.
+  - Full rig regression passed with 152 tests.
 - 2026-05-08 after ankle-drag branch-continuity / high-front adduction fixes:
   - `npm run typecheck` passed.
   - `npm run lint:unused` passed.
