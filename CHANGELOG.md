@@ -5,6 +5,15 @@
 
 ## [Unreleased]
 
+### Changed - Architectural cleanup: parallel mechanisms removed (2026-05-09)
+
+- Removed duplicate `FeatureFlagProvider` / second `FeatureFlagService` instance from `App.tsx`; all feature-flag hooks now use the DI singleton via `getService()`.
+- Removed modular `cameraService` singleton export from `services/cameraService.ts`; `CameraControls` and `AppSettingsContext` now use the DI singleton.
+- Deleted zombie Zustand stores (`lib/stores/settingsStore.ts`, `lib/stores/uiStore.ts`) that were never imported.
+- Deleted `lib/debugFlags.ts`; `ENABLE_LEG_IK_TRACE` migrated to `feature-flags/registry.ts`; `RigService` now reads both debug flags via `FeatureFlagService`.
+- Created `lib/storageKeys.ts` as a single registry for all `localStorage` keys; all five call sites updated to use constants.
+- Fixed perf-trace logging: changed `console.debug` to `console.log` in `RigService.applyLegIK` so output is visible in Chrome DevTools without enabling "Verbose" level.
+
 ### Fixed - Leg hip-limit interaction (2026-05-05)
 
 - Knee twist now stops before it moves the thigh outside the configured hip direction limits.

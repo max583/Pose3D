@@ -11,7 +11,7 @@
 | Файл | Роль |
 |---|---|
 | `poseflow/src/main.tsx` | Точка входа. Порядок: `setupErrorHandling()` → `setupContainer()` → ReactDOM рендер. **DI инициализируется до React.** |
-| `poseflow/src/App.tsx` | Корень React: `<ServiceProvider><FeatureFlagProvider><AppContent/>`. AppContent — header + Sidebar + Canvas3D + StatusBar + модали. |
+| `poseflow/src/App.tsx` | Корень React: `<ServiceProvider><AppContent/>`. AppContent — header + Sidebar + Canvas3D + StatusBar + модали. |
 | `poseflow/electron/*`, `poseflow/vite.config.ts` | Electron-обёртка. `vite-plugin-electron` сам запускает Electron в dev — **не запускать `electron .` отдельно**, иначе будет два окна (см. PR `fix: electron:dev`). |
 
 `AppSettingsProvider` оборачивает всё снаружи (в `main.tsx`).
@@ -38,9 +38,9 @@ useFeatureFlagService(), useSelectionService() → graceful fallback на нов
 | `RigService` | да | `services/RigService.ts` |
 | `PoseService` | да | `services/PoseService.ts` (обёртка над RigService) |
 | `SelectionService` | да | `services/SelectionService.ts` |
-| `CameraService` | да | `services/cameraService.ts` *(см. §6: коллизия с модульным синглтоном)* |
+| `CameraService` | да | `services/cameraService.ts` |
 | `ExportService` | **нет** | `services/ExportService.ts` (новый экземпляр на каждый `get`) |
-| `FeatureFlagService` | да | `lib/feature-flags/FeatureFlagService.ts` *(см. §6: коллизия с FeatureFlagProvider)* |
+| `FeatureFlagService` | да | `lib/feature-flags/FeatureFlagService.ts` |
 
 **Доступ из не-React кода** (другие сервисы, утилиты): `getService<T>(ServiceKeys.X)` из `lib/di/setup.ts`. Бросает, если контейнер пуст — оборачивай в try/catch с фолбэком, если код может вызываться в тестах (см. `RigService.constructor`).
 
@@ -106,14 +106,14 @@ useFeatureFlagService(), useSelectionService() → graceful fallback на нов
 ### `lib/performance/`
 - `PerformanceMonitor.ts` — синглтон, гейтится через `FeatureFlagService.isEnabled('ENABLE_PERFORMANCE_LOGGING')` (получает сервис через DI)
 
+### `lib/storageKeys.ts`
+- Единый реестр всех `localStorage`-ключей: `STORAGE_KEYS.FEATURE_FLAGS`, `.LOGS`, `.APP_SETTINGS`, `.SIDEBAR_COLLAPSED`, `.CAMERA_CONTROLS_COLLAPSED`.
+- **Все новые ключи добавлять только сюда**, использовать через константу.
+
 ### `lib/logger.ts`
 - Логгеры по категориям: `uiLogger`, `canvasLogger`, `exportLogger`, `errorLogger`, `legIKTraceLogger`
-- Запись в консоль + в localStorage `poseflow-logs` (последние ~1000)
+- Запись в консоль + в `STORAGE_KEYS.LOGS` (последние ~1000)
 - `setupErrorHandling()` ловит unhandled errors
-
-### `lib/debugFlags.ts` *(legacy — см. §6)*
-- Прямые localStorage флаги: `poseflow-debug-leg-ik`, `poseflow-debug-perf`
-- **Активно используется только `LEG_IK_TRACE_FLAG`**. `PERF_TRACE_FLAG` объявлен, но клиентов нет (был удалён при переходе perf на FeatureFlagService).
 
 ### `lib/appSettings.ts`
 - Тип `AppSettings`, `DEFAULT_APP_SETTINGS`, load/save в localStorage
@@ -123,9 +123,6 @@ useFeatureFlagService(), useSelectionService() → graceful fallback на нов
 
 ### `lib/UndoStack.ts`
 - Generic стек для undo/redo (используется в RigService)
-
-### `lib/stores/` *(zombie — см. §6)*
-- `settingsStore.ts`, `uiStore.ts` — Zustand-хранилища, **не импортируются нигде**
 
 ### `lib/utils/`, `lib/canvasColorSchemes.ts`
 - Геометрические утилиты (`clipLineToRect` и т.п.), цветовые схемы 3D-канвы
@@ -175,51 +172,42 @@ useFeatureFlagService(), useSelectionService() → graceful fallback на нов
 
 > **Не дублировать механизмы**. Если добавляешь новую категорию состояния (флаг, настройка, локальный кэш) — сначала проверь, нет ли уже подходящего канала. Ниже — известные параллели и зомби-код.
 
-### A. Коллизия имён `useFeatureFlagService` ⚠️
-Хук с одинаковым именем экспортируется из двух файлов:
-- `context/ServiceContext.tsx:110` — берёт из DI (`IFeatureFlagService`)
-- `context/FeatureFlagContext.tsx:70` — берёт из React-контекста (`FeatureFlagService`)
+### A. Коллизия имён `useFeatureFlagService` ✅ исправлено 2025-05-09
+~~Хук с одинаковым именем экспортировался из двух файлов.~~
 
-В `App.tsx` подключены **оба провайдера**, но создают **два разных экземпляра** `FeatureFlagService` (DI-синглтон + один внутри `FeatureFlagProvider`). Они оба читают/пишут в `localStorage['poseflow_feature_flags']`, но не синхронизированы в памяти. **Используй DI-вариант** через `ServiceKeys.FeatureFlagService` (`getService` или `useFeatureFlagService` из `ServiceContext`). Прямой импорт `FeatureFlagContext.useFeatureFlagService` запрещать пока никто не сделал — следить вручную.
+`FeatureFlagProvider` удалён из `App.tsx`. `context/FeatureFlagContext.tsx` больше не экспортирует `useFeatureFlagService` и не создаёт собственный экземпляр — все хуки (`useFeatureFlag`, `useFeatureFlagState`, `useEnabledFeatureFlags`) теперь вызывают `getService(ServiceKeys.FeatureFlagService)` напрямую. Единственный экземпляр — DI-синглтон.
 
-### B. Два хранилища настроек: `AppSettings` vs `settingsStore`
-- **Активный:** `context/AppSettingsContext.tsx` + `lib/appSettings.ts` (используется в 10+ компонентах). localStorage ключ — см. `appSettings.ts`.
-- **Zombie:** `lib/stores/settingsStore.ts` (Zustand, ключ `poseflow-settings-storage`) — нигде не импортируется. То же самое — `lib/stores/uiStore.ts`.
+### B. Два хранилища настроек: `AppSettings` vs `settingsStore` ✅ исправлено 2025-05-09
+~~Zombie-сторы Zustand~~.
 
-Не использовать `stores/`. Если потребуется — сначала решить, удалять зомби или мигрировать на него.
+`lib/stores/settingsStore.ts` и `lib/stores/uiStore.ts` удалены. Единственное хранилище настроек — `context/AppSettingsContext.tsx` + `lib/appSettings.ts`.
 
-### C. Два механизма debug-флагов (частично консолидировано)
-- **Текущий путь** для perf-логирования: `FeatureFlagService` + флаг `ENABLE_PERFORMANCE_LOGGING` (UI: кнопка Perf Trace в Sidebar; чтение: `RigService.applyLegIK`, `PerformanceMonitor`)
-- **Legacy** в `lib/debugFlags.ts`: остался только `LEG_IK_TRACE_FLAG` (Sidebar → `RigService` для `legIKTraceLogger`). `PERF_TRACE_FLAG` объявлен, но мёртв.
+### C. Два механизма debug-флагов ✅ исправлено 2025-05-09
+~~`lib/debugFlags.ts` дублировал FeatureFlagService.~~
 
-Любые **новые debug-флаги** добавлять только в `feature-flags/registry.ts`. Если есть время — мигрировать `LEG_IK_TRACE_FLAG` туда же и удалить `debugFlags.ts`.
+`lib/debugFlags.ts` удалён. Все debug-флаги (`ENABLE_PERFORMANCE_LOGGING`, `ENABLE_LEG_IK_TRACE`) зарегистрированы в `feature-flags/registry.ts`. `RigService` читает их через `this.featureFlagService.isEnabled(...)`. `Sidebar` управляет ими через универсальный `useFlagToggle(key)`. Perf-логирование использует `console.log` (не `console.debug`).
 
-### D. `cameraService` — модульный синглтон + DI-регистрация
-`services/cameraService.ts` экспортирует `export const cameraService = new CameraService()` (модульный синглтон). Параллельно `lib/di/setup.ts` регистрирует **другой** инстанс через `() => new CameraService()`.
+Любые **новые debug-флаги** добавлять только в `feature-flags/registry.ts`.
 
-| Импортирует напрямую (синглтон A) | Через DI (синглтон B) |
-|---|---|
-| `components/controls/CameraControls.tsx` | `context/ServiceContext.tsx` (через `useCameraService`) |
-| `context/AppSettingsContext.tsx` | `lib/di/setup.ts` |
+### D. `cameraService` — модульный синглтон + DI-регистрация ✅ исправлено 2025-05-09
+~~Два инстанса CameraService.~~
 
-Если какой-то клиент изменит состояние камеры через один путь, другие через DI этого не увидят. **Безопаснее всегда ходить через DI** (`useCameraService()`). Для полного фикса — удалить модульный экспорт `cameraService` и переключить два прямых импорта на DI.
+Модульный экспорт `export const cameraService` удалён из `services/cameraService.ts`. `CameraControls.tsx` теперь использует `useCameraService()`. `AppSettingsContext.tsx` вызывает `getService<CameraService>(ServiceKeys.CameraService)`. Единственный инстанс — DI-синглтон.
 
-### E. Множественные ключи localStorage
-Всё, что прячется в localStorage, — без единого реестра:
+### E. Множественные ключи localStorage ✅ исправлено 2025-05-09
+~~Рассыпанные строковые литералы по всему коду.~~
 
-| Ключ | Источник |
-|---|---|
-| `poseflow_feature_flags` | `FeatureFlagService` |
-| `poseflow-debug-leg-ik` | `lib/debugFlags.ts` |
-| `poseflow-debug-perf` | `lib/debugFlags.ts` (мёртвый) |
-| `poseflow-logs` | `lib/logger.ts` |
-| `poseflow-app-settings-v1` | `lib/appSettings.ts` |
-| `poseflow-settings-storage` | `lib/stores/settingsStore.ts` (мёртвый) |
-| `poseflow-ui-storage` | `lib/stores/uiStore.ts` (мёртвый) |
-| `poseflow-sidebar-collapsed` | `App.tsx`, `Canvas3D.tsx` |
-| `poseflow-camera-controls-collapsed` | `Canvas3D.tsx` |
+Создан `lib/storageKeys.ts` — единый реестр `STORAGE_KEYS`. Все активные ключи теперь в нём:
 
-Новые ключи добавлять только если нет подходящего существующего канала. И сразу записывать сюда.
+| Константа | Ключ | Источник |
+|---|---|---|
+| `STORAGE_KEYS.FEATURE_FLAGS` | `poseflow_feature_flags` | `FeatureFlagService` |
+| `STORAGE_KEYS.LOGS` | `poseflow-logs` | `lib/logger.ts` |
+| `STORAGE_KEYS.APP_SETTINGS` | `poseflow-app-settings-v1` | `lib/appSettings.ts` |
+| `STORAGE_KEYS.SIDEBAR_COLLAPSED` | `poseflow-sidebar-collapsed` | `App.tsx` |
+| `STORAGE_KEYS.CAMERA_CONTROLS_COLLAPSED` | `poseflow-camera-controls-collapsed` | `Canvas3D.tsx` |
+
+**Новые ключи добавлять только в `lib/storageKeys.ts`**, использовать через константу.
 
 ### F. Graceful degradation в `ServiceContext` создаёт новые инстансы
 Хуки `usePoseService`, `useRigService` и т.п. при отсутствии `ServiceProvider` возвращают **`new XService()`** (см. `ServiceContext.tsx:74–141`). Это удобно для тестов и сторибуков, но опасно: если компонент случайно окажется вне провайдера — он будет работать со своим личным `RigService`, и подписки на «общий» rig обмануты не сообщат об изменениях.

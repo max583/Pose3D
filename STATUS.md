@@ -153,10 +153,28 @@ Hip-only solver slice, 2026-05-06:
     before the block.
   - All checks passed: typecheck, lint:unused, 152 rig regression tests.
 
+- 2026-05-09 Architectural cleanup (parallel-mechanism removal):
+  - Deleted zombie Zustand stores (`lib/stores/settingsStore.ts`, `uiStore.ts`).
+  - Deleted `lib/debugFlags.ts`; all debug flags migrated to `feature-flags/registry.ts`
+    (`ENABLE_PERFORMANCE_LOGGING`, `ENABLE_LEG_IK_TRACE`).
+  - Removed `FeatureFlagProvider` / second `FeatureFlagService` instance from `App.tsx`;
+    `context/FeatureFlagContext.tsx` hooks now use DI singleton directly.
+  - Removed modular `cameraService` singleton export; `CameraControls` and
+    `AppSettingsContext` now go through DI.
+  - Created `lib/storageKeys.ts` — unified registry for all localStorage keys; updated all
+    five touch-points (`FeatureFlagService`, `logger.ts`, `appSettings.ts`, `App.tsx`,
+    `Canvas3D.tsx`).
+  - Fixed perf-trace console output: `console.debug` → `console.log` in `RigService`.
+  - Full test suite: 306 tests (2 removed debugFlags tests, expected).
+  - `npm run typecheck` passed.
+
 ## Latest Technical Checks
 
 Latest checks:
 
+- 2026-05-09 after architectural cleanup (parallel-mechanism removal):
+  - `npm run typecheck` passed.
+  - Full test suite passed with 306 tests.
 - 2026-05-09 after Session 2 D3/D4/D5:
   - `npm run typecheck` passed.
   - `npm run lint:unused` passed.
