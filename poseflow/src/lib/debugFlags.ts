@@ -1,4 +1,5 @@
 export const LEG_IK_TRACE_FLAG = 'poseflow-debug-leg-ik';
+export const PERF_TRACE_FLAG = 'poseflow-debug-perf';
 
 export function isLegIKTraceEnabled(): boolean {
   return getBooleanFlag(LEG_IK_TRACE_FLAG);
@@ -6,6 +7,14 @@ export function isLegIKTraceEnabled(): boolean {
 
 export function setLegIKTraceEnabled(enabled: boolean): void {
   setBooleanFlag(LEG_IK_TRACE_FLAG, enabled);
+}
+
+export function isPerfTraceEnabled(): boolean {
+  return getBooleanFlag(PERF_TRACE_FLAG);
+}
+
+export function setPerfTraceEnabled(enabled: boolean): void {
+  setBooleanFlag(PERF_TRACE_FLAG, enabled);
 }
 
 function getBooleanFlag(key: string): boolean {

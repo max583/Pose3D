@@ -47,7 +47,7 @@ import { UndoStack } from '../lib/UndoStack';
 import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
 import { Body25Index } from '../lib/body25/body25-types';
 import { createLogger } from '../lib/logger';
-import { isLegIKTraceEnabled } from '../lib/debugFlags';
+import { isLegIKTraceEnabled, isPerfTraceEnabled } from '../lib/debugFlags';
 
 type RigListener = (pose: PoseData) => void;
 
@@ -374,6 +374,12 @@ export class RigService {
    * Бедро фиксировано; лодыжка движется к целевой мировой позиции.
    */
   applyLegIK(side: 'r' | 'l', tx: number, ty: number, tz: number): void {
+    const t0 = performance.now();
+
+    // Read flags once — localStorage reads are not free.
+    const trace = isLegIKTraceEnabled();
+    const perf = isPerfTraceEnabled();
+
     const pose = this.getPoseData();
     const joints = LEG_JOINTS[side];
 
@@ -385,7 +391,9 @@ export class RigService {
     const boneLengths = getLegBoneLengths(this.rig, side);
     const bodyForward = new Vector3(0, 0, 1).applyQuaternion(this.rig.rootRotation);
     const bodyUp = new Vector3(0, 1, 0).applyQuaternion(this.rig.rootRotation);
-    const trace = isLegIKTraceEnabled();
+
+    const t1 = performance.now(); // end of setup
+
     if (trace) {
       legIKTraceLogger.info('applyLegIK input', {
         side,
@@ -394,6 +402,7 @@ export class RigService {
         targetDistance: round(anklePos.distanceTo(target)),
       });
     }
+
     const newChain = solveLegIKWithinLimits(
       hipPos,
       kneePos,
@@ -404,6 +413,9 @@ export class RigService {
       bodyUp,
       side,
     );
+
+    const t2 = performance.now(); // end of solver
+
     if (!newChain) {
       if (trace) {
         legIKTraceLogger.info('applyLegIK rejected', {
@@ -420,18 +432,18 @@ export class RigService {
           ),
         });
       }
+      if (perf) {
+        console.debug(`[perf:applyLegIK] REJECTED(null) side=${side} total=${(performance.now()-t0).toFixed(2)}ms | setup=${(t1-t0).toFixed(2)}ms | solver=${(t2-t1).toFixed(2)}ms`);
+      }
       return;
     }
+
+    // Clone the rig to test tibia axial twist without mutating the live rig.
     const candidateRig = cloneRig(this.rig);
     applyLegChainToRig(candidateRig, side, hipPos, newChain[1], newChain[2]);
-    const candidateDiagnostics = getLegIKCandidateDiagnostics(
-      newChain[0],
-      newChain[1],
-      newChain[2],
-      bodyForward,
-      bodyUp,
-      side,
-    );
+
+    const t3 = performance.now(); // end of clone+apply-candidate
+
     if (!isTibiaAxialTwistWithinLimits(candidateRig, side)) {
       if (trace) {
         legIKTraceLogger.info('applyLegIK rejected', {
@@ -439,24 +451,48 @@ export class RigService {
           reason: 'tibia-axial-twist',
           target: serializeVector(target),
           candidate: serializeLegPoints(newChain[0], newChain[1], newChain[2]),
-          candidateDiagnostics,
+          candidateDiagnostics: getLegIKCandidateDiagnostics(
+            newChain[0], newChain[1], newChain[2], bodyForward, bodyUp, side,
+          ),
           targetDistance: round(newChain[2].distanceTo(target)),
         });
+      }
+      if (perf) {
+        console.debug(`[perf:applyLegIK] REJECTED(tibia) side=${side} total=${(performance.now()-t0).toFixed(2)}ms | setup=${(t1-t0).toFixed(2)}ms | solver=${(t2-t1).toFixed(2)}ms | clone=${(t3-t2).toFixed(2)}ms`);
       }
       return;
     }
 
     applyLegChainToRig(this.rig, side, hipPos, newChain[1], newChain[2]);
     this.resolvedCache = null;
+
+    const t4 = performance.now(); // end of apply-live
+
     this.notifyListeners();
+
+    const t5 = performance.now(); // end of notify (re-render triggered)
+
     if (trace) {
       legIKTraceLogger.info('applyLegIK applied', {
         side,
         target: serializeVector(target),
         result: serializeLegPoints(newChain[0], newChain[1], newChain[2]),
-        candidateDiagnostics,
+        candidateDiagnostics: getLegIKCandidateDiagnostics(
+          newChain[0], newChain[1], newChain[2], bodyForward, bodyUp, side,
+        ),
         targetDistance: round(newChain[2].distanceTo(target)),
       });
+    }
+    if (perf) {
+      console.debug(
+        `[perf:applyLegIK] OK side=${side}` +
+        ` total=${(t5-t0).toFixed(2)}ms` +
+        ` | setup=${(t1-t0).toFixed(2)}ms` +
+        ` | solver=${(t2-t1).toFixed(2)}ms` +
+        ` | clone+validate=${(t3-t2).toFixed(2)}ms` +
+        ` | apply=${(t4-t3).toFixed(2)}ms` +
+        ` | notify=${(t5-t4).toFixed(2)}ms`,
+      );
     }
   }
 
