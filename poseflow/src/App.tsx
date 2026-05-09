@@ -9,6 +9,7 @@ import { useIPC } from './hooks/useIPC';
 import { uiLogger, exportLogger } from './lib/logger';
 import { ServiceProvider } from './context/ServiceContext';
 import { usePoseService, useExportService } from './context/ServiceContext';
+import { STORAGE_KEYS } from './lib/storageKeys';
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -18,7 +19,7 @@ const AppContent: React.FC = () => {
     return new URLSearchParams(window.location.search).get('focus') === '1';
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    return window.localStorage.getItem('poseflow-sidebar-collapsed') === 'true';
+    return window.localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSED) === 'true';
   });
   const [exportFrameRequestId, setExportFrameRequestId] = useState(0);
   
@@ -30,7 +31,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    window.localStorage.setItem('poseflow-sidebar-collapsed', String(sidebarCollapsed));
+    window.localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
   React.useEffect(() => {

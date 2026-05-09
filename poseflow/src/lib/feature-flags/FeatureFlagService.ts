@@ -7,6 +7,7 @@ import {
   FeatureFlagsConfig,
 } from './types';
 import { FEATURE_FLAGS } from './registry';
+import { STORAGE_KEYS } from '../storageKeys';
 
 /**
  * Сервис управления feature flags
@@ -17,7 +18,7 @@ export class FeatureFlagService {
   private config: FeatureFlagsConfig;
   private listeners: Map<string, Array<(state: FeatureFlagState) => void>> = new Map();
   private allListeners: Array<(key: string, state: FeatureFlagState) => void> = [];
-  private readonly STORAGE_KEY = 'poseflow_feature_flags';
+  private readonly STORAGE_KEY = STORAGE_KEYS.FEATURE_FLAGS;
 
   constructor(config: Partial<FeatureFlagsConfig> = {}) {
     this.config = {

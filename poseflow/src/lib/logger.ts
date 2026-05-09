@@ -5,6 +5,8 @@
  * - Позволяет экспортировать логи
  */
 
+import { STORAGE_KEYS } from './storageKeys';
+
 type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
 interface LogEntry {
@@ -15,7 +17,7 @@ interface LogEntry {
   data?: any;
 }
 
-const LOG_STORAGE_KEY = 'poseflow-logs';
+const LOG_STORAGE_KEY = STORAGE_KEYS.LOGS;
 const MAX_LOG_ENTRIES = 1000;
 
 // Форматирование времени

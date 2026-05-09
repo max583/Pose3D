@@ -1,6 +1,7 @@
 /** Настройки приложения: схема + persist в localStorage */
 
 import type { CanvasColorSchemeId } from './canvasColorSchemes';
+import { STORAGE_KEYS } from './storageKeys';
 
 export type ThemeChoice = 'dark' | 'light' | 'system';
 export type { CanvasColorSchemeId } from './canvasColorSchemes';
@@ -62,7 +63,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   showDebugTools: false,
 };
 
-const STORAGE_KEY = 'poseflow-app-settings-v1';
+const STORAGE_KEY = STORAGE_KEYS.APP_SETTINGS;
 
 function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));

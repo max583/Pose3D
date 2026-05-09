@@ -12,6 +12,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { getCanvasSceneStyle } from '../lib/canvasColorSchemes';
 import { useFeatureFlag } from '../context/FeatureFlagContext';
 import { usePoseService, useSelectionService, useRigService } from '../context/ServiceContext';
+import { STORAGE_KEYS } from '../lib/storageKeys';
 import { ElementId, ELEMENT_LABELS } from '../lib/rig/elements';
 import { Body25Index } from '../lib/body25/body25-types';
 import { PelvisController } from './controllers/PelvisController';
@@ -94,7 +95,7 @@ const CanvasResizeSync: React.FC<{ focusMode: boolean }> = ({ focusMode }) => {
   return null;
 };
 
-const CAMERA_CONTROLS_COLLAPSED_KEY = 'poseflow-camera-controls-collapsed';
+const CAMERA_CONTROLS_COLLAPSED_KEY = STORAGE_KEYS.CAMERA_CONTROLS_COLLAPSED;
 
 export const Canvas3D: React.FC<Canvas3DProps> = ({
   modelsCount = 0,
