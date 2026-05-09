@@ -12,7 +12,7 @@
 //
 // See: ai/tasks/leg-hierarchical-solver-design.md § Knee Joint Model.
 
-import { Vector3 } from 'three';
+import { Quaternion, Vector3 } from 'three';
 import {
   DEFAULT_HIP_LIMITS,
   solveHipDirection,
@@ -390,45 +390,53 @@ export interface LegFromKneeResult {
   /** Knee position after the hip layer clamps the femur direction. */
   knee: Vector3;
   /**
-   * Ankle position. Equals the projected current ankle (preserved tibia direction
-   * at correct shin length) when the knee layer accepts it; recomputed from the
-   * clamped `KneePose` when the knee layer had to clamp.
+   * Ankle position. The lower leg (knee → ankle) follows the femur as a rigid
+   * body: the relative orientation of the tibia and foot to the femur stays
+   * constant by isometry. Knee flexion (femur–tibia angle) and patella
+   * direction (relative to the femur) are preserved exactly.
    */
   ankle: Vector3;
   /** Output of the hip layer (femur direction + clamp reasons). */
   hipLimited: LimitedHipPose;
-  /** Output of the knee layer (KneePose + clamp reasons). */
-  kneeLimited: LimitedKneePose;
 }
 
 /**
  * Solve a leg pose from a knee-target controller drag.
  *
+ * Semantic: the user drags the **knee node** and expects only the femur
+ * direction to change; the lower leg (tibia + foot) must follow rigidly,
+ * preserving its relationship to the femur. This is the natural anatomical
+ * interpretation: rotating the leg from the hip joint moves everything
+ * downstream as a rigid body.
+ *
  * Pipeline:
  *   1. Hip layer: convert `kneeTarget − hipPos` to a `HipPose`, clamp through
- *      `limitHipPose`, and rebuild knee at hip-limited femur direction × thigh.
- *   2. Project the current ankle onto the sphere of radius `shin` around the
- *      new knee, preserving tibia direction. Ankles that move with the knee
- *      stay anatomically attached.
- *   3. Knee layer: measure the resulting `KneePose`, clamp through
- *      `limitKneePose`. If clamped, recompute ankle from the limited pose.
+ *      `limitHipPose`, and place the new knee at hip-limited femur direction
+ *      × thigh length.
+ *   2. Compute the shortest-arc rotation `R` that takes the **old** femur
+ *      direction to the **new** (hip-limited) femur direction.
+ *   3. Apply `R` to `(currentAnkle − currentKnee)` and place the new ankle at
+ *      `newKnee + R · (currentAnkle − currentKnee)`. The lower leg rigidly
+ *      rotates with the femur.
  *
- * Returns `null` only for degenerate inputs (zero-length thigh or shin).
+ * Because rigid rotation preserves angles, the resulting `KneePose`
+ * (flexion / patellaAngle / tibiaTwist relative to the new femur) is
+ * isometric to the previous pose. If the previous pose was anatomically
+ * valid, the new one is valid too — no separate knee-layer clamp is needed.
  *
- * Designed for the future `KneeController` 3D handle: artist drags the knee,
- * the hip layer enforces ball-joint limits, the ankle follows naturally.
+ * Returns `null` only for degenerate inputs (zero-length thigh or shin,
+ * or the current pose has hip and knee coincident).
+ *
  * See `ai/tasks/leg-hierarchical-solver-design.md` § «Slice 3 — knee-node
  * controller».
  */
 export function solveLegFromKneeTarget(
   hipPos: Vector3,
+  currentKneePos: Vector3,
   kneeTarget: Vector3,
   currentAnklePos: Vector3,
   pelvisFrame: PelvisLegFrame,
-  side: LegSide,
   boneLengths: { thigh: number; shin: number },
-  currentTibiaTwist = 0,
-  kneeLimits: KneeLimits = DEFAULT_KNEE_LIMITS,
   hipLimits: HipLimits = DEFAULT_HIP_LIMITS,
 ): LegFromKneeResult | null {
   const thigh = Math.max(0, boneLengths.thigh);
@@ -444,46 +452,30 @@ export function solveLegFromKneeTarget(
     hipLimits,
   );
 
-  // 2. Build knee frame from the new femur direction.
-  const femurDir = newKnee.clone().sub(hipPos);
-  if (femurDir.lengthSq() < EPS) {
-    // Degenerate: hip limits collapsed femur to zero. Use pelvis-down as fallback.
-    femurDir.copy(pelvisFrame.down);
+  // 2. Compute the rotation that takes the old femur direction to the new one.
+  const oldFemurVec = currentKneePos.clone().sub(hipPos);
+  const newFemurVec = newKnee.clone().sub(hipPos);
+  if (oldFemurVec.lengthSq() < EPS || newFemurVec.lengthSq() < EPS) {
+    // Degenerate: cannot define a rotation. Leave ankle where it is.
+    return { knee: newKnee, ankle: currentAnklePos.clone(), hipLimited };
   }
-  femurDir.normalize();
-  const kneeFrame = buildKneeFrame(femurDir, pelvisFrame, side);
+  const oldFemurDir = oldFemurVec.normalize();
+  const newFemurDir = newFemurVec.normalize();
+  const rigidRot = new Quaternion().setFromUnitVectors(oldFemurDir, newFemurDir);
 
-  // 3. Project the current ankle onto the shin sphere around the new knee,
-  // preserving tibia direction.
-  const tibiaVec = currentAnklePos.clone().sub(newKnee);
-  const projectedAnkle = tibiaVec.lengthSq() < EPS
-    ? newKnee.clone().addScaledVector(femurDir, shin) // continue femur (straight leg)
-    : newKnee.clone().addScaledVector(tibiaVec.normalize(), shin);
+  // 3. Rigidly rotate the lower-leg vector with the femur.
+  const tibiaVec = currentAnklePos.clone().sub(currentKneePos);
+  if (tibiaVec.lengthSq() < EPS) {
+    // No lower leg to speak of — extend along the new femur direction.
+    const ankle = newKnee.clone().addScaledVector(newFemurDir, shin);
+    return { knee: newKnee, ankle, hipLimited };
+  }
+  // Re-normalise to the canonical shin length to stay numerically clean
+  // even if the input pose drifted slightly.
+  tibiaVec.applyQuaternion(rigidRot).setLength(shin);
+  const ankle = newKnee.clone().add(tibiaVec);
 
-  // 4. Knee layer measures + clamps. Pass {thigh, shin} so the layer can
-  // recompute ankle if it has to clamp.
-  const kneeLimited = solveKneePose(
-    hipPos,
-    projectedAnkle,
-    kneeFrame,
-    { thigh, shin },
-    currentTibiaTwist,
-    kneeLimits,
-  );
-  if (!kneeLimited) return null;
-
-  // 5. If the knee layer clamped, ankle moves to the clamped pose's ankle position.
-  // Otherwise the projected ankle is anatomically valid as-is.
-  const ankle = kneeLimited.clamped
-    ? posFromKneePose(hipPos, kneeLimited.pose, kneeFrame, { thigh, shin }).ankle
-    : projectedAnkle;
-
-  return {
-    knee: newKnee,
-    ankle,
-    hipLimited,
-    kneeLimited,
-  };
+  return { knee: newKnee, ankle, hipLimited };
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

@@ -163,6 +163,13 @@ interface LegControllerProps {
   kneePos: { x: number; y: number; z: number };
   anklePos: { x: number; y: number; z: number };
   rigService: RigService;
+  /**
+   * Show the knee twist arc gizmo. Defaults to true. The caller (Canvas3D)
+   * disables it when `KneeController` is rendered alongside, because the arc
+   * tube and the knee-node sphere overlap at the knee point and become
+   * mutually un-clickable.
+   */
+  showKneeTwist?: boolean;
 }
 
 export function LegController({
@@ -171,6 +178,7 @@ export function LegController({
   kneePos,
   anklePos,
   rigService,
+  showKneeTwist = true,
 }: LegControllerProps) {
   const { settings } = useAppSettings();
   return (
@@ -182,15 +190,17 @@ export function LegController({
         dragSensitivity={settings.gizmoDragSensitivity}
         hitZoneScale={settings.gizmoHitZoneScale}
       />
-      <KneeTwistArc
-        hipPos={hipPos}
-        kneePos={kneePos}
-        anklePos={anklePos}
-        side={side}
-        rigService={rigService}
-        dragSensitivity={settings.gizmoDragSensitivity}
-        hitZoneScale={settings.gizmoHitZoneScale}
-      />
+      {showKneeTwist && (
+        <KneeTwistArc
+          hipPos={hipPos}
+          kneePos={kneePos}
+          anklePos={anklePos}
+          side={side}
+          rigService={rigService}
+          dragSensitivity={settings.gizmoDragSensitivity}
+          hitZoneScale={settings.gizmoHitZoneScale}
+        />
+      )}
     </>
   );
 }

@@ -147,4 +147,52 @@ describe('RigService — applyLegFromKneeTarget (Slice 3, knee-node controller p
     const ankleAfter = after[Body25Index.RIGHT_ANKLE]!;
     expect(distance(kneeAfter, ankleAfter)).toBeCloseTo(shinLen, 4);
   });
+
+  it('preserves knee flexion as a rigid body across the knee drag', () => {
+    // Default rig is a straight leg → flexion = 0. After any drag, the lower leg
+    // rotates rigidly with the femur, so flexion stays 0. This is the core
+    // invariant that distinguishes knee-node control from ankle-driven IK.
+    const before = svc.getPoseData();
+    const hipBefore = before[Body25Index.RIGHT_HIP]!;
+    const kneeBefore = before[Body25Index.RIGHT_KNEE]!;
+    const ankleBefore = before[Body25Index.RIGHT_ANKLE]!;
+    const startFlex = flexionAngle(hipBefore, kneeBefore, ankleBefore);
+
+    svc.beginDrag();
+    // Drag knee 50° forward + 25° outward (an arbitrary multi-axis swing).
+    svc.applyLegFromKneeTarget('r',
+      hipBefore.x + 0.18,
+      hipBefore.y - 0.35,
+      hipBefore.z + 0.25,
+    );
+
+    const after = svc.getPoseData();
+    const newFlex = flexionAngle(
+      after[Body25Index.RIGHT_HIP]!,
+      after[Body25Index.RIGHT_KNEE]!,
+      after[Body25Index.RIGHT_ANKLE]!,
+    );
+
+    // Both should be 0 (straight leg). Tolerance accounts for shortest-arc
+    // rotation noise inside applyLegChainToRig.
+    expect(newFlex).toBeCloseTo(startFlex, 3);
+  });
 });
+
+function flexionAngle(
+  hip: JointPosition,
+  knee: JointPosition,
+  ankle: JointPosition,
+): number {
+  const fx = knee.x - hip.x;
+  const fy = knee.y - hip.y;
+  const fz = knee.z - hip.z;
+  const fl = Math.hypot(fx, fy, fz);
+  const tx = ankle.x - knee.x;
+  const ty = ankle.y - knee.y;
+  const tz = ankle.z - knee.z;
+  const tl = Math.hypot(tx, ty, tz);
+  if (fl < 1e-9 || tl < 1e-9) return 0;
+  const dot = (fx * tx + fy * ty + fz * tz) / (fl * tl);
+  return Math.acos(Math.max(-1, Math.min(1, dot)));
+}

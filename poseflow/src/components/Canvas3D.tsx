@@ -398,6 +398,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({
               kneePos={poseData[Body25Index.RIGHT_KNEE]!}
               anklePos={poseData[Body25Index.RIGHT_ANKLE]!}
               rigService={rigService}
+              showKneeTwist={!isKneeNodeEnabled}
             />
             {isKneeNodeEnabled && (
               <KneeController
@@ -419,6 +420,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({
               kneePos={poseData[Body25Index.LEFT_KNEE]!}
               anklePos={poseData[Body25Index.LEFT_ANKLE]!}
               rigService={rigService}
+              showKneeTwist={!isKneeNodeEnabled}
             />
             {isKneeNodeEnabled && (
               <KneeController

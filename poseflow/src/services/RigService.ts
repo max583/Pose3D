@@ -40,10 +40,7 @@ import {
   isUpperLegAxialTwistWithinLimits,
   isKneePlaneTwistDeltaWithinLimits,
 } from '../lib/rig/legLimits';
-import {
-  isTibiaAxialTwistWithinLimits,
-  measureTibiaAxialTwist,
-} from '../lib/rig/legAnatomy';
+import { isTibiaAxialTwistWithinLimits } from '../lib/rig/legAnatomy';
 import { buildPelvisLegFrame } from '../lib/rig/legHip';
 import { solveLegFromKneeTarget } from '../lib/rig/legKnee';
 import { applyFootRotationDelta, FootAxis } from '../lib/rig/footFK';
@@ -619,24 +616,27 @@ export class RigService {
   /**
    * Knee-target driven leg posing.
    *
-   * The artist drags the knee node directly. Hip layer enforces ball-joint
-   * limits to choose the femur direction; knee layer projects the current
-   * ankle onto the new shin sphere and clamps anatomical limits.
+   * The artist drags the knee node directly. The hip layer enforces ball-joint
+   * limits to choose the new femur direction. The lower leg (tibia + foot)
+   * follows as a rigid body: the same rotation that took the old femur to the
+   * new femur is applied to the (knee → ankle) vector, so knee flexion and
+   * patella direction relative to the femur are preserved exactly.
    *
    * Pipeline lives in `solveLegFromKneeTarget` (legKnee.ts). This method is
-   * the runtime plumbing: it pulls hip/ankle from the rig, builds the pelvis
-   * frame from `rootRotation`, and writes the resulting positions back via
-   * `applyLegChainToRig`.
+   * the runtime plumbing: it pulls hip / current knee / ankle from the rig,
+   * builds the pelvis frame from `rootRotation`, and writes the resulting
+   * positions back via `applyLegChainToRig`.
    *
-   * Designed for the planned `KneeController` 3D handle. Coexists with
-   * `applyLegIK` (ankle-driven); both share the rig but should not normally
-   * run interleaved within one drag.
+   * Designed for the `KneeController` 3D handle. Coexists with `applyLegIK`
+   * (ankle-driven); both share the rig but should not normally run interleaved
+   * within one drag.
    */
   applyLegFromKneeTarget(side: 'r' | 'l', tx: number, ty: number, tz: number): void {
     const pose = this.getPoseData();
     const joints = LEG_JOINTS[side];
 
     const hipPos = toVec3(pose[joints.hip]!);
+    const kneePos = toVec3(pose[joints.knee]!);
     const anklePos = toVec3(pose[joints.ankle]!);
     const kneeTarget = new Vector3(tx, ty, tz);
 
@@ -644,16 +644,14 @@ export class RigService {
     const bodyForward = new Vector3(0, 0, 1).applyQuaternion(this.rig.rootRotation);
     const bodyUp = new Vector3(0, 1, 0).applyQuaternion(this.rig.rootRotation);
     const pelvisFrame = buildPelvisLegFrame(bodyForward, bodyUp, side);
-    const currentTibiaTwist = measureTibiaAxialTwist(this.rig, side);
 
     const result = solveLegFromKneeTarget(
       hipPos,
+      kneePos,
       kneeTarget,
       anklePos,
       pelvisFrame,
-      side,
       { thigh, shin },
-      currentTibiaTwist,
     );
     if (!result) return;
 

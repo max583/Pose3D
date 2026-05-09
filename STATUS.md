@@ -159,6 +159,35 @@ Hip-only solver slice, 2026-05-06:
     before the block.
   - All checks passed: typecheck, lint:unused, 152 rig regression tests.
 
+- 2026-05-09 Knee-layer slice 3 stage 2 fixes (rigid rotation + hit-zone resolution):
+  - **Issue 1 — hit-zone overlap.** When `ENABLE_KNEE_NODE_CONTROLLER` is on,
+    the existing `KneeTwistArc` inside `LegController` is hidden via a new
+    `showKneeTwist` prop (default true). Knee-node sphere and arc tube no
+    longer compete for the same pixel. `Canvas3D` passes
+    `showKneeTwist={!isKneeNodeEnabled}` to both leg sides.
+  - **Issues 2 + 3 — femur axially rotates / lower leg loses femur attachment.**
+    Reimplemented `solveLegFromKneeTarget` from shin-sphere projection to
+    **rigid rotation of the lower leg with the femur**:
+      `R = quaternionFromTo(oldFemurDir, newFemurDir)`,
+      `newAnkle = newKnee + R · (currentAnkle − currentKnee)`.
+    Rigid rotation is an isometry: knee flexion (femur–tibia angle) and
+    patella direction (relative to femur) are preserved exactly, not
+    re-projected. The "femur rotates around its own axis" perception goes
+    away because the relative orientation of femur to lower leg stays
+    constant by construction.
+  - Function signature change: `solveLegFromKneeTarget` now takes
+    `currentKneePos` (NEW, needed for old femur direction) and drops
+    `currentTibiaTwist`, `kneeLimits`, `side`. Result type drops
+    `kneeLimited` (no knee clamp pass needed for an isometry).
+  - `RigService.applyLegFromKneeTarget` updated to read current knee from
+    pose and pass it through.
+  - Tests: replaced the patella-backward clamp test (no longer reachable
+    via knee-node) with two rigid-rotation invariance tests (straight leg
+    stays straight, bent leg keeps its flexion). Added a runtime-level
+    "preserves knee flexion across knee drag" test in
+    `RigService.legFromKnee.test.ts`.
+  - typecheck / lint:unused / vite build all clean. Full suite: 349 tests pass.
+
 - 2026-05-09 Knee-layer slice 3 stage 2 (KneeController 3D component):
   - Added `src/components/controllers/KneeController.tsx` — drag-handle (sphere)
     at the knee position, calls `rigService.applyLegFromKneeTarget(side, x, y, z)`

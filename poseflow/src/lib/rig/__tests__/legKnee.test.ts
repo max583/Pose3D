@@ -330,8 +330,8 @@ describe('legKnee', () => {
     });
   });
 
-  describe('solveLegFromKneeTarget', () => {
-    // Standing pose baseline used by most tests.
+  describe('solveLegFromKneeTarget (rigid-rotation knee-node solver)', () => {
+    // Standing pose baseline. Hip above knee above ankle, all on the y-axis.
     const hip = new Vector3(0, 0.85, 0);
     const stKnee = new Vector3(0, 0.42, 0);
     const stAnkle = new Vector3(0, 0.05, 0);
@@ -339,10 +339,9 @@ describe('legKnee', () => {
 
     it('keeps the leg unchanged when kneeTarget equals current knee', () => {
       const pelvis = buildPelvisLegFrame(bodyForward, bodyUp, 'r');
-      const result = solveLegFromKneeTarget(hip, stKnee, stAnkle, pelvis, 'r', bones);
+      const result = solveLegFromKneeTarget(hip, stKnee, stKnee, stAnkle, pelvis, bones);
       expect(result).not.toBeNull();
       expect(result!.hipLimited.clamped).toBe(false);
-      expect(result!.kneeLimited.clamped).toBe(false);
       expect(result!.knee.distanceTo(stKnee)).toBeLessThan(1e-5);
       expect(result!.ankle.distanceTo(stAnkle)).toBeLessThan(1e-5);
     });
@@ -353,15 +352,12 @@ describe('legKnee', () => {
       const dir30 = new Vector3(0, -Math.cos(30 * DEG), Math.sin(30 * DEG));
       const target = hip.clone().addScaledVector(dir30, bones.thigh);
 
-      const result = solveLegFromKneeTarget(hip, target, stAnkle, pelvis, 'r', bones);
+      const result = solveLegFromKneeTarget(hip, stKnee, target, stAnkle, pelvis, bones);
       expect(result).not.toBeNull();
       expect(result!.hipLimited.clamped).toBe(false);
       expect(result!.hipLimited.pose.flexion).toBeCloseTo(30 * DEG, 4);
-      // Knee is exactly at requested distance from hip.
       expect(result!.knee.distanceTo(hip)).toBeCloseTo(bones.thigh, 5);
-      // Knee position lies along the requested direction.
       expect(result!.knee.distanceTo(target)).toBeLessThan(1e-5);
-      // Ankle is at shin distance from new knee.
       expect(result!.ankle.distanceTo(result!.knee)).toBeCloseTo(bones.shin, 5);
     });
 
@@ -371,38 +367,54 @@ describe('legKnee', () => {
       const dir = new Vector3(0, -Math.cos(175 * DEG), Math.sin(175 * DEG));
       const target = hip.clone().addScaledVector(dir, bones.thigh);
 
-      const result = solveLegFromKneeTarget(hip, target, stAnkle, pelvis, 'r', bones);
+      const result = solveLegFromKneeTarget(hip, stKnee, target, stAnkle, pelvis, bones);
       expect(result).not.toBeNull();
       expect(result!.hipLimited.clamped).toBe(true);
       expect(result!.hipLimited.reasons).toContain('flexion');
       expect(result!.hipLimited.pose.flexion).toBeCloseTo(DEFAULT_HIP_LIMITS.flexionMax, 5);
-      // Knee is at hip-clamped femur direction.
       expect(result!.knee.distanceTo(hip)).toBeCloseTo(bones.thigh, 5);
-      // Ankle preserved at shin distance from the new knee.
       expect(result!.ankle.distanceTo(result!.knee)).toBeCloseTo(bones.shin, 5);
     });
 
-    it('clamps the knee layer when ankle position would force patella backward', () => {
+    it('preserves knee flexion as a rigid body when knee moves (straight leg stays straight)', () => {
       const pelvis = buildPelvisLegFrame(bodyForward, bodyUp, 'r');
-      // Knee in standing pose; ankle target placed forward of hip (flips the bend plane
-      // to the patella-backward half-space, which legKnee forbids).
-      const ankleForward = new Vector3(0, 0.4, 0.35);
-      const result = solveLegFromKneeTarget(hip, stKnee, ankleForward, pelvis, 'r', bones);
+      // Initial: straight standing leg, flexion = 0.
+      const target = hip.clone().add(new Vector3(0.15, -0.4, 0.05)); // arbitrary knee target
+      const result = solveLegFromKneeTarget(hip, stKnee, target, stAnkle, pelvis, bones);
       expect(result).not.toBeNull();
-      // The hip layer leaves the femur direction alone.
-      expect(result!.hipLimited.clamped).toBe(false);
-      // The knee layer clamps the bend plane (patella stays approximately forward).
-      expect(result!.kneeLimited.clamped).toBe(true);
-      expect(result!.kneeLimited.reasons.some(r =>
-        r === 'patella-outward' || r === 'patella-inward')).toBe(true);
-      // Ankle is recomputed from the clamped pose, still at shin distance.
-      expect(result!.ankle.distanceTo(result!.knee)).toBeCloseTo(bones.shin, 5);
+
+      // Femur direction in the new pose.
+      const newFemur = result!.knee.clone().sub(hip).normalize();
+      const newTibia = result!.ankle.clone().sub(result!.knee).normalize();
+      // Straight leg → tibia continues femur → cos = 1 → flexion = 0.
+      expect(newFemur.dot(newTibia)).toBeCloseTo(1, 4);
+    });
+
+    it('preserves knee flexion as a rigid body when knee moves (bent leg stays bent)', () => {
+      const pelvis = buildPelvisLegFrame(bodyForward, bodyUp, 'r');
+      // Initial: knee bent ~70°. Knee at standing position, ankle behind hip (heel-to-butt-ish).
+      const startKnee = new Vector3(0, 0.42, 0.05);
+      const startAnkle = new Vector3(0, 0.55, -0.30);
+      const startFemur = startKnee.clone().sub(hip).normalize();
+      const startTibia = startAnkle.clone().sub(startKnee).normalize();
+      const startFlex = Math.acos(Math.max(-1, Math.min(1, startFemur.dot(startTibia))));
+
+      // Move knee outward + slightly forward.
+      const target = hip.clone().add(new Vector3(0.2, -0.35, 0.1));
+      const result = solveLegFromKneeTarget(hip, startKnee, target, startAnkle, pelvis, bones);
+      expect(result).not.toBeNull();
+
+      const newFemur = result!.knee.clone().sub(hip).normalize();
+      const newTibia = result!.ankle.clone().sub(result!.knee).normalize();
+      const newFlex = Math.acos(Math.max(-1, Math.min(1, newFemur.dot(newTibia))));
+
+      // Rigid rotation is an isometry; flexion stays the same.
+      expect(newFlex).toBeCloseTo(startFlex, 4);
     });
 
     it('mirrors right and left legs for the same numeric kneeTarget direction', () => {
       const pelvisR = buildPelvisLegFrame(bodyForward, bodyUp, 'r');
       const pelvisL = buildPelvisLegFrame(bodyForward, bodyUp, 'l');
-      // Knee target out-and-forward by abduction 25° + flexion 40°.
       const dir = new Vector3(
         Math.sin(25 * DEG),
         -Math.cos(25 * DEG) * Math.cos(40 * DEG),
@@ -414,14 +426,13 @@ describe('legKnee', () => {
         bones.thigh,
       );
 
-      const r = solveLegFromKneeTarget(hip, targetR, stAnkle, pelvisR, 'r', bones);
-      const l = solveLegFromKneeTarget(hip, targetL, stAnkle, pelvisL, 'l', bones);
+      const r = solveLegFromKneeTarget(hip, stKnee, targetR, stAnkle, pelvisR, bones);
+      const l = solveLegFromKneeTarget(hip, stKnee, targetL, stAnkle, pelvisL, bones);
 
       expect(r).not.toBeNull();
       expect(l).not.toBeNull();
       expect(r!.hipLimited.pose.flexion).toBeCloseTo(l!.hipLimited.pose.flexion, 4);
       expect(r!.hipLimited.pose.abduction).toBeCloseTo(l!.hipLimited.pose.abduction, 4);
-      // Knees mirror across x = 0.
       expect(r!.knee.x).toBeCloseTo(-l!.knee.x, 5);
       expect(r!.knee.y).toBeCloseTo(l!.knee.y, 5);
       expect(r!.knee.z).toBeCloseTo(l!.knee.z, 5);
@@ -429,18 +440,22 @@ describe('legKnee', () => {
 
     it('returns null for degenerate bone lengths', () => {
       const pelvis = buildPelvisLegFrame(bodyForward, bodyUp, 'r');
-      expect(solveLegFromKneeTarget(hip, stKnee, stAnkle, pelvis, 'r', { thigh: 0, shin: 0.37 })).toBeNull();
-      expect(solveLegFromKneeTarget(hip, stKnee, stAnkle, pelvis, 'r', { thigh: 0.43, shin: 0 })).toBeNull();
+      expect(solveLegFromKneeTarget(hip, stKnee, stKnee, stAnkle, pelvis, { thigh: 0, shin: 0.37 })).toBeNull();
+      expect(solveLegFromKneeTarget(hip, stKnee, stKnee, stAnkle, pelvis, { thigh: 0.43, shin: 0 })).toBeNull();
     });
 
-    it('handles ankle coincident with new knee by extending along femur', () => {
+    it('handles ankle coincident with current knee by extending along the new femur', () => {
       const pelvis = buildPelvisLegFrame(bodyForward, bodyUp, 'r');
-      // Drag knee to where the current ankle is (degenerate tibiaVec).
-      const result = solveLegFromKneeTarget(hip, stAnkle, stAnkle, pelvis, 'r', bones);
+      // Pose where ankle equals current knee → tibiaVec is zero. Pick a fresh knee target.
+      const target = hip.clone().add(new Vector3(0, -0.43, 0.1));
+      const result = solveLegFromKneeTarget(hip, stKnee, target, stKnee, pelvis, bones);
       expect(result).not.toBeNull();
-      // Knee placed at thigh distance along requested direction.
-      expect(result!.knee.distanceTo(hip)).toBeCloseTo(bones.thigh, 5);
-      // Ankle continues along femur direction (straight leg from the new knee).
+      // Knee moved.
+      expect(result!.knee.distanceTo(stKnee)).toBeGreaterThan(0.05);
+      // Ankle continues along the new femur direction at shin distance.
+      const newFemur = result!.knee.clone().sub(hip).normalize();
+      const newTibia = result!.ankle.clone().sub(result!.knee).normalize();
+      expect(newFemur.dot(newTibia)).toBeCloseTo(1, 4);
       expect(result!.ankle.distanceTo(result!.knee)).toBeCloseTo(bones.shin, 5);
     });
   });
