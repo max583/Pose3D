@@ -159,6 +159,22 @@ Hip-only solver slice, 2026-05-06:
     before the block.
   - All checks passed: typecheck, lint:unused, 152 rig regression tests.
 
+- 2026-05-09 Knee-layer slice 3 stage 1 (RigService plumbing):
+  - Added `RigService.applyLegFromKneeTarget(side, tx, ty, tz)` runtime method.
+    Pulls hip/ankle from rig, builds pelvis frame from `rootRotation`, calls
+    `solveLegFromKneeTarget`, validates twist limits on a candidate rig, applies via
+    `applyLegChainToRig`. Mirrors `applyLegIK` plumbing style.
+  - 7 new tests in `RigService.legFromKnee.test.ts`: knee target tracking, bone-length
+    preservation, opposite-leg isolation, hip-flexion clamp at 150°, undo/redo,
+    no-op when target equals current knee, ankle stays anatomically attached.
+  - Stage 2 (KneeController 3D component) and stage 3 (UI handle in Skeleton3D) still open.
+  - typecheck/lint:unused clean. Full suite: 347 tests pass.
+
+- 2026-05-09 Knee-layer slice 3 stage 0 (`solveLegFromKneeTarget` pure function):
+  - Added orchestrator in `legKnee.ts`: hip layer clamps femur direction → project
+    current ankle onto new shin sphere → knee layer clamps anatomical limits.
+  - 7 new tests covering hip-flexion clamp, knee-layer clamp, mirror, degenerate inputs.
+
 - 2026-05-09 Knee-layer slice ordering reversed:
   - Traced the math of `constrainKneeFlexionWithFixedThigh` and confirmed it is NOT a clean
     1:1 substitute for `solveKneePose`. Old function allows patella-backward

@@ -40,7 +40,12 @@ import {
   isUpperLegAxialTwistWithinLimits,
   isKneePlaneTwistDeltaWithinLimits,
 } from '../lib/rig/legLimits';
-import { isTibiaAxialTwistWithinLimits } from '../lib/rig/legAnatomy';
+import {
+  isTibiaAxialTwistWithinLimits,
+  measureTibiaAxialTwist,
+} from '../lib/rig/legAnatomy';
+import { buildPelvisLegFrame } from '../lib/rig/legHip';
+import { solveLegFromKneeTarget } from '../lib/rig/legKnee';
 import { applyFootRotationDelta, FootAxis } from '../lib/rig/footFK';
 import { applyShoulderDelta, ShoulderAxis } from '../lib/rig/shoulderFK';
 import { UndoStack } from '../lib/UndoStack';
@@ -609,6 +614,64 @@ export class RigService {
         ),
       });
     }
+  }
+
+  /**
+   * Knee-target driven leg posing.
+   *
+   * The artist drags the knee node directly. Hip layer enforces ball-joint
+   * limits to choose the femur direction; knee layer projects the current
+   * ankle onto the new shin sphere and clamps anatomical limits.
+   *
+   * Pipeline lives in `solveLegFromKneeTarget` (legKnee.ts). This method is
+   * the runtime plumbing: it pulls hip/ankle from the rig, builds the pelvis
+   * frame from `rootRotation`, and writes the resulting positions back via
+   * `applyLegChainToRig`.
+   *
+   * Designed for the planned `KneeController` 3D handle. Coexists with
+   * `applyLegIK` (ankle-driven); both share the rig but should not normally
+   * run interleaved within one drag.
+   */
+  applyLegFromKneeTarget(side: 'r' | 'l', tx: number, ty: number, tz: number): void {
+    const pose = this.getPoseData();
+    const joints = LEG_JOINTS[side];
+
+    const hipPos = toVec3(pose[joints.hip]!);
+    const anklePos = toVec3(pose[joints.ankle]!);
+    const kneeTarget = new Vector3(tx, ty, tz);
+
+    const [thigh, shin] = getLegBoneLengths(this.rig, side);
+    const bodyForward = new Vector3(0, 0, 1).applyQuaternion(this.rig.rootRotation);
+    const bodyUp = new Vector3(0, 1, 0).applyQuaternion(this.rig.rootRotation);
+    const pelvisFrame = buildPelvisLegFrame(bodyForward, bodyUp, side);
+    const currentTibiaTwist = measureTibiaAxialTwist(this.rig, side);
+
+    const result = solveLegFromKneeTarget(
+      hipPos,
+      kneeTarget,
+      anklePos,
+      pelvisFrame,
+      side,
+      { thigh, shin },
+      currentTibiaTwist,
+    );
+    if (!result) return;
+
+    // Defensive: validate twist limits on a candidate rig before committing.
+    // applyLegChainToRig uses shortest-arc rotations, so these always hold in
+    // practice — but the check is cheap and matches the applyLegIK pattern.
+    const candidateRig = cloneRig(this.rig);
+    applyLegChainToRig(candidateRig, side, hipPos, result.knee, result.ankle);
+    if (
+      !isTibiaAxialTwistWithinLimits(candidateRig, side) ||
+      !isUpperLegAxialTwistWithinLimits(candidateRig, side)
+    ) {
+      return;
+    }
+
+    applyLegChainToRig(this.rig, side, hipPos, result.knee, result.ankle);
+    this.resolvedCache = null;
+    this.notifyListeners();
   }
 
   // ─── Foot FK (Stage 7) ───────────────────────────────────────────────────
