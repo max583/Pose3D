@@ -13,6 +13,7 @@ Primary language: Russian for UI, docs, commit messages, and user communication.
 - Current status: `STATUS.md`
 - Active unfinished work: `PLAN.md`
 - Source module reference: `ai/docs/source-modules.md`
+- Codebase map (DI, поток данных, параллельные механизмы): `ai/docs/codebase-map.md` — **актуализировать при структурных изменениях**
 - Unit-test policy: `ai/docs/unit-testing.md`
 - Feature task template: `ai/docs/feature-task-template.md`
 - Controller/gizmo debug protocol: `ai/docs/controller-debug-protocol.md`

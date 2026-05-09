@@ -1,10 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getAllPosePresets } from '../lib/presets/body25-presets';
 import { logUtils, uiLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { usePoseService } from '../context/ServiceContext';
-import { isLegIKTraceEnabled, setLegIKTraceEnabled, isPerfTraceEnabled, setPerfTraceEnabled } from '../lib/debugFlags';
+import { isLegIKTraceEnabled, setLegIKTraceEnabled } from '../lib/debugFlags';
+import { getService } from '../lib/di/setup';
+import { ServiceKeys } from '../lib/di/types';
+import { FeatureFlagService } from '../lib/feature-flags/FeatureFlagService';
 import './Sidebar.css';
+
+const PERF_FLAG = 'ENABLE_PERFORMANCE_LOGGING';
+
+function usePerfTraceFlag(): [boolean, () => void] {
+  const service = getService<FeatureFlagService>(ServiceKeys.FeatureFlagService);
+  const [enabled, setEnabled] = useState(() => service.isEnabled(PERF_FLAG));
+
+  useEffect(() => {
+    const unsubscribe = service.subscribe(PERF_FLAG, (state) => {
+      setEnabled(state.enabled || state.activatedForUser);
+    });
+    return unsubscribe;
+  }, [service]);
+
+  const toggle = useCallback(() => {
+    service.toggleFlag(PERF_FLAG);
+    const nowOn = service.isEnabled(PERF_FLAG);
+    console.log(`[PerfTrace] ${nowOn ? 'ON — двигайте ногой, записи появятся в консоли' : 'OFF'}`);
+  }, [service]);
+
+  return [enabled, toggle];
+}
 
 interface SidebarProps {
   onOpenSettings: () => void;
@@ -23,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [legIKTraceEnabled, setLegIKTraceEnabledState] = useState(false);
-  const [perfTraceEnabled, setPerfTraceEnabledState] = useState(false);
+  const [perfTraceEnabled, handleTogglePerfTrace] = usePerfTraceFlag();
   const presets = getAllPosePresets();
 
   // Обновляем состояние кнопок при изменении позы
@@ -38,7 +63,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   useEffect(() => {
     setLegIKTraceEnabledState(isLegIKTraceEnabled());
-    setPerfTraceEnabledState(isPerfTraceEnabled());
   }, []);
 
   const handleResetPose = () => {
@@ -69,13 +93,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     uiLogger.info(`Leg IK trace ${next ? 'enabled' : 'disabled'}`, {
       persisted: isLegIKTraceEnabled(),
     });
-  };
-
-  const handleTogglePerfTrace = () => {
-    const next = !perfTraceEnabled;
-    setPerfTraceEnabled(next);
-    setPerfTraceEnabledState(next);
-    uiLogger.info(`Perf trace ${next ? 'enabled' : 'disabled'}`);
   };
 
   return (

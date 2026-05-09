@@ -47,7 +47,10 @@ import { UndoStack } from '../lib/UndoStack';
 import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
 import { Body25Index } from '../lib/body25/body25-types';
 import { createLogger } from '../lib/logger';
-import { isLegIKTraceEnabled, isPerfTraceEnabled } from '../lib/debugFlags';
+import { isLegIKTraceEnabled } from '../lib/debugFlags';
+import { getService } from '../lib/di/setup';
+import { ServiceKeys } from '../lib/di/types';
+import { FeatureFlagService } from '../lib/feature-flags/FeatureFlagService';
 
 type RigListener = (pose: PoseData) => void;
 
@@ -60,9 +63,21 @@ export class RigService {
   private listeners: RigListener[] = [];
   private dragStartRig: SkeletonRig | null = null;
 
-  constructor() {
+  private featureFlagService: FeatureFlagService;
+
+  constructor(featureFlagService?: FeatureFlagService) {
     this.rig = createDefaultRig();
     this.undoStack = new UndoStack<SkeletonRig>(50);
+    if (featureFlagService) {
+      this.featureFlagService = featureFlagService;
+    } else {
+      try {
+        this.featureFlagService = getService<FeatureFlagService>(ServiceKeys.FeatureFlagService);
+      } catch {
+        // В тестовой среде DI-контейнер не инициализирован — используем пустой сервис.
+        this.featureFlagService = new FeatureFlagService();
+      }
+    }
   }
 
   // ─── Rig access ────────────────────────────────────────────────────────────
@@ -378,7 +393,7 @@ export class RigService {
 
     // Read flags once — localStorage reads are not free.
     const trace = isLegIKTraceEnabled();
-    const perf = isPerfTraceEnabled();
+    const perf = this.featureFlagService.isEnabled('ENABLE_PERFORMANCE_LOGGING');
 
     const pose = this.getPoseData();
     const joints = LEG_JOINTS[side];
@@ -433,7 +448,7 @@ export class RigService {
         });
       }
       if (perf) {
-        console.debug(`[perf:applyLegIK] REJECTED(null) side=${side} total=${(performance.now()-t0).toFixed(2)}ms | setup=${(t1-t0).toFixed(2)}ms | solver=${(t2-t1).toFixed(2)}ms`);
+        console.log(`[perf:applyLegIK] REJECTED(null) side=${side} total=${(performance.now()-t0).toFixed(2)}ms | setup=${(t1-t0).toFixed(2)}ms | solver=${(t2-t1).toFixed(2)}ms`);
       }
       return;
     }
@@ -458,7 +473,7 @@ export class RigService {
         });
       }
       if (perf) {
-        console.debug(`[perf:applyLegIK] REJECTED(tibia) side=${side} total=${(performance.now()-t0).toFixed(2)}ms | setup=${(t1-t0).toFixed(2)}ms | solver=${(t2-t1).toFixed(2)}ms | clone=${(t3-t2).toFixed(2)}ms`);
+        console.log(`[perf:applyLegIK] REJECTED(tibia) side=${side} total=${(performance.now()-t0).toFixed(2)}ms | setup=${(t1-t0).toFixed(2)}ms | solver=${(t2-t1).toFixed(2)}ms | clone=${(t3-t2).toFixed(2)}ms`);
       }
       return;
     }
@@ -484,7 +499,7 @@ export class RigService {
       });
     }
     if (perf) {
-      console.debug(
+      console.log(
         `[perf:applyLegIK] OK side=${side}` +
         ` total=${(t5-t0).toFixed(2)}ms` +
         ` | setup=${(t1-t0).toFixed(2)}ms` +

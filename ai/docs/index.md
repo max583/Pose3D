@@ -10,6 +10,7 @@
 | `collaboration-roles.md` | Universal role-based workflow for complex PoseFlow tasks, with profiles for mechanics, UI, import, R&D, and release work. |
 | `design-doll-controls-poseflow-spec.md` | Domain/UX reference for DesignDoll-style controls; check current code first. |
 | `source-modules.md` | Key source modules reference extracted from `CLAUDE.md` / `AGENTS.md`. |
+| `codebase-map.md` | Архитектурная карта `poseflow/src/`: DI, поток данных позы, параллельные механизмы и ловушки. **Актуализировать при структурных изменениях.** |
 | `unit-testing.md` | Unit-test rules extracted from `CLAUDE.md` / `AGENTS.md`. |
 | `archive/index.md` | Archived/stale docs no longer used as active guidance. |
 | `README.md` | Compatibility pointer to this index. |
