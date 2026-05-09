@@ -13,7 +13,9 @@ import {
   saveAppSettings,
   ThemeChoice,
 } from '../lib/appSettings';
-import { cameraService } from '../services/cameraService';
+import { CameraService } from '../services/cameraService';
+import { getService } from '../lib/di/setup';
+import { ServiceKeys } from '../lib/di/types';
 
 type AppSettingsContextValue = {
   settings: AppSettings;
@@ -47,7 +49,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [settings]);
 
   useEffect(() => {
-    cameraService.setAnimationDurationMs(settings.cameraAnimationMs);
+    getService<CameraService>(ServiceKeys.CameraService).setAnimationDurationMs(settings.cameraAnimationMs);
   }, [settings.cameraAnimationMs]);
 
   const effectiveTheme = useMemo(() => {

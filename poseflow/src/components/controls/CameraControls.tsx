@@ -1,7 +1,7 @@
 // CameraControls.tsx - Управление камерой (как posemy.art)
 import React, { useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
-import { cameraService } from '../../services/cameraService';
+import { useCameraService } from '../../context/ServiceContext';
 import './CameraControls.css';
 
 /**
@@ -10,10 +10,11 @@ import './CameraControls.css';
  */
 export const CameraController: React.FC = () => {
   const { camera } = useThree();
+  const cameraService = useCameraService();
 
   useEffect(() => {
     cameraService.registerCamera(camera);
-  }, [camera]);
+  }, [camera, cameraService]);
 
   return null;
 };
@@ -27,6 +28,8 @@ interface CameraControlsProps {
 }
 
 export const CameraControls: React.FC<CameraControlsProps> = ({ onCollapse }) => {
+  const cameraService = useCameraService();
+
   const handleFrontView = () => cameraService.switchTo('front');
   const handleBackView = () => cameraService.switchTo('back');
   const handleSideRight = () => cameraService.switchTo('side');

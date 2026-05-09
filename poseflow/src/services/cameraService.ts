@@ -271,6 +271,3 @@ export class CameraService {
     return this._isAnimating;
   }
 }
-
-// Синглтон экземпляр CameraService для обратной совместимости
-export const cameraService = new CameraService();
