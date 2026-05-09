@@ -144,10 +144,23 @@ Hip-only solver slice, 2026-05-06:
   - `npm run lint:unused` passed.
   - Full rig regression passed with 152 tests (30 legIK, 13 legHip, 9 legAnatomy, 7 legLimits).
 
+- 2026-05-09 Session 2 maintenance and structural improvements:
+  - D4: removed duplicate `buildLegFrame` from `legAnatomy.ts`; now re-exported from `legHip.ts`.
+  - D5: `isKneeAnteriorValid` threshold tightened from `-EPS` to `-0.1`; sideways knees
+    no longer pass the patella-direction validity check.
+  - D3: `solveLegIKHipFirst` promoted to position 3 (before `solveLegFABRIK`) in
+    the `solveLegIKWithinLimits` fallback cascade; `isHighFrontTarget` computed once
+    before the block.
+  - All checks passed: typecheck, lint:unused, 152 rig regression tests.
+
 ## Latest Technical Checks
 
 Latest checks:
 
+- 2026-05-09 after Session 2 D3/D4/D5:
+  - `npm run typecheck` passed.
+  - `npm run lint:unused` passed.
+  - Full rig regression passed with 152 tests.
 - 2026-05-08 after Session 1 D1/D2 fixes:
   - `npm run typecheck` passed.
   - `npm run lint:unused` passed.

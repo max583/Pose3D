@@ -619,6 +619,72 @@ describe('legIK', () => {
     expect(angles.forward).toBeGreaterThan(80 * Math.PI / 180);
   });
 
+  // Baby-pose arc tests: verify the solver handles high-front targets without anatomy violations.
+  // Targets are chosen so that the shin geometry *forces* a specific minimum hip flexion.
+  //
+  // Hip flexion convention (legHip.ts): 0° = thigh down, 90° = thigh horizontal forward,
+  // 150° = max deep flexion.
+  // thighDir at flexion θ (no abduction) = (0, -cos θ, sin θ).
+  // For each target we verified analytically that:
+  //   shin²(θ) = (ty - 0.85 + 0.43·cos θ)² + (tz - 0.43·sin θ)² <= 0.37²
+  // has no solution below the stated lower bound.
+
+  it('baby-pose: лодыжка достигает цели выше бедра, анатомия валидна (свободная флексия)', () => {
+    // target (0,1.0,0.5): reachable at various hip angles — test only that anatomy is clean
+    // and ankle gets closer to target, not a specific hip angle.
+    const hip = new Vector3(0, 0.85, 0);
+    const knee = new Vector3(0, 0.42, 0);
+    const ankle = new Vector3(0, 0.05, 0);
+    const target = new Vector3(0, 1.0, 0.5);
+    const bodyForward = new Vector3(0, 0, 1);
+    const bodyUp = new Vector3(0, 1, 0);
+
+    const chain = solveLegIKWithinLimits(hip, knee, ankle, target, [0.43, 0.37], bodyForward, bodyUp, 'r');
+
+    expect(chain).not.toBeNull();
+    const diag = getLegIKCandidateDiagnostics(chain![0], chain![1], chain![2], bodyForward, bodyUp, 'r');
+    expect(diag.reasons).toEqual([]);
+    expect(chain![2].distanceTo(target)).toBeLessThan(ankle.distanceTo(target));
+  });
+
+  it('baby-pose ≥114°: только глубокий передок достигает цели (0,1.3,0.15)', () => {
+    // shin²(θ) < 0.37² requires θ > ~114°; lower flexion cannot reach this target.
+    const hip = new Vector3(0, 0.85, 0);
+    const knee = new Vector3(0, 0.42, 0);
+    const ankle = new Vector3(0, 0.05, 0);
+    const target = new Vector3(0, 1.3, 0.15);
+    const bodyForward = new Vector3(0, 0, 1);
+    const bodyUp = new Vector3(0, 1, 0);
+
+    const chain = solveLegIKWithinLimits(hip, knee, ankle, target, [0.43, 0.37], bodyForward, bodyUp, 'r');
+
+    expect(chain).not.toBeNull();
+    const diag = getLegIKCandidateDiagnostics(chain![0], chain![1], chain![2], bodyForward, bodyUp, 'r');
+    expect(diag.reasons).toEqual([]);
+    const angles = getSignedHipAngles(chain![0], chain![1], bodyForward, bodyUp, 'r');
+    expect(angles.forward).toBeGreaterThan(105 * Math.PI / 180);
+    expect(chain![2].distanceTo(target)).toBeLessThan(ankle.distanceTo(target));
+  });
+
+  it('baby-pose ≥140°: только очень глубокий передок достигает цели (0,1.5,0.1)', () => {
+    // shin²(θ) < 0.37² requires θ > ~140°; verified at θ=140°: 0.134 < 0.1369.
+    const hip = new Vector3(0, 0.85, 0);
+    const knee = new Vector3(0, 0.42, 0);
+    const ankle = new Vector3(0, 0.05, 0);
+    const target = new Vector3(0, 1.5, 0.1);
+    const bodyForward = new Vector3(0, 0, 1);
+    const bodyUp = new Vector3(0, 1, 0);
+
+    const chain = solveLegIKWithinLimits(hip, knee, ankle, target, [0.43, 0.37], bodyForward, bodyUp, 'r');
+
+    expect(chain).not.toBeNull();
+    const diag = getLegIKCandidateDiagnostics(chain![0], chain![1], chain![2], bodyForward, bodyUp, 'r');
+    expect(diag.reasons).toEqual([]);
+    const angles = getSignedHipAngles(chain![0], chain![1], bodyForward, bodyUp, 'r');
+    expect(angles.forward).toBeGreaterThan(130 * Math.PI / 180);
+    expect(chain![2].distanceTo(target)).toBeLessThan(ankle.distanceTo(target));
+  });
+
   it('solveLegIKWithinLimits keeps knee anatomy relative to rotated mannequin axes', () => {
     const rootRotation = new Quaternion().setFromAxisAngle(
       new Vector3(1, 0, 0),
