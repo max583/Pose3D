@@ -40,6 +40,7 @@ Still open:
    - validate hip movement and limits without depending on knee or ankle behavior;
    - use hip-only scenario tests H1-H12 from `ai/tasks/leg-hierarchical-solver-design.md` (implemented);
    - hip layer is now connected to leg IK for femur direction;
+   - **gap to close as part of the hip layer**: extend `applyLegIK` to enforce `isUpperLegAxialTwistWithinLimits` on the chosen candidate. Currently the ±90° femur axial-twist limit (`legLimits.ts`, swing-twist decomposition at the knee local rotation) is enforced only in `applyKneeTwist`. `applyLegIK` checks tibia twist but skips the femur-twist check, so ankle-drag solutions can leave the femur over-twisted in the hip socket. Mirrors the arm, where `applyArmIK` already calls `isUpperArmAxialTwistWithinLimits`. Add focused regression tests covering ankle drags that previously produced out-of-range femur twist;
    - next, model the knee joint, including hinge-like flexion, patella/anterior direction, and very limited tibia axial twist;
    - validate knee behavior after the hip model is stable;
    - only then model ankle/reach behavior and choose ankle position within reachable bounds.
