@@ -355,10 +355,94 @@ around `solveKneePose`. The high-front and branch-continuity rules currently enc
    reference set in slice 2.
 5. Run `npm run typecheck`, `npm run lint:unused`, focused vitest for the new file.
 
+## Slice 2 Substitution — Semantic Analysis
+
+Before replacing `constrainKneeFlexionWithFixedThigh` (legIK.ts:648–693) with `solveKneePose`,
+I traced the math and found a **real semantic difference**, not just a refactor.
+
+### What the old function does
+
+Geometry, summarised:
+
+```text
+straight = (kneePos − hipPos).normalize()         // femurAxis
+anterior = bodyForward.projOntoPerp(straight)     // == kneeForward in legKnee
+rawFlexion = atan2(−lower·anterior, lower·straight)  // signed
+clamp range:
+  highFrontPose: [−kneeFlexion.max, +kneeFlexion.max]
+  otherwise:     [0,                +kneeFlexion.max]
+lowerDir = straight*cos(flex) − anterior*sin(flex)
+```
+
+`highFrontPose` is true when the hip's signed forward angle is ≥ 120° AND lateral is within
+abduction limits. This came from D2 fix (2026-05-08).
+
+The signed range matters: positive `rawFlexion` puts the tibia in the `−anterior` half-plane
+(patella faces `+anterior`); negative `rawFlexion` puts the tibia in the `+anterior` half-plane
+(patella faces `−anterior`). In legKnee.ts terms, negative flexion ≡ `patellaAngle = ±180°`.
+
+### What legKnee.ts does
+
+`tibiaDir = cos(flex)*femurAxis − sin(flex)*patellaDir`, with `patellaAngle ∈ [−20°, +45°]`,
+unsigned `flexion ∈ [0°, 150°]`. Patella is approximately forward by construction.
+
+### Where they disagree
+
+The old code allows **patella backward** (`patellaAngle ≈ ±180°`) in high-front poses.
+legKnee.ts forbids it. This bites in one specific case: the user drags the ankle controller
+to a position at or below hip level while the hip is highly flexed forward.
+
+I traced an anatomically correct "knees-to-belly" pose:
+
+- hip flexed 135°, femurDir = `(0, +0.707, +0.707)` (up-forward);
+- knee at hip + 0.43·femurDir;
+- ankle anatomically rests **above hip level** (foot pointing skyward when lying on back);
+- e.g. ankle at hip + (0, +0.567, +0.043), tibia = `(0, +0.707, −0.707)` (up-back).
+
+In this pose `legKnee.ts` measures `flex = 90°, patellaAngle = 0°` cleanly. ✅
+
+But the old D2 case ("ankle at or below hip level in high-front") corresponds to an ankle that
+the body cannot reach naturally without the patella facing backward. The old code allowed
+this as a "best fit"; legKnee.ts treats it as out-of-anatomy and clamps patellaAngle.
+
+### Trade-off
+
+| Aspect | Old function | legKnee.solveKneePose |
+|---|---|---|
+| Anatomy at extreme tucked poses | Allows patella backward | Forbids it (+45°/−20°) |
+| Drag UX through "ankle at hip" intermediate | Smooth (signed flex covers it) | Snaps when bend plane flips |
+| Matches reference photos (lying-on-back tuck) | Sometimes wrong (patella can flip) | Always anatomical |
+| High-front coupling | Hip pose drives flexion sign | Knee layer has no hip awareness |
+
+### Decision needed
+
+Before slice 2 substitution proceeds, the user must choose:
+
+**Option A: Anatomical purity.** Replace with `solveKneePose` as-is. Some ankle-drag paths may
+"snap" or refuse to follow when the user pulls the ankle into the patella-backward half-space.
+The viewport will show the leg stop at the limit boundary instead of bending unnaturally.
+
+**Option B: Preserve UX continuity.** Extend `solveKneePose` with a per-call option like
+`allowPatellaBackwardInHighFront: boolean`, defaulting to false. legIK.ts can pass `true` when
+the hip is in the high-front cone (replicating old behavior) and `false` otherwise. This keeps
+the smooth ankle drag but accepts the anatomical inaccuracy in extreme poses.
+
+**Option C: Bigger rework.** Replace ankle-driven IK with knee-target driven control for
+extreme tucked poses (slice 3 of the original plan). The artist sets the femur direction
+directly via a knee handle; the ankle/reach layer fills in the rest.
+
+A is cleanest and matches the design's "do not encode special cases as scattered if-checks."
+B is a pragmatic shim. C is a bigger UX shift but is already on the roadmap as slice 3.
+
+Slice 2 substitution waits on the user's choice. Until then `constrainKneeFlexionWithFixedThigh`
+stays as the runtime path. `legKnee.ts` is staged and tested, available for whichever option
+the user picks.
+
 **Slice 2 — runtime integration.**
 
-1. Replace `constrainKneeFlexionWithFixedThigh` and the in-place knee math in `legIK.ts` with
-   `solveKneePose` calls.
+1. ⏸ Blocked on the trade-off decision above. Replace `constrainKneeFlexionWithFixedThigh` and
+   the in-place knee math in `legIK.ts` with `solveKneePose` calls — but only after
+   choosing A / B / C. Each choice changes how the substitution looks.
 2. ✅ Done 2026-05-09: raised `LEG_ANATOMY_LIMITS.kneeFlexion.max` 130° → 150° to match
    `legKnee.ts` `DEFAULT_KNEE_LIMITS.flexionMax`. Two boundary-asserting tests in `legIK.test.ts`
    updated; full leg + service regression: 253 tests pass.

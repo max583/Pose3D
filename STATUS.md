@@ -159,6 +159,22 @@ Hip-only solver slice, 2026-05-06:
     before the block.
   - All checks passed: typecheck, lint:unused, 152 rig regression tests.
 
+- 2026-05-09 Knee-layer slice 2 substitution analysis — blocked on user decision:
+  - Traced the math of `constrainKneeFlexionWithFixedThigh` and confirmed it is NOT a clean
+    1:1 substitute for `solveKneePose`. Old function's signed-flexion negative range maps to
+    `patellaAngle = ±180°` (patella backward) in legKnee.ts terms; legKnee.ts forbids that.
+    Real semantic difference, not a refactor.
+  - Anatomically correct "knees-to-belly" pose (foot above hip) round-trips cleanly in
+    legKnee.ts with `flex = 90°, patellaAngle = 0°`. The mismatch only bites for ankle-drag
+    paths through "ankle at hip level in high-front" intermediate states.
+  - Three options documented in `ai/tasks/leg-hierarchical-solver-design.md` § Slice 2
+    Substitution — Semantic Analysis: A anatomical purity, B pragmatic shim flag, C knee-target
+    control (slice 3 anyway).
+  - Substitution waits on user pick. `legKnee.ts` stays staged but unused at runtime;
+    `constrainKneeFlexionWithFixedThigh` remains the runtime path.
+  - Manual reference-pose verification of the new 150° kneeFlexion ceiling can proceed
+    independently of A/B/C choice.
+
 - 2026-05-09 Knee-layer slice 2 partial (limit raise + dropped no-op):
   - Raised `LEG_ANATOMY_LIMITS.kneeFlexion.max` from 130° to 150° to match
     `legKnee.ts` `DEFAULT_KNEE_LIMITS.flexionMax`. Updated three boundary-asserting tests
