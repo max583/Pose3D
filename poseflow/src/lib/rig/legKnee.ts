@@ -334,6 +334,47 @@ export function limitKneePose(
   };
 }
 
+// ─── High-level solver ─────────────────────────────────────────────────────
+
+/**
+ * Decide a `KneePose` that tries to reach `requestedAnkle` from a fixed hip
+ * position and femur direction.
+ *
+ * The target may be unreachable (too far) or anatomically invalid (negative
+ * flexion, excessive patella rotation). In either case the returned pose is
+ * the limit-clamped best fit; reaching the exact target is the ankle/reach
+ * layer's responsibility, not the knee layer's.
+ *
+ * `currentTibiaTwist` is carried through `limitKneePose` (so its allowed
+ * range adapts to the limited flexion). When omitted it defaults to 0.
+ *
+ * Returns `null` only for degenerate inputs (zero-length thigh, target
+ * coincident with knee). Otherwise always returns a clamped pose.
+ */
+export function solveKneePose(
+  hipPos: Vector3,
+  requestedAnkle: Vector3,
+  frame: KneeFrame,
+  boneLengths: { thigh: number; shin: number },
+  currentTibiaTwist = 0,
+  limits: KneeLimits = DEFAULT_KNEE_LIMITS,
+): LimitedKneePose | null {
+  const thigh = Math.max(0, boneLengths.thigh);
+  if (thigh < EPS) return null;
+
+  const knee = hipPos.clone().addScaledVector(frame.femurAxis, thigh);
+  const tibia = requestedAnkle.clone().sub(knee);
+  if (tibia.lengthSq() < EPS) {
+    return limitKneePose(
+      { flexion: 0, patellaAngle: 0, tibiaTwist: currentTibiaTwist },
+      limits,
+    );
+  }
+
+  const measured = measureKneePose(hipPos, knee, requestedAnkle, frame, currentTibiaTwist);
+  return limitKneePose(measured, limits);
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function clamp(value: number, min: number, max: number): number {

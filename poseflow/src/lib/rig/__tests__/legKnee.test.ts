@@ -7,6 +7,7 @@ import {
   measureKneePose,
   patellaDirection,
   posFromKneePose,
+  solveKneePose,
   tibiaDirection,
   tibiaTwistLimitAtFlexion,
 } from '../legKnee';
@@ -252,6 +253,79 @@ describe('legKnee', () => {
       const measured = measureKneePose(rotHip, rotKneePos, rotAnkle, rotKnee);
       expect(measured.flexion).toBeCloseTo(110 * DEG, 5);
       expect(measured.patellaAngle).toBeCloseTo(30 * DEG, 5);
+    });
+  });
+
+  describe('solveKneePose', () => {
+    it('returns the same pose that posFromKneePose would produce for a reachable target', () => {
+      const { knee } = legDownFrame('r');
+      const hip = new Vector3();
+      const desired = { flexion: 90 * DEG, patellaAngle: 25 * DEG, tibiaTwist: 0 };
+      const { ankle } = posFromKneePose(hip, desired, knee, { thigh: 1, shin: 1 });
+
+      const solved = solveKneePose(hip, ankle, knee, { thigh: 1, shin: 1 });
+      expect(solved).not.toBeNull();
+      expect(solved!.clamped).toBe(false);
+      expect(solved!.pose.flexion).toBeCloseTo(desired.flexion, 5);
+      expect(solved!.pose.patellaAngle).toBeCloseTo(desired.patellaAngle, 5);
+    });
+
+    it('clamps an over-extension target to flexion = 0', () => {
+      const { knee } = legDownFrame('r');
+      const hip = new Vector3();
+      // Target straight below the would-be ankle but slightly past it (shin would have to
+      // hyperextend). The straight target is unreachable past full extension; here we use
+      // a target placed so the desired flexion would be negative (ankle behind femur axis).
+      // For a standing leg, "negative flexion" comes from an ankle target lifted *above* the
+      // straight-leg ankle along +femurAxis... but we can't go past the straight pose. Try a
+      // target at the knee (flex = 0 since tibia ~ femurAxis):
+      const target = hip.clone().addScaledVector(knee.femurAxis, 1.5);
+
+      const solved = solveKneePose(hip, target, knee, { thigh: 1, shin: 1 });
+      expect(solved).not.toBeNull();
+      // Tibia between knee (at femurAxis * 1) and target (at femurAxis * 1.5) → continues
+      // femurAxis → flexion = 0, no clamp.
+      expect(solved!.pose.flexion).toBeCloseTo(0, 5);
+    });
+
+    it('clamps an excessive-fold target to flexion.max', () => {
+      const { knee: kneeFrame } = legDownFrame('r');
+      const hip = new Vector3();
+      // Target that would require flexion 170° in the sagittal plane.
+      const desired = { flexion: 170 * DEG, patellaAngle: 0, tibiaTwist: 0 };
+      const { ankle } = posFromKneePose(hip, desired, kneeFrame, { thigh: 1, shin: 1 });
+
+      const solved = solveKneePose(hip, ankle, kneeFrame, { thigh: 1, shin: 1 });
+      expect(solved).not.toBeNull();
+      expect(solved!.clamped).toBe(true);
+      expect(solved!.reasons).toContain('flexion-max');
+      expect(solved!.pose.flexion).toBeCloseTo(DEFAULT_KNEE_LIMITS.flexionMax, 5);
+    });
+
+    it('carries currentTibiaTwist through the limit pass', () => {
+      const { knee } = legDownFrame('r');
+      const hip = new Vector3();
+      const desired = { flexion: 90 * DEG, patellaAngle: 0, tibiaTwist: 0 };
+      const { ankle } = posFromKneePose(hip, desired, knee, { thigh: 1, shin: 1 });
+
+      // Allowed at fold: 12° within ±15° limit.
+      const allowed = solveKneePose(hip, ankle, knee, { thigh: 1, shin: 1 }, 12 * DEG);
+      expect(allowed!.clamped).toBe(false);
+      expect(allowed!.pose.tibiaTwist).toBeCloseTo(12 * DEG, 5);
+
+      // Excess at fold: 25° clamps to 15°.
+      const clamped = solveKneePose(hip, ankle, knee, { thigh: 1, shin: 1 }, 25 * DEG);
+      expect(clamped!.clamped).toBe(true);
+      expect(clamped!.reasons).toContain('tibia-twist');
+      expect(clamped!.pose.tibiaTwist).toBeCloseTo(DEFAULT_KNEE_LIMITS.tibiaTwistAtFold, 5);
+    });
+
+    it('returns null for a degenerate zero-length thigh', () => {
+      const { knee } = legDownFrame('r');
+      const hip = new Vector3();
+      const target = new Vector3(0, -2, 0);
+      const result = solveKneePose(hip, target, knee, { thigh: 0, shin: 1 });
+      expect(result).toBeNull();
     });
   });
 
