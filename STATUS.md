@@ -159,6 +159,15 @@ Hip-only solver slice, 2026-05-06:
     before the block.
   - All checks passed: typecheck, lint:unused, 152 rig regression tests.
 
+- 2026-05-09 Knee-layer design extension:
+  - Extended `ai/tasks/leg-hierarchical-solver-design.md` with the full knee-layer specification:
+    `KneePose` model (`flexion`, `patellaAngle`, `tibiaTwist`), knee frame derivation from femur direction,
+    first-pass limits (including locked-tibia-twist near full extension), K1–K14 scenario set,
+    `legKnee.ts` code shape, and a three-slice implementation plan.
+  - PLAN.md updated: slice 1 is `legKnee.ts` + `legKnee.test.ts` (pure helpers, no runtime change).
+  - Femur-twist preservation moved into slice 2 (runtime integration).
+  - Doc-only commit; no code change yet.
+
 - 2026-05-09 Architectural cleanup (parallel-mechanism removal):
   - Deleted zombie Zustand stores (`lib/stores/settingsStore.ts`, `uiStore.ts`).
   - Deleted `lib/debugFlags.ts`; all debug flags migrated to `feature-flags/registry.ts`

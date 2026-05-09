@@ -1,7 +1,8 @@
 # Leg Hierarchical Solver Design
 
-Status: draft, hip layer integrated into leg IK.
+Status: draft, hip layer integrated into leg IK; knee layer designed (slice 1 not yet implemented).
 Created: 2026-05-06.
+Last updated: 2026-05-09 (knee-layer design extension: model, limits, K1–K14 scenarios, code shape, slice plan).
 
 This document designs the replacement for the current heuristic leg IK. The new solver must be built
 from the anatomy hierarchy:
@@ -190,11 +191,191 @@ Only after the hip layer is stable, solve the knee.
 The knee layer receives a fixed hip direction and thigh length. It must decide:
 
 - knee flexion/extension angle;
-- patella/anterior direction;
+- patella / knee bend-plane direction;
 - very limited tibia axial twist.
 
-Important rule: knee validity should not change the already-approved hip direction except through an
-explicit failure/no-op result.
+Important rule: knee validity must not change the already-approved hip direction except through an
+explicit failure/no-op result. The knee layer is internal to the femur-fixed frame.
+
+## Knee Joint Model
+
+The knee is a hinge with very limited additional axial freedom. Primary state:
+
+```text
+KneePose {
+  flexion:      unsigned hinge angle between thigh and tibia;
+                // 0 = leg straight, > 0 = bent
+  patellaAngle: signed angle around the femur axis;
+                // 0 = bend plane is sagittal (patella faces pelvisForward);
+                // positive = bend plane rotates outward by mannequin side
+                //   (right leg positive = bend opens outward-right);
+                // sign is normalized per side so both legs read the same value for the same anatomy
+  tibiaTwist:   signed axial twist of the tibia around its own (knee->ankle) axis;
+                // measured at the ankle joint's local rotation around the tibia rest direction;
+                // anatomically only available when the knee is meaningfully bent
+}
+```
+
+Knee frame derived from the femur direction (output of the hip layer):
+
+- `femurAxis`: unit `hip -> knee`, fixed input.
+- `kneeForward`: `pelvisForward` projected onto the plane perpendicular to `femurAxis`, normalized.
+  Fallbacks if degenerate (`femurAxis ≈ ±pelvisForward`): try `pelvisRight` projected, then `pelvisUp` projected.
+- `kneeSide`: `femurAxis × kneeForward` (right-handed; on rest pose with `femurAxis = legDown`,
+  `kneeSide` points out the mannequin's lateral side for the right leg).
+
+Tibia direction in this frame, before twist:
+
+```text
+sideSign = +1 for right leg, -1 for left leg
+radial   = cos(patellaAngle * sideSign) * kneeForward
+         + sin(patellaAngle * sideSign) * kneeSide
+tibiaDir = cos(flexion) * (-femurAxis) + sin(flexion) * radial
+```
+
+Reasoning: at `flexion = 0` the tibia continues the femur (`tibiaDir = -femurAxis`). At
+`flexion = 90°`, tibia lies along `radial`. The bend goes into the sagittal plane (`kneeForward`)
+by default and rotates outward/inward via `patellaAngle`.
+
+Tibia axial twist is a post-rotation around `tibiaDir`. It changes the foot orientation but not the
+ankle position; therefore it does not affect ankle reachability and can be solved last.
+
+Patella direction (visual kneecap normal) is opposite the bend radial:
+
+```text
+patellaDir = -radial
+```
+
+This makes `measureKneeAnteriorAlignment` (existing helper) directly comparable: the dot product
+against `pelvisForward` is `-radial · pelvisForward = -cos(patellaAngle * sideSign)` in the
+non-degenerate case where `kneeForward ≈ pelvisForward`.
+
+## Knee First-Pass Limits
+
+| Movement | First-pass limit | Notes |
+|---|---|---|
+| `flexion.min` | 0° | No hyperextension. |
+| `flexion.max` | 150° | Heel-to-butt natural fold. Current `LEG_ANATOMY_LIMITS.kneeFlexion.max` is 130°; raise to 150° as part of slice 2 after reference-set verification (do not raise in slice 1). |
+| `patellaAngle.outward.max` (positive) | +45° | Natural Q-angle plus pose-style outward turnout. |
+| `patellaAngle.inward.max` (negative) | −20° | Inward-facing patella is anatomically rare; very tight. |
+| `tibiaTwist` at `flexion >= 30°` | ±15° | Matches current `LEG_ANATOMY_LIMITS.tibiaAxialTwist`. |
+| `tibiaTwist` at `flexion < 10°` | ±3° | Knee locks near extension; twist must collapse. |
+| `tibiaTwist` for `10° <= flexion < 30°` | linear interpolation between the two | Smooth transition. |
+
+These defaults are practical, not medical-exact. Adjust the limit *surface* inside `limitKneePose`
+rather than scattering signs/thresholds into the IK code path.
+
+Existing helpers to reuse, do not duplicate:
+
+- `measureTrueKneeFlexion` (`legAnatomy.ts`) — same as `flexion`.
+- `measureTibiaAxialTwist` (`legAnatomy.ts`) — same as `tibiaTwist`, measured at the ankle joint.
+- `measureUpperLegKneePlaneTwist` / `measureKneePlaneTwistDelta` (`legLimits.ts`) — these measure
+  twist around the `hip -> ankle` axis, which is **not** the same as `patellaAngle` (which is around
+  the femur axis). They remain useful for branch-continuity preservation during ankle drag, but
+  `legKnee.ts` should expose `patellaAngle` as the canonical bend-plane parameter.
+
+## Knee-Only Validation
+
+Before connecting ankle/reach IK to the knee layer, verify the helpers in isolation:
+
+1. Build a `KneePose` request directly from numeric `flexion`, `patellaAngle`, `tibiaTwist`.
+2. Clamp it through `limitKneePose`.
+3. Compute knee/ankle positions from `posFromKneePose(hipPos, femurDir, limitedPose, boneLengths)`.
+4. Round-trip: `measureKneePose` on the resulting points must reproduce the limited input
+   within tolerance.
+
+Expected knee-only checks:
+
+- straight pose round-trips to `flexion = 0`, no clamp;
+- deep-fold pose stays under the configured `flexion.max` after clamp;
+- excessive outward/inward `patellaAngle` clamps smoothly;
+- tibia twist near full extension collapses to ~0 regardless of requested value;
+- right/left mirror is symmetric in pelvis-frame parameters;
+- root-rotated mannequin produces the same pelvis-frame `KneePose`.
+
+## Knee-Only Scenario Set
+
+Inputs assume:
+
+- `hip = (0, 0, 0)` in pelvis-local reasoning;
+- `thighLength = shinLength = 1`;
+- pelvis frame from `pelvisUp = (0, 1, 0)`, `pelvisForward = (0, 0, 1)`;
+- right leg unless noted;
+- tolerances ~0.5–1 deg.
+
+| ID | Scenario | Inputs (`flexion`, `patellaAngle`, `tibiaTwist`, `femurDir`) | Expected |
+|---|---|---|---|
+| K1 | Neutral straight | `0°, 0°, 0°, legDown` | `tibiaDir = legDown`; ankle directly below hip; no clamp. |
+| K2 | Natural deep fold | `140°, 0°, 0°, legDown` | Allowed; ankle lifts toward hip inside the sagittal plane. |
+| K3 | Hyperextension request | `-10°, 0°, 0°, legDown` | `flexion` clamps to 0. |
+| K4 | Beyond max fold | `170°, 0°, 0°, legDown` | `flexion` clamps to `flexion.max`. |
+| K5 | Q-angle outward | `90°, 25°, 0°, legDown` | Allowed; ankle shifts laterally outward of the sagittal plane. |
+| K6 | Excessive outward patella | `90°, 70°, 0°, legDown` | `patellaAngle` clamps to +45°. |
+| K7 | Mild inward patella | `90°, -10°, 0°, legDown` | Allowed. |
+| K8 | Excessive inward patella | `90°, -40°, 0°, legDown` | `patellaAngle` clamps to −20°. |
+| K9 | Tibia twist at deep fold | `90°, 0°, 10°, legDown` | Allowed. |
+| K10 | Excessive tibia twist at fold | `90°, 0°, 25°, legDown` | `tibiaTwist` clamps to ±15°. |
+| K11 | Tibia twist near extension | `5°, 0°, 10°, legDown` | `tibiaTwist` clamps to small value (knee locked). |
+| K12 | Mirror right/left | same numeric params for both sides | Symmetric in pelvis frame: left ankle position is the mirror of right ankle. |
+| K13 | Femur-tilt invariance | `90°, 0°, 0°, femurDir = forward-flexed thigh` | Measured `KneePose` from result equals input; ankle position rotates with the femur. |
+| K14 | Root-rotated mannequin | apply arbitrary `rootRotation` to pelvis axes and `femurDir` | Pelvis-frame `KneePose` matches the non-rotated case. |
+
+First implementation should make K1–K14 pass before integrating with `legIK.ts`.
+
+## Knee Code Shape
+
+Likely new pure helper module:
+
+```text
+src/lib/rig/legKnee.ts
+```
+
+Candidate exports (analogous to `legHip.ts`):
+
+```text
+buildKneeFrame(femurDir, pelvisFrame)                                    -> KneeFrame
+measureKneePose(femurDir, kneePos, anklePos, tibiaTwist, frame)          -> KneePose
+posFromKneePose(hipPos, femurDir, kneePose, boneLengths, frame)          -> { knee, ankle }
+limitKneePose(kneePose, options)                                         -> { pose, reasons }
+solveKneePose(femurDir, requestedAnkleOrParameters, frame, options)      -> KneePose | null
+```
+
+Reuse `measureTrueKneeFlexion` and `measureTibiaAxialTwist` from `legAnatomy.ts`. Avoid duplicating
+`buildPelvisLegFrame` (it is the pelvis-side frame, while `KneeFrame` is femur-relative).
+
+`legIK.ts` integration (slice 2): the current `constrainKneeFlexionWithFixedThigh` becomes a wrapper
+around `solveKneePose`. The high-front and branch-continuity rules currently encoded inline in
+`legIK.ts` should move into the `KneePose` clamp surface or into `solveKneePose` heuristics.
+
+## Knee First Implementation Slice
+
+**Slice 1 — pure helpers and tests, no runtime change.**
+
+1. Add `legKnee.ts` with `buildKneeFrame`, `measureKneePose`, `posFromKneePose`, `limitKneePose`.
+   Follow the patterns established in `legHip.ts`.
+2. Add `legKnee.test.ts` with K1–K14.
+3. Do **not** modify `legIK.ts` or `RigService` in this slice.
+4. Do **not** raise `LEG_ANATOMY_LIMITS.kneeFlexion.max` from 130° to 150° yet — first verify the
+   reference set in slice 2.
+5. Run `npm run typecheck`, `npm run lint:unused`, focused vitest for the new file.
+
+**Slice 2 — runtime integration.**
+
+1. Replace `constrainKneeFlexionWithFixedThigh` and the in-place knee math in `legIK.ts` with
+   `solveKneePose` calls.
+2. Raise `kneeFlexion.max` to 150° if reference checks confirm.
+3. Address femur-axial-twist preservation: extend `applyLegChainToRig` (or wrap it in
+   `RigService.applyLegIK`) so the previously-set knee axial twist is decomposed against the
+   *old* femur direction and recomposed onto the *new* one, then re-validated against
+   `LEG_LIMITS.upperLegAxialTwist` and clamped if needed. Mirror the same fix in
+   `applyArmChainToRig` for symmetry.
+4. Add regression: knee twist set → small ankle drag → twist preserved, not zeroed.
+5. Run focused leg regression and manual viewport checks.
+
+**Slice 3 — additional knee-node control.**
+
+Add a direct knee-target control path through the knee node, sharing the same hip-limit and
+knee-limit surfaces as ankle IK.
 
 ## Ankle / Reach Layer Contract
 
@@ -493,6 +674,8 @@ All regression tests (152) passed; typecheck and lint:unused clean.
 
 ## Open Questions
 
-- Should `flexion.max = 150 deg` be enough for the reference set, or should the first implementation allow `160 deg`?
+- Should hip `flexion.max = 150 deg` be enough for the reference set, or should the first implementation allow `160 deg`?
 - How should hip external/internal rotation be represented before full mesh/rig import exists?
-- Should knee-node dragging be implemented immediately after hip helper integration, or after ankle IK is reconnected?
+- Knee-node dragging (slice 3) lands after ankle IK is reconnected to the knee layer (slice 2), not before.
+  Confirmed by knee-layer design 2026-05-09.
+- Should `kneeFlexion.max` be raised to 150° in slice 2, or wait for reference-set verification first?
