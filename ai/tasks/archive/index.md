@@ -17,3 +17,4 @@ Completed or superseded task briefs. These are historical context only.
 | `stage-7-foot-controller.md` | Completed foot controller first slice. |
 | `steps-1-7-completed.md` | Historical summary of completed early steps. |
 | `unified-gizmo-sensitivity.md` | Completed unified gizmo sensitivity settings task. |
+| `architectural-cleanup-plan.md` | Completed 2026-05-09: parallel-mechanism cleanup (tasks A–E from `codebase-map.md` §6). |

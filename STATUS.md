@@ -36,6 +36,12 @@ Completed on 2026-05-06:
 - Active `PLAN.md` and `STATUS.md` are compact.
 - `CLAUDE.md` and `AGENTS.md` now link to separate source-module and unit-test references.
 
+### Architectural Cleanup
+
+Completed on 2026-05-09. Parallel mechanisms and zombie code removed (see `CHANGELOG.md` and `ai/docs/codebase-map.md` §6 — A–E помечены ✅). Plan archived at `ai/tasks/archive/architectural-cleanup-plan.md`.
+
+Decision on Leg IK Trace performance: not pursuing optimization. The flag is a diagnostic tool, off by default; FPS drop during tracing is expected and acceptable for the few minutes per session it is enabled.
+
 ### Leg Model Refactor
 
 Active, not finished.
