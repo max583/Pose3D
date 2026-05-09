@@ -359,14 +359,21 @@ around `solveKneePose`. The high-front and branch-continuity rules currently enc
 
 1. Replace `constrainKneeFlexionWithFixedThigh` and the in-place knee math in `legIK.ts` with
    `solveKneePose` calls.
-2. Raise `kneeFlexion.max` to 150° if reference checks confirm.
-3. Address femur-axial-twist preservation: extend `applyLegChainToRig` (or wrap it in
-   `RigService.applyLegIK`) so the previously-set knee axial twist is decomposed against the
-   *old* femur direction and recomposed onto the *new* one, then re-validated against
-   `LEG_LIMITS.upperLegAxialTwist` and clamped if needed. Mirror the same fix in
-   `applyArmChainToRig` for symmetry.
-4. Add regression: knee twist set → small ankle drag → twist preserved, not zeroed.
-5. Run focused leg regression and manual viewport checks.
+2. ✅ Done 2026-05-09: raised `LEG_ANATOMY_LIMITS.kneeFlexion.max` 130° → 150° to match
+   `legKnee.ts` `DEFAULT_KNEE_LIMITS.flexionMax`. Two boundary-asserting tests in `legIK.test.ts`
+   updated; full leg + service regression: 253 tests pass.
+3. ❌ Dropped — femur-axial-twist preservation in `applyLegChainToRig` is a structural no-op.
+   `worldPosToLocalRot` uses `setFromUnitVectors` (shortest-arc), whose quaternion has its vector
+   part along `restDir × actualDir`, hence perpendicular to `restDir`. In `decomposeSwingTwist`
+   that gives `vec.dot(restDir) = 0`, so the twist component is identically zero after every
+   `applyLegChainToRig`. Preserving "always zero" is meaningless. The user-visible "knee swivel
+   erased on ankle drag" is about geometric `kneePlaneTwist` (radial angle around the
+   `hip→ankle` axis, not local-rotation twist), which is already partially handled by
+   branch-continuity in `solveLegIKWithinLimits` (2026-05-08 fix). If branch-continuity proves
+   insufficient in further manual checks, fix it there, not in `applyLegChainToRig`. The
+   symmetric arm "fix" is dropped for the same reason.
+4. Run focused leg regression and manual viewport checks; verify deep-front "knees-to-belly"
+   actually reaches 150° in the viewport now that the limit is raised.
 
 **Slice 3 — additional knee-node control.**
 

@@ -159,6 +159,20 @@ Hip-only solver slice, 2026-05-06:
     before the block.
   - All checks passed: typecheck, lint:unused, 152 rig regression tests.
 
+- 2026-05-09 Knee-layer slice 2 partial (limit raise + dropped no-op):
+  - Raised `LEG_ANATOMY_LIMITS.kneeFlexion.max` from 130° to 150° to match
+    `legKnee.ts` `DEFAULT_KNEE_LIMITS.flexionMax`. Updated three boundary-asserting tests
+    in `legIK.test.ts`. Full leg + service regression: 253 tests pass.
+  - Dropped the "preserve femur axial twist in `applyLegChainToRig`" subtask. Math: `worldPosToLocalRot`
+    uses `setFromUnitVectors` (shortest-arc) → quaternion vector part is `restDir × actualDir`
+    (perpendicular to `restDir`) → twist component about `restDir` is identically zero. Preserving
+    a structurally-zero quantity is meaningless. The genuine user concern (knee swivel feels
+    erased on ankle drag) is about geometric `kneePlaneTwist` around the `hip→ankle` axis, not
+    local-rotation twist; that is the branch-continuity fix from 2026-05-08 and lives in
+    `solveLegIKWithinLimits`. Symmetric arm "fix" dropped for the same reason.
+  - Slice 2 remaining: replace `constrainKneeFlexionWithFixedThigh` with `solveKneePose` calls,
+    plus manual viewport verification of deep-front "knees-to-belly" at the new 150° ceiling.
+
 - 2026-05-09 Knee-layer slice 1 (pure helpers, no runtime change):
   - Added `src/lib/rig/legKnee.ts` with `buildKneeFrame`, `patellaDirection`, `tibiaDirection`,
     `posFromKneePose`, `measureKneePose`, `tibiaTwistLimitAtFlexion`, `limitKneePose`, and

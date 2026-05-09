@@ -58,7 +58,7 @@ describe('legIK', () => {
     expect(distance(after[Body25Index.RIGHT_ANKLE]!, ankleBefore)).toBeGreaterThan(0.01);
   });
 
-  it('ограничивает естественное сгибание колена максимум 130 градусами', () => {
+  it('ограничивает естественное сгибание колена максимум 150 градусами', () => {
     const hip = new Vector3(0, 0.85, 0);
     const knee = new Vector3(0, 0.42, 0);
     const ankle = new Vector3(0, 0.05, 0);
@@ -69,7 +69,7 @@ describe('legIK', () => {
     const flexion = getSignedKneeFlexion(chain[0], chain[1], chain[2], bodyForward);
 
     expect(flexion).toBeGreaterThan(0);
-    expect(flexion).toBeLessThanOrEqual(130 * Math.PI / 180 + 1e-4);
+    expect(flexion).toBeLessThanOrEqual(150 * Math.PI / 180 + 1e-4);
     expect(chain[1].z).toBeGreaterThan(0);
     expect(chain[2].z).toBeLessThan(0);
   });
@@ -231,7 +231,7 @@ describe('legIK', () => {
     expect(chain).not.toBeNull();
     expect(chain![2].distanceTo(target)).toBeLessThan(ankle.distanceTo(target));
     expect(diagnostics.reasons).toEqual([]);
-    expect(diagnostics.knee.flexionDeg).toBeLessThanOrEqual(131);
+    expect(diagnostics.knee.flexionDeg).toBeLessThanOrEqual(151);
   });
 
   it('solveReachableAnkleWithLimitedHip keeps the logged high-front target valid', () => {
@@ -263,7 +263,7 @@ describe('legIK', () => {
 
     expect(chain[2].distanceTo(target)).toBeLessThan(ankle.distanceTo(target));
     expect(diagnostics.reasons).toEqual([]);
-    expect(diagnostics.knee.flexionDeg).toBeLessThanOrEqual(131);
+    expect(diagnostics.knee.flexionDeg).toBeLessThanOrEqual(151);
   });
 
   it('starts the high-front knee branch before the ankle itself rises above the hip', () => {

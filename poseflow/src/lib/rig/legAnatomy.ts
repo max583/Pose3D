@@ -9,7 +9,10 @@ const EPS = 1e-8;
 export const LEG_ANATOMY_LIMITS = {
   kneeFlexion: {
     min: 0,
-    max: 130 * Math.PI / 180,
+    // Raised from 130° to 150° on 2026-05-09 to support deep-squat / heel-to-butt
+    // / knees-to-belly poses. Matches `legKnee.ts` `DEFAULT_KNEE_LIMITS.flexionMax`.
+    // See `ai/tasks/leg-hierarchical-solver-design.md` § Knee First-Pass Limits.
+    max: 150 * Math.PI / 180,
   },
   tibiaAxialTwist: {
     min: -15 * Math.PI / 180,
