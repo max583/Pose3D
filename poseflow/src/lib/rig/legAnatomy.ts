@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from 'three';
 import { Body25Index } from '../body25/body25-types';
 import { SkeletonRig } from './SkeletonRig';
 import { isAxialTwistWithinLimits, measureLocalAxialTwist } from './armLimits';
+import { buildPelvisLegFrame, PelvisLegFrame } from './legHip';
 
 const EPS = 1e-8;
 
@@ -26,39 +27,9 @@ export interface LegPosePoints {
   ankle: Vector3;
 }
 
-export interface LegFrame {
-  forward: Vector3;
-  up: Vector3;
-  right: Vector3;
-  down: Vector3;
-  outward: Vector3;
-}
-
-export function buildLegFrame(
-  bodyForward: Vector3,
-  bodyUp: Vector3,
-  side: 'r' | 'l',
-): LegFrame {
-  let forward = bodyForward.clone();
-  if (forward.lengthSq() < EPS) forward = new Vector3(0, 0, 1);
-  forward.normalize();
-
-  let up = bodyUp.clone().addScaledVector(forward, -bodyUp.dot(forward));
-  if (up.lengthSq() < EPS) up = new Vector3(0, 1, 0);
-  up.normalize();
-
-  let right = new Vector3().crossVectors(up, forward);
-  if (right.lengthSq() < EPS) right = new Vector3(1, 0, 0);
-  right.normalize();
-
-  return {
-    forward,
-    up,
-    right,
-    down: up.clone().negate(),
-    outward: side === 'r' ? right.clone() : right.clone().negate(),
-  };
-}
+// LegFrame is identical to PelvisLegFrame; re-exported to avoid duplicate definition.
+export type LegFrame = PelvisLegFrame;
+export { buildPelvisLegFrame as buildLegFrame };
 
 export function measureKneeFlexion(
   { hip, knee, ankle }: LegPosePoints,
@@ -128,11 +99,15 @@ export function measureKneeAnteriorAlignment(
   return anterior.dot(reference.normalize());
 }
 
+// Require patella alignment to be within ~96° of body forward (dot > -0.1).
+// The old threshold (~= 0) allowed sideways-facing knees to pass.
+const KNEE_ANTERIOR_MIN_DOT = -0.1;
+
 export function isKneeAnteriorValid(
   points: LegPosePoints,
   bodyForward: Vector3,
 ): boolean {
-  return measureKneeAnteriorAlignment(points, bodyForward) >= -EPS;
+  return measureKneeAnteriorAlignment(points, bodyForward) >= KNEE_ANTERIOR_MIN_DOT;
 }
 
 export function measureTibiaAxialTwist(

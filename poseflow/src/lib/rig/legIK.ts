@@ -212,6 +212,8 @@ export function solveLegIKWithinLimits(
     boneLengths,
   );
 
+  const targetHighFront = isHighFrontTarget(hipPos, target, bodyForward, bodyUp, side);
+
   if (
     hipLimited[1].distanceToSquared(kneeLimited[1]) > EPS ||
     !isLegIKCandidateWithinLimits(
@@ -237,6 +239,29 @@ export function solveLegIKWithinLimits(
       return hipLimited;
     }
 
+    // D3: try hip-first solver before FABRIK; it is the natural primary path for
+    // high-front targets and a reliable fallback for other targets.
+    const hipFirst = solveLegIKHipFirst(
+      hipPos,
+      kneePos,
+      anklePos,
+      target,
+      boneLengths,
+      bodyForward,
+      bodyUp,
+      side,
+    );
+    if (hipFirst) {
+      const improvesHipFirstTargetDistance = hipFirst[2].distanceTo(target)
+        < anklePos.distanceTo(target) - LIMIT_SURFACE_TOLERANCE;
+      if (
+        hipFirst[2].distanceTo(target) <= TARGET_TOLERANCE ||
+        (targetHighFront && improvesHipFirstTargetDistance)
+      ) {
+        return hipFirst;
+      }
+    }
+
     const relimited = solveLegFABRIK(
       hipPos,
       kneePos,
@@ -257,7 +282,6 @@ export function solveLegIKWithinLimits(
     );
     const improvesTargetDistance = relimited[2].distanceTo(target)
       < anklePos.distanceTo(target) - LIMIT_SURFACE_TOLERANCE;
-    const targetHighFront = isHighFrontTarget(hipPos, target, bodyForward, bodyUp, side);
     if (
       validRelimited &&
       (
@@ -266,27 +290,6 @@ export function solveLegIKWithinLimits(
       )
     ) {
       return relimited;
-    }
-
-    const hipFirst = solveLegIKHipFirst(
-      hipPos,
-      kneePos,
-      anklePos,
-      target,
-      boneLengths,
-      bodyForward,
-      bodyUp,
-      side,
-    );
-    if (hipFirst) {
-      const improvesHipFirstTargetDistance = hipFirst[2].distanceTo(target)
-        < anklePos.distanceTo(target) - LIMIT_SURFACE_TOLERANCE;
-      if (
-        hipFirst[2].distanceTo(target) <= TARGET_TOLERANCE ||
-        (targetHighFront && improvesHipFirstTargetDistance)
-      ) {
-        return hipFirst;
-      }
     }
 
     return null;

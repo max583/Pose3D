@@ -460,6 +460,37 @@ Steps:
 
 Not in this session: promoting `solveLegIKHipFirst` to primary path (D3).
 
+## Session 2 — 2026-05-09
+
+Goal: finish D3, D4, D5 — maintenance and structural improvements identified in the second-opinion diagnosis.
+
+### D4 implemented
+
+`buildLegFrame` in `legAnatomy.ts` was identical to `buildPelvisLegFrame` in `legHip.ts`.
+Removed the duplicate body and `LegFrame` interface; `legAnatomy.ts` now re-exports
+`buildPelvisLegFrame as buildLegFrame` and `PelvisLegFrame as LegFrame` from `legHip.ts`.
+No behaviour change; test imports are unchanged.
+
+### D5 implemented
+
+`isKneeAnteriorValid` threshold changed from `>= -EPS` (≈ 90°, any non-backward orientation) to
+`>= -0.1` (≈ 96°, patella must be at most ~96° from body forward).
+Prevents purely sideways-facing knees from passing the validity check.
+
+### D3 implemented
+
+`solveLegIKHipFirst` is now tried **before** `solveLegFABRIK` in the fallback cascade inside
+`solveLegIKWithinLimits`.  `isHighFrontTarget` is computed once before the fallback block.
+
+New cascade order:
+1. FABRIK + `constrainKneeBendPreserveTwist` + `constrainHipDirection` (kneeLimited, fast path)
+2. If kneeLimited invalid: `hipLimited` quick correction
+3. `solveLegIKHipFirst` — primary anatomical path (now promoted from position 4)
+4. `solveLegFABRIK` — FABRIK with full constraints (fallback)
+5. null
+
+All regression tests (152) passed; typecheck and lint:unused clean.
+
 ## Open Questions
 
 - Should `flexion.max = 150 deg` be enough for the reference set, or should the first implementation allow `160 deg`?
