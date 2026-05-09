@@ -47,7 +47,6 @@ import { UndoStack } from '../lib/UndoStack';
 import { MIRROR_PAIRS } from '../lib/body25/body25-mirror';
 import { Body25Index } from '../lib/body25/body25-types';
 import { createLogger } from '../lib/logger';
-import { isLegIKTraceEnabled } from '../lib/debugFlags';
 import { getService } from '../lib/di/setup';
 import { ServiceKeys } from '../lib/di/types';
 import { FeatureFlagService } from '../lib/feature-flags/FeatureFlagService';
@@ -392,7 +391,7 @@ export class RigService {
     const t0 = performance.now();
 
     // Read flags once — localStorage reads are not free.
-    const trace = isLegIKTraceEnabled();
+    const trace = this.featureFlagService.isEnabled('ENABLE_LEG_IK_TRACE');
     const perf = this.featureFlagService.isEnabled('ENABLE_PERFORMANCE_LOGGING');
 
     const pose = this.getPoseData();
@@ -525,7 +524,7 @@ export class RigService {
     const newKnee = twistKnee(hipPos, kneePos, anklePos, delta);
     const bodyForward = new Vector3(0, 0, 1).applyQuaternion(this.rig.rootRotation);
     const bodyUp = new Vector3(0, 1, 0).applyQuaternion(this.rig.rootRotation);
-    const trace = isLegIKTraceEnabled();
+    const trace = this.featureFlagService.isEnabled('ENABLE_LEG_IK_TRACE');
     if (trace) {
       legIKTraceLogger.info('applyKneeTwist input', {
         side,

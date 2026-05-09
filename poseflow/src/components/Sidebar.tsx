@@ -3,30 +3,28 @@ import { getAllPosePresets } from '../lib/presets/body25-presets';
 import { logUtils, uiLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { usePoseService } from '../context/ServiceContext';
-import { isLegIKTraceEnabled, setLegIKTraceEnabled } from '../lib/debugFlags';
 import { getService } from '../lib/di/setup';
 import { ServiceKeys } from '../lib/di/types';
 import { FeatureFlagService } from '../lib/feature-flags/FeatureFlagService';
 import './Sidebar.css';
 
-const PERF_FLAG = 'ENABLE_PERFORMANCE_LOGGING';
-
-function usePerfTraceFlag(): [boolean, () => void] {
+/** Универсальный хук для debug-кнопок — подписывается на DI FeatureFlagService. */
+function useFlagToggle(flagKey: string): [boolean, () => void] {
   const service = getService<FeatureFlagService>(ServiceKeys.FeatureFlagService);
-  const [enabled, setEnabled] = useState(() => service.isEnabled(PERF_FLAG));
+  const [enabled, setEnabled] = useState(() => service.isEnabled(flagKey));
 
   useEffect(() => {
-    const unsubscribe = service.subscribe(PERF_FLAG, (state) => {
+    const unsubscribe = service.subscribe(flagKey, (state) => {
       setEnabled(state.enabled || state.activatedForUser);
     });
     return unsubscribe;
-  }, [service]);
+  }, [service, flagKey]);
 
   const toggle = useCallback(() => {
-    service.toggleFlag(PERF_FLAG);
-    const nowOn = service.isEnabled(PERF_FLAG);
-    console.log(`[PerfTrace] ${nowOn ? 'ON — двигайте ногой, записи появятся в консоли' : 'OFF'}`);
-  }, [service]);
+    service.toggleFlag(flagKey);
+    const nowOn = service.isEnabled(flagKey);
+    console.log(`[Flag:${flagKey}] ${nowOn ? 'ON' : 'OFF'}`);
+  }, [service, flagKey]);
 
   return [enabled, toggle];
 }
@@ -47,8 +45,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  const [legIKTraceEnabled, setLegIKTraceEnabledState] = useState(false);
-  const [perfTraceEnabled, handleTogglePerfTrace] = usePerfTraceFlag();
+  const [legIKTraceEnabled, handleToggleLegIKTrace] = useFlagToggle('ENABLE_LEG_IK_TRACE');
+  const [perfTraceEnabled, handleTogglePerfTrace] = useFlagToggle('ENABLE_PERFORMANCE_LOGGING');
   const presets = getAllPosePresets();
 
   // Обновляем состояние кнопок при изменении позы
@@ -60,10 +58,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     update();
     return poseService.subscribe(update);
   }, [poseService]);
-
-  useEffect(() => {
-    setLegIKTraceEnabledState(isLegIKTraceEnabled());
-  }, []);
 
   const handleResetPose = () => {
     if (
@@ -84,15 +78,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (preset) {
       poseService.setPoseData(preset.poseData);
     }
-  };
-
-  const handleToggleLegIKTrace = () => {
-    const next = !legIKTraceEnabled;
-    setLegIKTraceEnabled(next);
-    setLegIKTraceEnabledState(next);
-    uiLogger.info(`Leg IK trace ${next ? 'enabled' : 'disabled'}`, {
-      persisted: isLegIKTraceEnabled(),
-    });
   };
 
   return (

@@ -70,6 +70,13 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagDefinition> = {
     defaultValue: false,
   },
 
+  ENABLE_LEG_IK_TRACE: {
+    key: 'ENABLE_LEG_IK_TRACE',
+    type: 'operational',
+    description: 'Включить детальное логирование Leg IK солвера',
+    defaultValue: false,
+  },
+
   USE_PERFORMANCE_OPTIMIZATIONS: {
     key: 'USE_PERFORMANCE_OPTIMIZATIONS',
     type: 'operational',
