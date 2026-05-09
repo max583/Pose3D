@@ -77,6 +77,13 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagDefinition> = {
     defaultValue: false,
   },
 
+  ENABLE_KNEE_NODE_CONTROLLER: {
+    key: 'ENABLE_KNEE_NODE_CONTROLLER',
+    type: 'experiment',
+    description: 'Knee-node контроллер: drag-handle на узле колена для прямого hip-first позиционирования (slice 3)',
+    defaultValue: false,
+  },
+
   USE_PERFORMANCE_OPTIMIZATIONS: {
     key: 'USE_PERFORMANCE_OPTIMIZATIONS',
     type: 'operational',

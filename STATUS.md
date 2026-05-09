@@ -159,6 +159,24 @@ Hip-only solver slice, 2026-05-06:
     before the block.
   - All checks passed: typecheck, lint:unused, 152 rig regression tests.
 
+- 2026-05-09 Knee-layer slice 3 stage 2 (KneeController 3D component):
+  - Added `src/components/controllers/KneeController.tsx` — drag-handle (sphere)
+    at the knee position, calls `rigService.applyLegFromKneeTarget(side, x, y, z)`
+    via `useCameraPlaneWorldDrag`. Mirrors `LegController.AnkleHandle` pattern.
+    Distinct color `#ff9900` (orange) vs ankle's cyan so coexisting handles on
+    a selected leg are visually unambiguous.
+  - Added feature flag `ENABLE_KNEE_NODE_CONTROLLER` (experimental, default off)
+    in `lib/feature-flags/registry.ts`.
+  - Wired into `Canvas3D.tsx` under the flag: when a leg is selected
+    (`leg_r` / `leg_l`) AND flag is on, both `<LegController>` (existing) and
+    `<KneeController>` render side by side. When flag is off, behavior is
+    unchanged.
+  - No controller-level unit tests (project convention: R3F visuals verified
+    manually / via Playwright; covered in stage 4).
+  - typecheck / lint:unused / build all clean. Full suite: 347 tests pass.
+  - Stage 3 (visibility/selection refinement in Skeleton3D) and stage 4
+    (manual viewport verification) still open.
+
 - 2026-05-09 Knee-layer slice 3 stage 1 (RigService plumbing):
   - Added `RigService.applyLegFromKneeTarget(side, tx, ty, tz)` runtime method.
     Pulls hip/ankle from rig, builds pelvis frame from `rootRotation`, calls

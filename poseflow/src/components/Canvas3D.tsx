@@ -22,6 +22,7 @@ import { HeadController } from './controllers/HeadController';
 import { ArmController } from './controllers/ArmController';
 import { ShoulderController } from './controllers/ShoulderController';
 import { LegController } from './controllers/LegController';
+import { KneeController } from './controllers/KneeController';
 import { FootController } from './controllers/FootController';
 import './Canvas3D.css';
 
@@ -125,6 +126,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({
     return window.localStorage.getItem(CAMERA_CONTROLS_COLLAPSED_KEY) === 'true';
   });
   const isMiniViewEnabled = useFeatureFlag('USE_MINI_VIEW');
+  const isKneeNodeEnabled = useFeatureFlag('ENABLE_KNEE_NODE_CONTROLLER');
   const currentCameraRef = useRef<THREE.Camera | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
@@ -389,25 +391,43 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({
           poseData[Body25Index.RIGHT_HIP] &&
           poseData[Body25Index.RIGHT_KNEE] &&
           poseData[Body25Index.RIGHT_ANKLE] && (
-          <LegController
-            side="r"
-            hipPos={poseData[Body25Index.RIGHT_HIP]!}
-            kneePos={poseData[Body25Index.RIGHT_KNEE]!}
-            anklePos={poseData[Body25Index.RIGHT_ANKLE]!}
-            rigService={rigService}
-          />
+          <>
+            <LegController
+              side="r"
+              hipPos={poseData[Body25Index.RIGHT_HIP]!}
+              kneePos={poseData[Body25Index.RIGHT_KNEE]!}
+              anklePos={poseData[Body25Index.RIGHT_ANKLE]!}
+              rigService={rigService}
+            />
+            {isKneeNodeEnabled && (
+              <KneeController
+                side="r"
+                kneePos={poseData[Body25Index.RIGHT_KNEE]!}
+                rigService={rigService}
+              />
+            )}
+          </>
         )}
         {selectedElement === 'leg_l' &&
           poseData[Body25Index.LEFT_HIP] &&
           poseData[Body25Index.LEFT_KNEE] &&
           poseData[Body25Index.LEFT_ANKLE] && (
-          <LegController
-            side="l"
-            hipPos={poseData[Body25Index.LEFT_HIP]!}
-            kneePos={poseData[Body25Index.LEFT_KNEE]!}
-            anklePos={poseData[Body25Index.LEFT_ANKLE]!}
-            rigService={rigService}
-          />
+          <>
+            <LegController
+              side="l"
+              hipPos={poseData[Body25Index.LEFT_HIP]!}
+              kneePos={poseData[Body25Index.LEFT_KNEE]!}
+              anklePos={poseData[Body25Index.LEFT_ANKLE]!}
+              rigService={rigService}
+            />
+            {isKneeNodeEnabled && (
+              <KneeController
+                side="l"
+                kneePos={poseData[Body25Index.LEFT_KNEE]!}
+                rigService={rigService}
+              />
+            )}
+          </>
         )}
         {selectedElement === 'foot_r' &&
           poseData[Body25Index.RIGHT_ANKLE] &&
