@@ -159,6 +159,19 @@ Hip-only solver slice, 2026-05-06:
     before the block.
   - All checks passed: typecheck, lint:unused, 152 rig regression tests.
 
+- 2026-05-09 Knee-layer slice 1 (pure helpers, no runtime change):
+  - Added `src/lib/rig/legKnee.ts` with `buildKneeFrame`, `patellaDirection`, `tibiaDirection`,
+    `posFromKneePose`, `measureKneePose`, `tibiaTwistLimitAtFlexion`, `limitKneePose`, and
+    `DEFAULT_KNEE_LIMITS` (flexion 0–150°, patella outward +45° / inward −20°,
+    tibia twist 15° at fold collapsing to 3° near full extension).
+  - Added `src/lib/rig/__tests__/legKnee.test.ts` with K1–K14 plus helper coverage (22 tests).
+  - Round-trip `posFromKneePose ↔ measureKneePose` stable under femur tilt and root rotation.
+  - Right/left mirror verified.
+  - During implementation found and fixed three sign/orientation errors in the design doc
+    (cross product order for `kneeSide`, sign on `tibiaDir`, patella vs. radial naming).
+  - `legIK.ts` and `RigService` not modified — runtime IK still uses the old path.
+  - `npm run typecheck`, `npm run lint:unused` clean; full leg + service regression: 248 tests pass.
+
 - 2026-05-09 Knee-layer design extension:
   - Extended `ai/tasks/leg-hierarchical-solver-design.md` with the full knee-layer specification:
     `KneePose` model (`flexion`, `patellaAngle`, `tibiaTwist`), knee frame derivation from femur direction,

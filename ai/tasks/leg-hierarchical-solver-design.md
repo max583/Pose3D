@@ -221,34 +221,30 @@ Knee frame derived from the femur direction (output of the hip layer):
 - `femurAxis`: unit `hip -> knee`, fixed input.
 - `kneeForward`: `pelvisForward` projected onto the plane perpendicular to `femurAxis`, normalized.
   Fallbacks if degenerate (`femurAxis ≈ ±pelvisForward`): try `pelvisRight` projected, then `pelvisUp` projected.
-- `kneeSide`: `femurAxis × kneeForward` (right-handed; on rest pose with `femurAxis = legDown`,
-  `kneeSide` points out the mannequin's lateral side for the right leg).
+- `kneeSide`: `kneeForward × femurAxis` (right-handed; on rest pose with `femurAxis = legDown` and
+  `kneeForward = pelvisForward`, this points to mannequin's right side).
+- `kneeOutward`: per-leg signed outward direction. For the right leg `kneeOutward = +kneeSide`;
+  for the left leg `kneeOutward = -kneeSide`. So a positive `patellaAngle` always means
+  "patella rotates outward" in the leg's anatomy, regardless of side.
 
-Tibia direction in this frame, before twist:
-
-```text
-sideSign = +1 for right leg, -1 for left leg
-radial   = cos(patellaAngle * sideSign) * kneeForward
-         + sin(patellaAngle * sideSign) * kneeSide
-tibiaDir = cos(flexion) * (-femurAxis) + sin(flexion) * radial
-```
-
-Reasoning: at `flexion = 0` the tibia continues the femur (`tibiaDir = -femurAxis`). At
-`flexion = 90°`, tibia lies along `radial`. The bend goes into the sagittal plane (`kneeForward`)
-by default and rotates outward/inward via `patellaAngle`.
-
-Tibia axial twist is a post-rotation around `tibiaDir`. It changes the foot orientation but not the
-ankle position; therefore it does not affect ankle reachability and can be solved last.
-
-Patella direction (visual kneecap normal) is opposite the bend radial:
+Patella direction and tibia direction:
 
 ```text
-patellaDir = -radial
+patellaDir = cos(patellaAngle) * kneeForward + sin(patellaAngle) * kneeOutward
+tibiaDir   = cos(flexion) * femurAxis − sin(flexion) * patellaDir
 ```
 
-This makes `measureKneeAnteriorAlignment` (existing helper) directly comparable: the dot product
-against `pelvisForward` is `-radial · pelvisForward = -cos(patellaAngle * sideSign)` in the
-non-degenerate case where `kneeForward ≈ pelvisForward`.
+Reasoning: at `flexion = 0` the tibia continues the femur (`tibiaDir = +femurAxis`).
+At `flexion = π/2` the tibia points opposite to the patella (e.g., a standing knee bent 90° has
+the heel going backward while the patella stays facing forward).
+At `patellaAngle = 0` the patella faces `kneeForward ≈ pelvisForward`.
+
+Tibia axial twist is a post-rotation around `tibiaDir`. It changes the foot orientation but not
+the ankle position; therefore it does not affect ankle reachability and can be solved last.
+
+This convention matches `measureKneeAnteriorAlignment` (existing helper): the dot product of
+`patellaDir` against `pelvisForward` equals `cos(patellaAngle)` in the non-degenerate case where
+`kneeForward ≈ pelvisForward`.
 
 ## Knee First-Pass Limits
 
