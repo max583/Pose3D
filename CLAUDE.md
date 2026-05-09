@@ -119,6 +119,22 @@ Use prefixes:
 
 Optional traceability trailer: `PLAN: ...` or task/ADR link.
 
+## Session Working Norms
+
+Согласовано с пользователем (жёсткие лимиты токенов):
+
+- **cwd в начале сессии**: первой строкой агент выводит `cwd: <path>` и активную ветку. Без объяснений.
+- **Короткие команды от пользователя**:
+  - «продолжай» / «дальше по плану» — берём следующий пункт из `PLAN.md`.
+  - «коммить» — `git commit` с разумным сообщением (префиксы из § Git Messages).
+  - «verify» — `npm run typecheck && npm test`.
+  - «статус» — `git status --short` + 1–2 строки.
+  - «где ты?» — `pwd`.
+- **Лаконичные ответы**: не повторять известное, не подтверждать каждый шаг, длинные объяснения — только по прямому запросу.
+- **Качество > экономия токенов на чтении кода**. При правках читать целевой файл целиком, тесты, смежные модули, callers. Карты (`CLAUDE.md`, `codebase-map.md`) — навигация, не замена чтению.
+- **Ранний сигнал о плотной сессии**: если контекст забивается — одной строкой «сессия плотная, заканчиваем на X».
+- **Worktree-напоминание**: перед просьбой запустить/проверить приложение всегда явно указывать путь worktree (`D:\ai\QwenCoder\.claude\worktrees\epic-mclean-a6836d\poseflow\`), чтобы пользователь не запустил master по ошибке. См. `ai/docs/codebase-map.md` §6.G.
+
 ## Model And Iteration Policy
 
 Default to small completed steps. Avoid large rewrites in one session. Use higher-cost models only for complex architecture, large refactors, or broad code analysis.
