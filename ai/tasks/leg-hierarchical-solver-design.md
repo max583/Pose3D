@@ -414,39 +414,61 @@ this as a "best fit"; legKnee.ts treats it as out-of-anatomy and clamps patellaA
 | Matches reference photos (lying-on-back tuck) | Sometimes wrong (patella can flip) | Always anatomical |
 | High-front coupling | Hip pose drives flexion sign | Knee layer has no hip awareness |
 
-### Decision needed
+### Decision
 
-Before slice 2 substitution proceeds, the user must choose:
+Three candidate paths considered:
 
-**Option A: Anatomical purity.** Replace with `solveKneePose` as-is. Some ankle-drag paths may
-"snap" or refuse to follow when the user pulls the ankle into the patella-backward half-space.
-The viewport will show the leg stop at the limit boundary instead of bending unnaturally.
+**Option A: Anatomical purity.** Replace with `solveKneePose` as-is. Some ankle-drag paths
+through "ankle at hip level in high-front" intermediate states will snap or refuse to follow
+because the patella-backward half-space is forbidden. Anatomically clean.
 
-**Option B: Preserve UX continuity.** Extend `solveKneePose` with a per-call option like
-`allowPatellaBackwardInHighFront: boolean`, defaulting to false. legIK.ts can pass `true` when
-the hip is in the high-front cone (replicating old behavior) and `false` otherwise. This keeps
-the smooth ankle drag but accepts the anatomical inaccuracy in extreme poses.
+**Option B: Preserve UX continuity.** Extend `solveKneePose` with `allowPatellaBackwardInHighFront`
+flag, defaulting to false; legIK.ts passes `true` in high-front. Pragmatic shim that keeps
+ankle drag smooth at the cost of anatomical accuracy in extreme poses.
 
-**Option C: Bigger rework.** Replace ankle-driven IK with knee-target driven control for
-extreme tucked poses (slice 3 of the original plan). The artist sets the femur direction
-directly via a knee handle; the ankle/reach layer fills in the rest.
+**Option C: Knee-node driven control** (already planned as slice 3). Artist drags the knee
+directly; the femur direction is set anatomically without going through ankle intermediate
+states.
 
-A is cleanest and matches the design's "do not encode special cases as scattered if-checks."
-B is a pragmatic shim. C is a bigger UX shift but is already on the roadmap as slice 3.
+**Chosen path: A + C, in that order.** Reasoning:
 
-Slice 2 substitution waits on the user's choice. Until then `constrainKneeFlexionWithFixedThigh`
-stays as the runtime path. `legKnee.ts` is staged and tested, available for whichever option
-the user picks.
+The UX scenario B addresses (smooth ankle drag through "lodyzhka na urovne taza" in a
+high-front pose) is **exactly the use case knee-node control replaces.** PLAN.md keeps
+ankle-driven IK as the natural default; the knee-node path is the explicit tool for
+extreme tucked poses. Once C ships, the patella-backward half-space is no longer a UX
+requirement of ankle-drag — the artist uses knee-node for those poses and never tries to
+push the ankle through that intermediate state.
 
-**Slice 2 — runtime integration.**
+Therefore B is a legacy shim under a workflow we are already retiring. Spending API
+complexity on it is irrational.
 
-1. ⏸ Blocked on the trade-off decision above. Replace `constrainKneeFlexionWithFixedThigh` and
-   the in-place knee math in `legIK.ts` with `solveKneePose` calls — but only after
-   choosing A / B / C. Each choice changes how the substitution looks.
-2. ✅ Done 2026-05-09: raised `LEG_ANATOMY_LIMITS.kneeFlexion.max` 130° → 150° to match
+**Sequencing matters:** ship C **before** A, not after. If A lands first, the user feels
+a regression in ankle-drag UX with no replacement path; that hurts trust. With C in place
+first, A is felt as a small additional limit on an interaction that's already deprioritised.
+
+### Slice ordering update
+
+Original plan had slice 2 (legIK integration) before slice 3 (knee-node control).
+Reverse this:
+
+- Slice 2 reduced to: limit raise (✅ done), reference-pose viewport check (open), and
+  manual decision on whether to ship A independently of C if C slips.
+- Slice 3 promoted: implement knee-node controller and the underlying
+  `solveLegFromKneeTarget(hipPos, kneeTarget, anklePos, …)` helper. This uses the existing
+  hip layer (`solveHipDirection`) and the new knee layer (`solveKneePose`) directly,
+  bypassing `constrainKneeFlexionWithFixedThigh` for the knee-target path.
+- Slice 4 (was slice 2 substitution): replace ankle-driven path with `solveKneePose` (= A).
+  Now safe because users have the knee-node tool for the patella-backward edge cases.
+
+`legKnee.ts` stays staged and unused at runtime until slice 4. `constrainKneeFlexionWithFixedThigh`
+remains the runtime path for ankle-driven IK through slices 2 and 3.
+
+**Slice 2 — limit raise + reference verification (mostly done).**
+
+1. ✅ Done 2026-05-09: raised `LEG_ANATOMY_LIMITS.kneeFlexion.max` 130° → 150° to match
    `legKnee.ts` `DEFAULT_KNEE_LIMITS.flexionMax`. Two boundary-asserting tests in `legIK.test.ts`
    updated; full leg + service regression: 253 tests pass.
-3. ❌ Dropped — femur-axial-twist preservation in `applyLegChainToRig` is a structural no-op.
+2. ❌ Dropped — femur-axial-twist preservation in `applyLegChainToRig` is a structural no-op.
    `worldPosToLocalRot` uses `setFromUnitVectors` (shortest-arc), whose quaternion has its vector
    part along `restDir × actualDir`, hence perpendicular to `restDir`. In `decomposeSwingTwist`
    that gives `vec.dot(restDir) = 0`, so the twist component is identically zero after every
@@ -456,13 +478,43 @@ the user picks.
    branch-continuity in `solveLegIKWithinLimits` (2026-05-08 fix). If branch-continuity proves
    insufficient in further manual checks, fix it there, not in `applyLegChainToRig`. The
    symmetric arm "fix" is dropped for the same reason.
-4. Run focused leg regression and manual viewport checks; verify deep-front "knees-to-belly"
-   actually reaches 150° in the viewport now that the limit is raised.
+3. Open: manual viewport check that deep-front "knees-to-belly" reaches 150° flexion at the
+   new ceiling; identifies whether further runtime work is needed before slice 3.
+4. ❌ Substitution `constrainKneeFlexionWithFixedThigh → solveKneePose` deferred to slice 4
+   (after the knee-node controller ships). See slice ordering update above.
 
-**Slice 3 — additional knee-node control.**
+**Slice 3 — knee-node controller (now precedes the ankle-IK substitution).**
 
-Add a direct knee-target control path through the knee node, sharing the same hip-limit and
-knee-limit surfaces as ankle IK.
+Add a direct knee-target control path through the knee node:
+
+1. New helper `solveLegFromKneeTarget(hipPos, kneeTarget, anklePos, frame, boneLengths)`:
+   - Convert `kneeTarget − hipPos` to a `HipPose` via `measureHipPose`.
+   - Clamp through `limitHipPose` → limited femur direction.
+   - Place the knee at `hipPos + thigh·femurDir`.
+   - Use `solveKneePose(hipPos, anklePos, kneeFrame, boneLengths)` to find the best `KneePose`
+     for the existing ankle position.
+   - Re-resolve ankle from the limited `KneePose` if the original ankle is out of reach.
+2. New `KneeController` 3D component that exposes the knee node as a draggable handle
+   (separate from `LegController` which still drives ankle IK).
+3. `RigService.applyLegFromKneeTarget(side, kneeTarget)` plumbing.
+4. Tests covering: pure knee drag in standing pose; knee drag into high-front (knees-to-belly);
+   knee drag past anatomical limit clamps to it; ankle stays put unless out of reach.
+5. UI: knee-node handle visible in `Skeleton3D`, optionally toggleable.
+
+This unblocks slice 4 (ankle-IK anatomical purity) by giving the user a direct tool for
+extreme tucked poses. After slice 3 is in production and feels good in the viewport, slice 4
+can drop the patella-backward allowance from the ankle path without UX regression.
+
+**Slice 4 — ankle-IK anatomical replacement (was the original slice 2 substitution).**
+
+1. Replace `constrainKneeFlexionWithFixedThigh` and the in-place knee math in `legIK.ts` with
+   `solveKneePose` calls (option A from the semantic analysis above).
+2. Remove the high-front signed-flexion branch from `legIK.ts` — knee-node controller covers
+   that workflow now.
+3. Reference-pose regression: walk through happy-baby / lotus / arabesque / standing variants
+   and verify ankle-drag behavior is consistent with the anatomical model.
+4. Remove `constrainKneeFlexionWithFixedThigh` and `buildKneeOnAxisWithPreferredRadial` if
+   no other call sites remain after the substitution.
 
 ## Ankle / Reach Layer Contract
 
