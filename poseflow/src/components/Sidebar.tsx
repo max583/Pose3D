@@ -3,7 +3,7 @@ import { getAllPosePresets } from '../lib/presets/body25-presets';
 import { logUtils, uiLogger } from '../lib/logger';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { usePoseService } from '../context/ServiceContext';
-import { isLegIKTraceEnabled, setLegIKTraceEnabled } from '../lib/debugFlags';
+import { isLegIKTraceEnabled, setLegIKTraceEnabled, isPerfTraceEnabled, setPerfTraceEnabled } from '../lib/debugFlags';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -23,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [legIKTraceEnabled, setLegIKTraceEnabledState] = useState(false);
+  const [perfTraceEnabled, setPerfTraceEnabledState] = useState(false);
   const presets = getAllPosePresets();
 
   // Обновляем состояние кнопок при изменении позы
@@ -37,6 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   useEffect(() => {
     setLegIKTraceEnabledState(isLegIKTraceEnabled());
+    setPerfTraceEnabledState(isPerfTraceEnabled());
   }, []);
 
   const handleResetPose = () => {
@@ -67,6 +69,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     uiLogger.info(`Leg IK trace ${next ? 'enabled' : 'disabled'}`, {
       persisted: isLegIKTraceEnabled(),
     });
+  };
+
+  const handleTogglePerfTrace = () => {
+    const next = !perfTraceEnabled;
+    setPerfTraceEnabled(next);
+    setPerfTraceEnabledState(next);
+    uiLogger.info(`Perf trace ${next ? 'enabled' : 'disabled'}`);
   };
 
   return (
@@ -156,6 +165,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             title="LegIKTrace writes leg IK diagnostics to console and PoseFlow logs"
           >
             Leg IK Trace: {legIKTraceEnabled ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            className={`btn ${perfTraceEnabled ? 'btn-debug-active' : 'btn-secondary'}`}
+            onClick={handleTogglePerfTrace}
+            title="Perf Trace выводит время каждой секции applyLegIK в console.debug"
+          >
+            Perf Trace: {perfTraceEnabled ? 'ON' : 'OFF'}
           </button>
           <button
             type="button"
