@@ -3,6 +3,7 @@
 // PoseData — производное от SkeletonRig, управляемого через RigService.
 
 import { PoseData } from '../../body25/body25-types';
+import type { SkeletonRig } from '../../rig/SkeletonRig';
 
 export interface IPoseService {
   // ─── Основные операции ─────────────────────────────────────────────────────
@@ -12,6 +13,9 @@ export interface IPoseService {
 
   /** Установить новую позу (конвертируется через inverseFK). */
   setPoseData(data: PoseData): void;
+
+  /** Set rig directly for poses that cannot round-trip through inverseFK. */
+  setRig(rig: SkeletonRig): void;
 
   /** Сдвинуть всю позу */
   translate(dx: number, dy: number, dz: number): void;

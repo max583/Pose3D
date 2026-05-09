@@ -47,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [canRedo, setCanRedo] = useState(false);
   const [legIKTraceEnabled, handleToggleLegIKTrace] = useFlagToggle('ENABLE_LEG_IK_TRACE');
   const [perfTraceEnabled, handleTogglePerfTrace] = useFlagToggle('ENABLE_PERFORMANCE_LOGGING');
+  const [kneeNodeEnabled, handleToggleKneeNode] = useFlagToggle('ENABLE_KNEE_NODE_CONTROLLER');
   const presets = getAllPosePresets();
 
   // Обновляем состояние кнопок при изменении позы
@@ -76,7 +77,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setSelectedPreset(presetId);
     const preset = presets.find(p => p.id === presetId);
     if (preset) {
-      poseService.setPoseData(preset.poseData);
+      if (preset.createRig) {
+        poseService.setRig(preset.createRig());
+      } else {
+        poseService.setPoseData(preset.poseData);
+      }
     }
   };
 
@@ -175,6 +180,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             title="Perf Trace выводит время каждой секции applyLegIK в console.debug"
           >
             Perf Trace: {perfTraceEnabled ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            className={`btn ${kneeNodeEnabled ? 'btn-debug-active' : 'btn-secondary'}`}
+            onClick={handleToggleKneeNode}
+            title="Shows the orange knee-node drag handle for the selected leg"
+          >
+            Knee Node: {kneeNodeEnabled ? 'ON' : 'OFF'}
           </button>
           <button
             type="button"

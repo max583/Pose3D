@@ -188,6 +188,76 @@ Hip-only solver slice, 2026-05-06:
     `RigService.legFromKnee.test.ts`.
   - typecheck / lint:unused / vite build all clean. Full suite: 349 tests pass.
 
+- 2026-05-09 Knee-layer slice 3 stage 3/4 readiness:
+  - Added a Debug sidebar toggle for `ENABLE_KNEE_NODE_CONTROLLER`, so manual
+    viewport validation no longer needs console/localStorage edits.
+  - `Skeleton3D` now hides the selected side's regular knee joint sphere and
+    kneecap marker while the knee-node controller is active; the orange handle
+    has visual priority and a clean hit zone.
+  - `KneeController` now has a hover halo/cursor feedback and named scene group
+    for easier visual/debug identification.
+  - Added focused Playwright regression for the enabled knee-node path: select
+    right leg, drag the orange knee handle, compare canvas, and verify undo.
+  - Checks passed: `npm run typecheck`, `npm run lint:unused`,
+    focused `legKnee` + `RigService.legFromKnee` regression (43 tests),
+    `npm run build`, and focused Playwright knee-node smoke.
+  - Manual user acceptance completed on 2026-05-10 for the current
+    knee-node viewport feel.
+
+- 2026-05-09 Knee-layer slice 4 ankle-IK anatomical substitution:
+  - Replaced the ankle-driven fixed-thigh knee heuristic with
+    `solveKneePoseWithFixedThigh`, a runtime wrapper over `legKnee.ts`
+    `buildKneeFrame` + `solveKneePose`.
+  - Removed the high-front patella-back exception from candidate diagnostics:
+    ankle IK now stays conservative/anatomical instead of chasing deep tucked
+    targets through a backward-kneecap path.
+  - Updated leg IK and RigService regressions to make the new contract explicit:
+    extreme "knees to belly" poses should be achieved with the knee-node handle,
+    not by forcing ankle IK through invalid knee orientation.
+  - Checks passed: focused leg/knee regression (118 tests), full `npm test`
+    suite (349 tests), `npm run typecheck`, `npm run lint:unused`,
+    `npm run build`, and focused Playwright knee-node smoke.
+  - Manual viewport acceptance completed on 2026-05-10 for the current
+    ankle-IK anatomical substitution.
+
+- 2026-05-10 Current knee-node + ankle-IK result accepted:
+  - User accepted the current result and paused further leg-controller code
+    changes.
+  - Next discussion topic: what to do with the live-model reference photos.
+    Treat photos as orientation aids unless the next plan explicitly promotes
+    selected poses into manual smoke scenarios or numeric acceptance targets.
+
+- 2026-05-10 Reference-pose workflow trial - Arabesque:
+  - User clarified that the desired criterion is likeness everywhere.
+  - Started with `arabesque1.jpg` / `arabesque3.webp` as baseline references;
+    `arabesque2.jpg` stays a later high-flexibility variant.
+  - Added `Arabesque` BODY_25 preset as a first coarse likeness target:
+    right support leg, left leg extended backward near hip height, torso
+    inclined forward, arms counterbalancing.
+  - Task brief: `ai/tasks/reference-pose-arabesque.md`.
+  - Checks passed: `npm run typecheck`, focused preset regression (4 tests),
+    `npm run lint:unused`, `npm run build`.
+  - Dev server responded at `http://127.0.0.1:5173` for manual viewport review.
+
+- 2026-05-10 Reference-pose workflow trial - Наклон вперед:
+  - User added `ai/reference-poses/images/наклон вперед.png`.
+  - Added `Наклон вперед` BODY_25 preset as a coarse likeness target:
+    straight-ish standing legs, high pelvis, torso folded forward/down, wrists
+    near the floor in front of the feet, head lowered with the spine line.
+  - Task brief: `ai/tasks/reference-pose-forward-fold.md`.
+  - Checks passed: `npm run typecheck`, focused preset regression (6 tests),
+    `npm run lint:unused`, `npm run build`.
+  - Dev server responded at `http://127.0.0.1:5173` for manual viewport review.
+  - Manual feedback: the first preset reached likeness by bending spine/neck,
+    but the photo is mostly hip-joint flexion with a straight back and neck
+    extension. Existing `Наклон вперед` is kept unchanged for comparison.
+  - Added separate `Наклон от тазобедренных` rig-native preset:
+    uses `PosePreset.createRig`, applies pelvis/root rotation plus hip
+    compensation, keeps `spineAngles` neutral, and adds neck extension relative
+    to the folded torso.
+  - Added regression that verifies the hip-hinge variant bends through
+    `rootRotation` rather than `spineAngles`.
+
 - 2026-05-09 Knee-layer slice 3 stage 2 (KneeController 3D component):
   - Added `src/components/controllers/KneeController.tsx` — drag-handle (sphere)
     at the knee position, calls `rigService.applyLegFromKneeTarget(side, x, y, z)`
@@ -203,8 +273,8 @@ Hip-only solver slice, 2026-05-06:
   - No controller-level unit tests (project convention: R3F visuals verified
     manually / via Playwright; covered in stage 4).
   - typecheck / lint:unused / build all clean. Full suite: 347 tests pass.
-  - Stage 3 (visibility/selection refinement in Skeleton3D) and stage 4
-    (manual viewport verification) still open.
+  - Stage 3 (visibility/selection refinement in Skeleton3D) is now covered by
+    the stage 3/4 readiness slice above. User manual acceptance remains open.
 
 - 2026-05-09 Knee-layer slice 3 stage 1 (RigService plumbing):
   - Added `RigService.applyLegFromKneeTarget(side, tx, ty, tz)` runtime method.

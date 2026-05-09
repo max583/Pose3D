@@ -5,6 +5,31 @@
 
 ## [Unreleased]
 
+### Added - Reference pose preset: Наклон вперед (2026-05-10)
+
+- Added a `Наклон вперед` BODY_25 preset from `наклон вперед.png` as a likeness-based standing forward-fold trial.
+- Added a regression that protects the coarse silhouette anchors: high pelvis, torso folded forward/down, wrists near floor, straight-ish legs.
+- Added a separate `Наклон от тазобедренных` rig-native preset for the same photo: it folds via pelvis/root rotation and hip compensation while keeping the spine neutral and extending the neck relative to the torso.
+
+### Added - Reference pose preset: Arabesque (2026-05-10)
+
+- Added an `Arabesque` BODY_25 preset as the first likeness-based reference-photo trial, using `arabesque1.jpg` / `arabesque3.webp` as baseline orientation references.
+- Added a regression that protects the coarse silhouette anchors: support leg down, free leg back/up, torso forward, arms counterbalancing.
+
+### Added - Knee-node controller manual acceptance slice (2026-05-09)
+
+- Added a Debug sidebar toggle for `ENABLE_KNEE_NODE_CONTROLLER`, so the orange knee-node handle can be enabled for viewport validation without using the console.
+- When knee-node control is active for the selected leg, the regular knee joint sphere and kneecap marker are hidden for that side; the new handle gets an unambiguous hit zone.
+- Added a Playwright regression for the knee-node drag path: select leg, drag the orange knee handle, compare canvas, then verify undo changes the canvas again.
+
+### Changed - Ankle IK anatomical knee layer (2026-05-09)
+
+- Ankle-driven leg IK now resolves fixed-thigh knee motion through `legKnee.ts` / `solveKneePose`, so flexion, patella direction, and tibia-twist conventions come from the explicit knee layer.
+- Removed the old high-front patella-back allowance from leg IK candidate diagnostics.
+- Deep tucked poses should be posed through the orange knee-node handle; ankle IK stays conservative and anatomical instead of forcing a backward-kneecap path.
+- Updated leg IK and RigService regressions for the new ankle-driven contract.
+- Current knee-node + ankle-IK result manually accepted on 2026-05-10.
+
 ### Changed - Architectural cleanup: parallel mechanisms removed (2026-05-09)
 
 - Removed duplicate `FeatureFlagProvider` / second `FeatureFlagService` instance from `App.tsx`; all feature-flag hooks now use the DI singleton via `getService()`.

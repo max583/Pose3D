@@ -7,6 +7,7 @@
 // удалены — управление суставами теперь через контроллеры (Stage 1+).
 
 import { Body25Index, PoseData } from '../lib/body25/body25-types';
+import type { SkeletonRig } from '../lib/rig/SkeletonRig';
 import { RigService } from './RigService';
 
 export class PoseService {
@@ -34,6 +35,11 @@ export class PoseService {
   /** Заменить позу (конвертируется в SkeletonRig через inverseFK). */
   setPoseData(data: PoseData): void {
     this.rigService.loadPose(data);
+  }
+
+  /** Replace the primary rig directly. Used by rig-native presets that cannot round-trip through inverseFK. */
+  setRig(rig: SkeletonRig): void {
+    this.rigService.setRig(rig);
   }
 
   // ─── Subscriptions ─────────────────────────────────────────────────────────

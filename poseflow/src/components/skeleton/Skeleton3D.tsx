@@ -19,6 +19,8 @@ interface Skeleton3DProps {
   poseData: PoseData;
   /** ID выделенного элемента (null — ничего не выделено). */
   selectedElement?: ElementId | null;
+  /** Side whose knee-node controller currently replaces the regular knee joint hit-zone. */
+  activeKneeNodeSide?: 'r' | 'l' | null;
   /** Клик по суставу — выбрать элемент. */
   onElementSelect?: (element: ElementId | null) => void;
   /**
@@ -36,6 +38,7 @@ interface Skeleton3DProps {
 const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
   poseData,
   selectedElement = null,
+  activeKneeNodeSide = null,
   onElementSelect,
   spineSegmentPositions,
   neckSegmentPositions,
@@ -51,10 +54,17 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
     onElementSelect?.(element);
   }, [onElementSelect]);
 
+  const hiddenJointIndexes = useMemo<Set<Body25Index>>(() => {
+    if (activeKneeNodeSide === 'r') return new Set([Body25Index.RIGHT_KNEE]);
+    if (activeKneeNodeSide === 'l') return new Set([Body25Index.LEFT_KNEE]);
+    return new Set();
+  }, [activeKneeNodeSide]);
+
   // Мемоизируем суставы
   const joints = useMemo(() => {
     return Object.entries(poseData).map(([indexStr, position]) => {
       const index = parseInt(indexStr) as Body25Index;
+      if (hiddenJointIndexes.has(index)) return null;
       const metadata = KEYPOINT_MAP.get(index)!;
       if (!metadata) return null;
 
@@ -69,7 +79,7 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
         />
       );
     });
-  }, [poseData, selectedJoints, handleJointClick]);
+  }, [poseData, selectedJoints, handleJointClick, hiddenJointIndexes]);
 
   // Мемоизируем кости
   const bones = useMemo(() => {
@@ -208,7 +218,7 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
             fallbackDirection={elbowFallback}
           />
         )}
-        {rightHip && rightKnee && rightAnkle && (
+        {activeKneeNodeSide !== 'r' && rightHip && rightKnee && rightAnkle && (
           <JointAnatomyMarker
             key="knee-r-marker"
             parent={rightHip}
@@ -217,7 +227,7 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
             fallbackDirection={kneeFallback}
           />
         )}
-        {leftHip && leftKnee && leftAnkle && (
+        {activeKneeNodeSide !== 'l' && leftHip && leftKnee && leftAnkle && (
           <JointAnatomyMarker
             key="knee-l-marker"
             parent={leftHip}
@@ -228,7 +238,7 @@ const Skeleton3DComponent: React.FC<Skeleton3DProps> = ({
         )}
       </>
     );
-  }, [poseData]);
+  }, [poseData, activeKneeNodeSide]);
 
   return (
     <group name="skeleton">
@@ -281,5 +291,6 @@ function getPoseBodyForward(poseData: PoseData): THREE.Vector3 {
 export const Skeleton3D = React.memo(Skeleton3DComponent, (prev, next) => {
   if (prev.poseData !== next.poseData) return false;
   if (prev.selectedElement !== next.selectedElement) return false;
+  if (prev.activeKneeNodeSide !== next.activeKneeNodeSide) return false;
   return true;
 });

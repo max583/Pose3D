@@ -5,10 +5,9 @@
 // the hip layer) and decides knee flexion, patella direction, and tibia
 // axial twist within anatomical limits.
 //
-// This module is currently *not* wired into legIK.ts at runtime — slice 1
-// only establishes the contract and unit tests. Slice 2 will replace
-// constrainKneeFlexionWithFixedThigh and the inline knee math in legIK.ts
-// with calls into this module.
+// Runtime use:
+// - knee-node controller uses solveLegFromKneeTarget for direct knee posing;
+// - ankle IK fixed-thigh fallback uses solveKneePose via legIK.ts.
 //
 // See: ai/tasks/leg-hierarchical-solver-design.md § Knee Joint Model.
 

@@ -1,5 +1,12 @@
 // Пресеты поз BODY_25
+import { Euler, Vector3 } from 'three';
 import { Body25Index, PoseData, PosePreset } from '../../lib/body25/body25-types';
+import { applyArmChainToRig } from '../rig/armIK';
+import { createDefaultRig } from '../rig/SkeletonRig';
+import type { SkeletonRig } from '../rig/SkeletonRig';
+import { applyLegChainToRig } from '../rig/legIK';
+import { resolveSkeleton } from '../rig/resolveSkeleton';
+import { setBend } from '../rig/VirtualChain';
 
 /**
  * T-Pose - руки в стороны
@@ -295,6 +302,141 @@ function createArmsCrossedPose(): PoseData {
 /**
  * Массив всех пресетов
  */
+/**
+ * Arabesque - reference-pose likeness pass.
+ *
+ * Side-view oriented variant based on arabesque1/arabesque3:
+ * right leg supports, left leg extends backward near hip height, torso inclines
+ * forward, arms counterbalance along the forward/back axis.
+ */
+function createArabesquePose(): PoseData {
+  return {
+    [Body25Index.NOSE]: { x: 0.02, y: 1.58, z: -0.34 },
+    [Body25Index.NECK]: { x: 0.00, y: 1.39, z: -0.18 },
+    [Body25Index.RIGHT_SHOULDER]: { x: 0.18, y: 1.35, z: -0.16 },
+    [Body25Index.RIGHT_ELBOW]: { x: 0.19, y: 1.36, z: -0.44 },
+    [Body25Index.RIGHT_WRIST]: { x: 0.19, y: 1.35, z: -0.70 },
+    [Body25Index.LEFT_SHOULDER]: { x: -0.18, y: 1.35, z: -0.14 },
+    [Body25Index.LEFT_ELBOW]: { x: -0.21, y: 1.32, z: 0.10 },
+    [Body25Index.LEFT_WRIST]: { x: -0.23, y: 1.28, z: 0.34 },
+    [Body25Index.MID_HIP]: { x: 0.00, y: 0.90, z: 0.00 },
+    [Body25Index.RIGHT_HIP]: { x: 0.12, y: 0.86, z: -0.01 },
+    [Body25Index.RIGHT_KNEE]: { x: 0.10, y: 0.46, z: 0.02 },
+    [Body25Index.RIGHT_ANKLE]: { x: 0.08, y: 0.07, z: 0.04 },
+    [Body25Index.LEFT_HIP]: { x: -0.12, y: 0.86, z: 0.02 },
+    [Body25Index.LEFT_KNEE]: { x: -0.13, y: 0.90, z: 0.43 },
+    [Body25Index.LEFT_ANKLE]: { x: -0.14, y: 0.91, z: 0.84 },
+    [Body25Index.RIGHT_EYE]: { x: 0.07, y: 1.63, z: -0.38 },
+    [Body25Index.LEFT_EYE]: { x: -0.03, y: 1.63, z: -0.38 },
+    [Body25Index.RIGHT_EAR]: { x: 0.10, y: 1.57, z: -0.26 },
+    [Body25Index.LEFT_EAR]: { x: -0.10, y: 1.57, z: -0.25 },
+    [Body25Index.LEFT_BIG_TOE]: { x: -0.13, y: 0.91, z: 1.00 },
+    [Body25Index.LEFT_SMALL_TOE]: { x: -0.20, y: 0.90, z: 0.99 },
+    [Body25Index.LEFT_HEEL]: { x: -0.16, y: 0.88, z: 0.74 },
+    [Body25Index.RIGHT_BIG_TOE]: { x: 0.09, y: 0.00, z: -0.08 },
+    [Body25Index.RIGHT_SMALL_TOE]: { x: 0.16, y: 0.00, z: -0.07 },
+    [Body25Index.RIGHT_HEEL]: { x: 0.08, y: 0.00, z: 0.12 },
+  };
+}
+
+/**
+ * Forward fold - reference-pose likeness pass.
+ *
+ * Side-view standing fold based on "наклон вперед.png": straight-ish support
+ * legs, high pelvis, torso folded forward/down, hands reaching to the floor in
+ * front of the feet, head lowered with the spine line.
+ */
+function createForwardFoldPose(): PoseData {
+  return {
+    [Body25Index.NOSE]: { x: 0.02, y: 0.58, z: -0.67 },
+    [Body25Index.NECK]: { x: 0.00, y: 0.76, z: -0.50 },
+    [Body25Index.RIGHT_SHOULDER]: { x: 0.17, y: 0.74, z: -0.47 },
+    [Body25Index.RIGHT_ELBOW]: { x: 0.16, y: 0.38, z: -0.52 },
+    [Body25Index.RIGHT_WRIST]: { x: 0.15, y: 0.07, z: -0.57 },
+    [Body25Index.LEFT_SHOULDER]: { x: -0.17, y: 0.74, z: -0.47 },
+    [Body25Index.LEFT_ELBOW]: { x: -0.16, y: 0.38, z: -0.52 },
+    [Body25Index.LEFT_WRIST]: { x: -0.15, y: 0.07, z: -0.57 },
+    [Body25Index.MID_HIP]: { x: 0.00, y: 0.94, z: 0.00 },
+    [Body25Index.RIGHT_HIP]: { x: 0.13, y: 0.90, z: 0.02 },
+    [Body25Index.RIGHT_KNEE]: { x: 0.12, y: 0.48, z: 0.03 },
+    [Body25Index.RIGHT_ANKLE]: { x: 0.11, y: 0.06, z: 0.02 },
+    [Body25Index.LEFT_HIP]: { x: -0.13, y: 0.90, z: 0.02 },
+    [Body25Index.LEFT_KNEE]: { x: -0.12, y: 0.48, z: 0.03 },
+    [Body25Index.LEFT_ANKLE]: { x: -0.11, y: 0.06, z: 0.02 },
+    [Body25Index.RIGHT_EYE]: { x: 0.06, y: 0.61, z: -0.72 },
+    [Body25Index.LEFT_EYE]: { x: -0.03, y: 0.61, z: -0.72 },
+    [Body25Index.RIGHT_EAR]: { x: 0.10, y: 0.62, z: -0.58 },
+    [Body25Index.LEFT_EAR]: { x: -0.10, y: 0.62, z: -0.58 },
+    [Body25Index.LEFT_BIG_TOE]: { x: -0.10, y: 0.00, z: -0.13 },
+    [Body25Index.LEFT_SMALL_TOE]: { x: -0.18, y: 0.00, z: -0.12 },
+    [Body25Index.LEFT_HEEL]: { x: -0.11, y: 0.00, z: 0.13 },
+    [Body25Index.RIGHT_BIG_TOE]: { x: 0.10, y: 0.00, z: -0.13 },
+    [Body25Index.RIGHT_SMALL_TOE]: { x: 0.18, y: 0.00, z: -0.12 },
+    [Body25Index.RIGHT_HEEL]: { x: 0.11, y: 0.00, z: 0.13 },
+  };
+}
+
+/**
+ * Forward fold through hip hinge.
+ *
+ * This variant intentionally bypasses PoseData -> inverseFK because inverseFK
+ * stores MID_HIP->NECK direction as spine bend. The photo pose is different:
+ * pelvis/torso rotate as one block at the hip joints, while the spine stays
+ * nearly straight and the neck extends back relative to the torso.
+ */
+function createForwardFoldHipHingeRig(): SkeletonRig {
+  const rig = createDefaultRig();
+
+  rig.rootPosition.set(0, 0.82, 0);
+  rig.rootRotation.setFromEuler(new Euler(-1.75, 0, 0, 'YXZ')).normalize();
+  rig.spine = setBend(rig.spine, 0, 0, 0);
+  rig.spineAngles = { bendX: 0, bendZ: 0, twistY: 0 };
+  rig.neck = setBend(rig.neck, 0.45, 0, 0);
+  rig.neckAngles = { bendX: 0.45, bendZ: 0, twistY: 0 };
+
+  let pose = resolveSkeleton(rig).pose;
+
+  for (const side of ['r', 'l'] as const) {
+    const hipIndex = side === 'r' ? Body25Index.RIGHT_HIP : Body25Index.LEFT_HIP;
+    const hip = new Vector3(
+      pose[hipIndex].x,
+      pose[hipIndex].y,
+      pose[hipIndex].z,
+    );
+    applyLegChainToRig(
+      rig,
+      side,
+      hip,
+      new Vector3(hip.x, 0.44, 0.03),
+      new Vector3(hip.x, 0.06, 0.02),
+    );
+  }
+
+  pose = resolveSkeleton(rig).pose;
+
+  for (const side of ['r', 'l'] as const) {
+    const shoulderIndex = side === 'r' ? Body25Index.RIGHT_SHOULDER : Body25Index.LEFT_SHOULDER;
+    const shoulder = new Vector3(
+      pose[shoulderIndex].x,
+      pose[shoulderIndex].y,
+      pose[shoulderIndex].z,
+    );
+    applyArmChainToRig(
+      rig,
+      side,
+      shoulder,
+      new Vector3(shoulder.x, 0.42, -0.50),
+      new Vector3(shoulder.x, 0.08, -0.58),
+    );
+  }
+
+  return rig;
+}
+
+function createForwardFoldHipHingePose(): PoseData {
+  return resolveSkeleton(createForwardFoldHipHingeRig()).pose;
+}
+
 export const POSE_PRESETS: PosePreset[] = [
   { id: 't-pose', name: 'T-Pose', icon: '🙆', poseData: createTPose() },
   { id: 'a-pose', name: 'A-Pose', icon: '🧍', poseData: createAPose() },
@@ -306,6 +448,15 @@ export const POSE_PRESETS: PosePreset[] = [
   { id: 'dancing', name: 'Dancing', icon: '💃', poseData: createDancingPose() },
   { id: 'waving', name: 'Waving', icon: '👋', poseData: createWavingPose() },
   { id: 'arms-crossed', name: 'Arms Crossed', icon: '💪', poseData: createArmsCrossedPose() },
+  { id: 'arabesque', name: 'Arabesque', icon: 'A', poseData: createArabesquePose() },
+  { id: 'forward-fold', name: 'Наклон вперед', icon: 'F', poseData: createForwardFoldPose() },
+  {
+    id: 'forward-fold-hip-hinge',
+    name: 'Наклон от тазобедренных',
+    icon: 'H',
+    poseData: createForwardFoldHipHingePose(),
+    createRig: createForwardFoldHipHingeRig,
+  },
 ];
 
 /**

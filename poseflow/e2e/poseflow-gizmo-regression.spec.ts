@@ -14,7 +14,6 @@ test('FootController right-foot gizmo accepts left drag in focus mode and undo',
     { x: 338, y: 465 },
   ], 'Правая стопа');
 
-  await enterFocusMode(page);
   const canvas = page.locator(CANVAS_SELECTOR);
   const beforeDrag = await canvas.screenshot();
 
@@ -57,6 +56,51 @@ test('PelvisController root gizmo accepts left drag in focus mode and undo', asy
   const afterUndo = await canvas.screenshot();
   expect(buffersDiffer(afterDrag, afterUndo)).toBe(true);
 });
+
+test('Knee-node controller accepts selected-leg drag when enabled', async ({ page }) => {
+  await enableKneeNodeController(page);
+  await openNormalCollapsedFrontView(page);
+  await selectElementAny(page, [
+    { x: 288, y: 392 },
+    { x: 287, y: 394 },
+    { x: 289, y: 390 },
+    { x: 292, y: 392 },
+    { x: 284, y: 392 },
+    { x: 340, y: 392 },
+  ], 'Правая нога');
+
+  await enterFocusMode(page);
+  const canvas = page.locator(CANVAS_SELECTOR);
+  const beforeDrag = await canvas.screenshot();
+
+  await dragPath(page, [
+    { x: 327, y: 374 },
+    { x: 327, y: 344 },
+    { x: 327, y: 314 },
+    { x: 327, y: 284 },
+  ]);
+
+  const afterDrag = await canvas.screenshot();
+  expect(buffersDiffer(beforeDrag, afterDrag)).toBe(true);
+
+  await page.keyboard.press('Control+Z');
+  await page.waitForTimeout(350);
+  const afterUndo = await canvas.screenshot();
+  expect(buffersDiffer(afterDrag, afterUndo)).toBe(true);
+});
+
+async function enableKneeNodeController(page: import('@playwright/test').Page): Promise<void> {
+  await page.addInitScript(() => {
+    const now = new Date().toISOString();
+    localStorage.setItem('poseflow_feature_flags', JSON.stringify({
+      ENABLE_KNEE_NODE_CONTROLLER: {
+        enabled: true,
+        activatedForUser: false,
+        lastUpdated: now,
+      },
+    }));
+  });
+}
 
 async function openNormalCollapsedFrontView(page: import('@playwright/test').Page): Promise<void> {
   await page.goto('/');

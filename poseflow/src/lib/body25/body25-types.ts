@@ -1,6 +1,8 @@
 // Типы для скелета BODY_25
 
 /** Индексы ключевых точек BODY_25 */
+import type { SkeletonRig } from '../rig/SkeletonRig';
+
 export enum Body25Index {
   NOSE = 0,
   NECK = 1,
@@ -71,6 +73,7 @@ export interface PosePreset {
   name: string;
   icon?: string;
   poseData: PoseData;
+  createRig?: () => SkeletonRig;
 }
 
 /** Формат экспорта */

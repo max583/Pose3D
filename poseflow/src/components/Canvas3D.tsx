@@ -127,6 +127,13 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({
   });
   const isMiniViewEnabled = useFeatureFlag('USE_MINI_VIEW');
   const isKneeNodeEnabled = useFeatureFlag('ENABLE_KNEE_NODE_CONTROLLER');
+  const activeKneeNodeSide = isKneeNodeEnabled
+    ? selectedElement === 'leg_r'
+      ? 'r'
+      : selectedElement === 'leg_l'
+        ? 'l'
+        : null
+    : null;
   const currentCameraRef = useRef<THREE.Camera | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
@@ -291,6 +298,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({
           onElementSelect={handleElementSelect}
           spineSegmentPositions={spineSegmentPositions}
           neckSegmentPositions={neckSegmentPositions}
+          activeKneeNodeSide={activeKneeNodeSide}
         />
 
         {/* Контроллеры гизмо — рендерятся только для выделенного элемента */}

@@ -202,13 +202,18 @@ describe('RigService — Stage 6.1 leg IK', () => {
     expect(after[Body25Index.RIGHT_ANKLE]!.z).toBeCloseTo(0.08, 2);
   });
 
-  it('applyLegIK поднимает колено выше бедра для глубокого переднего сгибания', () => {
+  it('applyLegIK не поднимает колено через patella-back путь для deep-front цели', () => {
+    const before = svc.getPoseData();
+    const ankleBefore = before[Body25Index.RIGHT_ANKLE]!;
+
     svc.beginDrag();
     svc.applyLegIK('r', 0.15, 1.2, 0.4);
 
     const pose = svc.getPoseData();
     expect(pose[Body25Index.RIGHT_KNEE]!.y)
-      .toBeGreaterThan(pose[Body25Index.RIGHT_HIP]!.y);
+      .toBeLessThan(pose[Body25Index.RIGHT_HIP]!.y);
+    expect(distance(pose[Body25Index.RIGHT_ANKLE]!, { x: 0.15, y: 1.2, z: 0.4 }))
+      .toBeLessThanOrEqual(distance(ankleBefore, { x: 0.15, y: 1.2, z: 0.4 }) + 1e-4);
   });
 
   it('applyLegIK сохраняет выставленную twist-плоскость колена после knee gizmo', () => {
