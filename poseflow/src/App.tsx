@@ -7,7 +7,6 @@ import { StatusBar } from './components/StatusBar';
 import { ExportFrameData } from './components/ExportFrame';
 import { useIPC } from './hooks/useIPC';
 import { uiLogger, exportLogger } from './lib/logger';
-import { FeatureFlagProvider } from './context/FeatureFlagContext';
 import { ServiceProvider } from './context/ServiceContext';
 import { usePoseService, useExportService } from './context/ServiceContext';
 import './App.css';
@@ -120,9 +119,7 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ServiceProvider>
-      <FeatureFlagProvider>
-        <AppContent />
-      </FeatureFlagProvider>
+      <AppContent />
     </ServiceProvider>
   );
 };
